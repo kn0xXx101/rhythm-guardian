@@ -1,0 +1,483 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, MapPin, MessageCircle, Check, X, CreditCard, Clock, Star } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { useBookingContext } from '@/contexts/BookingContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { formatGHSWithSymbol } from '@/lib/currency';
+import { useNavigate } from 'react-router-dom';
+import { OptimizedImage } from '@/components/ui/optimized-image';
+import { ReviewDialog } from '@/components/booking/ReviewDialog';
+import { checkAndExpireBookings } from '@/services/booking-expiration';
+import { supabase } from '@/lib/supabase';
+
+const MusicianBookings = () => {
+  const [activeTab, setActiveTab] = useState('all');
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [selectedBookingForReview, setSelectedBookingForReview] = useState<any>(null);
+  const [existingReviews, setExistingReviews] = useState<Set<string>>(new Set());
+  const {
+    bookings,
+    updateBooking,
+    confirmService,
+    isLoading,
+    refetch,
+  } = useBookingContext();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Check for expired bookings when component mounts
+  useEffect(() => {
+    const checkExpiredBookings = async () => {
+      const result = await checkAndExpireBookings();
+      if (result.success && result.expiredCount > 0) {
+        console.log(`Expired ${result.expiredCount} booking(s)`);
+        // Refetch bookings to get updated data
+        if (refetch) {
+          refetch();
+        }
+      }
+    };
+
+    checkExpiredBookings();
+  }, [refetch]);
+
+  // Fetch existing reviews to check which reviewees already have reviews from this user
+  useEffect(() => {
+    const fetchExistingReviews = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: reviews, error } = await supabase
+          .from('reviews')
+          .select('reviewee_id')
+          .eq('reviewer_id', user.id);
+
+        if (error) throw error;
+
+        const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
+        setExistingReviews(reviewedUserIds);
+      } catch (error) {
+        console.error('Error fetching existing reviews:', error);
+      }
+    };
+
+    fetchExistingReviews();
+  }, [user?.id, bookings]); // Re-fetch when bookings change
+
+  // Filter bookings for current musician
+  const musicianBookings = bookings.filter((b) => b.musician.id === user?.id);
+
+  const filteredBookings =
+    activeTab === 'all'
+      ? musicianBookings
+      : musicianBookings.filter((booking) => {
+          if (activeTab === 'upcoming') return booking.status === 'upcoming' || booking.status === 'accepted';
+          return booking.status === activeTab;
+        });
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'accepted':
+        return 'bg-blue-100 text-blue-800';
+      case 'upcoming':
+        return 'bg-blue-100 text-blue-800';
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'expired':
+        return 'bg-gray-100 text-gray-600';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleConfirmService = async (bookingId: string) => {
+    try {
+      await confirmService(bookingId, 'musician');
+      toast({
+        title: 'Service Confirmed',
+        description: 'You have confirmed that the service has been rendered.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to confirm service. Please try again.',
+      });
+    }
+  };
+
+  const handleAccept = async (bookingId: string) => {
+    try {
+      await updateBooking(bookingId, { status: 'upcoming' });
+      const booking = bookings.find((b) => b.id === bookingId);
+      toast({
+        title: 'Booking Accepted',
+        description: `You've accepted ${booking?.client.name}'s booking request for ${booking?.date}.`,
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to accept booking. Please try again.',
+      });
+    }
+  };
+
+  const handleDecline = async (bookingId: string) => {
+    try {
+      await updateBooking(bookingId, { status: 'cancelled' });
+      const booking = bookings.find((b) => b.id === bookingId);
+      toast({
+        title: 'Booking Declined',
+        description: `You've declined ${booking?.client.name}'s booking request.`,
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to decline booking. Please try again.',
+      });
+    }
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      await updateBooking(bookingId, { status: 'cancelled' });
+      toast({
+        title: 'Booking Cancelled',
+        description: `You've cancelled the booking.`,
+        variant: 'destructive',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to cancel booking. Please try again.',
+      });
+    }
+  };
+
+  const handleMessage = (clientId: string) => {
+    navigate(`/musician/chat?user=${clientId}`);
+  };
+
+  const formatBookingDate = (date: string) => {
+    if (!date) return 'Date TBD';
+    try {
+      const parsed = new Date(date);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString();
+      }
+    } catch {
+      return date;
+    }
+    return date;
+  };
+
+  const getMapLink = (location?: string) => {
+    if (!location) return '';
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  };
+
+  const buildCalendarLink = (booking: any) => {
+    if (!booking.date) return '';
+    const start = new Date(booking.date);
+    if (isNaN(start.getTime())) return '';
+    const durationHours = booking.durationHours || 1;
+    const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
+    const formatGoogleDate = (value: Date) =>
+      value.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const dates = `${formatGoogleDate(start)}/${formatGoogleDate(end)}`;
+    const text = encodeURIComponent(`Booking with ${booking.client?.name || 'Client'}`);
+    const details = encodeURIComponent(booking.description || 'Booking');
+    const location = encodeURIComponent(booking.location || '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`;
+  };
+
+  return (
+    <div className="container mx-auto py-8 space-y-6 animate-fade-in">
+      <h1 className="text-3xl font-bold">My Bookings</h1>
+
+      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6 w-full flex-wrap h-auto gap-1 justify-start">
+          <TabsTrigger value="all">All Bookings</TabsTrigger>
+          <TabsTrigger value="pending">Booking Requests</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+          <TabsTrigger value="completed">Past Bookings</TabsTrigger>
+          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+          <TabsTrigger value="expired">Expired</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value={activeTab}>
+          <div className="space-y-4">
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading bookings...</p>
+              </div>
+            ) : filteredBookings.length > 0 ? (
+              filteredBookings.map((booking) => {
+                const calendarLink = buildCalendarLink(booking);
+                return (
+                <Card
+                  key={booking.id}
+                  className="overflow-hidden hover:shadow-lg hover:scale-[1.01] transition-all duration-300 group border-2"
+                >
+                  <CardContent className="p-0">
+                    <div className="flex flex-col md:flex-row">
+                      <div className="md:w-1/5 p-4 flex flex-col items-center justify-center bg-muted/30 group-hover:bg-muted/50 transition-colors">
+                        <div className="w-20 h-20 rounded-full overflow-hidden mb-2 ring-2 ring-transparent group-hover:ring-primary transition-all duration-300">
+                          <OptimizedImage
+                            src={booking.client.image}
+                            alt={booking.client.name}
+                            className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-300"
+                            fallbackSrc="/placeholder.svg"
+                          />
+                        </div>
+                        <h3 className="font-medium text-center group-hover:text-primary transition-colors">
+                          {booking.client.name}
+                        </h3>
+                        <div className="flex items-center gap-1 mt-1">
+                          <span className="text-xs text-muted-foreground">Client</span>
+                        </div>
+                      </div>
+
+                      <div className="md:w-3/5 p-6">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+                          <div className="min-w-0">
+                            <h4 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                              {booking.description}
+                            </h4>
+                            <div className="flex flex-wrap gap-4 mt-2">
+                              <div className="flex items-center gap-1 text-sm group-hover:text-primary/80 transition-colors">
+                                <Calendar className="h-4 w-4" />
+                                <span>{formatBookingDate(booking.date)}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm group-hover:text-primary/80 transition-colors">
+                                <Clock className="h-4 w-4" />
+                                <span>{booking.time || 'Time TBD'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm group-hover:text-primary/80 transition-colors">
+                                <Clock className="h-4 w-4" />
+                                <span>
+                                  {booking.durationHours ? `${booking.durationHours} hours` : 'Hours TBD'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm group-hover:text-primary/80 transition-colors">
+                                <MapPin className="h-4 w-4" />
+                                {booking.location ? (
+                                  <a
+                                    href={getMapLink(booking.location)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="underline underline-offset-2"
+                                  >
+                                    {booking.location}
+                                  </a>
+                                ) : (
+                                  <span>Location TBD</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 text-sm group-hover:text-primary/80 transition-colors">
+                                <CreditCard className="h-4 w-4" />
+                                <span className="font-medium">
+                                  {booking.paymentStatus === 'unpaid' ? 'Unpaid' : 
+                                   booking.paymentStatus === 'paid_to_admin' ? 'Paid' :
+                                   booking.paymentStatus.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              {booking.payoutStatus && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <span
+                                    className={
+                                      booking.payoutStatus === 'released'
+                                        ? 'text-green-600'
+                                        : 'text-yellow-600'
+                                    }
+                                  >
+                                    {booking.payoutStatus === 'released'
+                                      ? 'Payout Released'
+                                      : 'Payout Pending'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${getStatusBadgeClass(
+                                  booking.status
+                                )}`}
+                              >
+                                {booking.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="sm:text-right">
+                            <p className="font-bold text-xl group-hover:text-primary transition-colors">
+                              {formatGHSWithSymbol(booking.price)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="md:w-1/5 p-6 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l">
+                        {(booking.status !== 'expired' && booking.status !== 'cancelled') && (
+                          <Button
+                            className="w-full hover:scale-105 transition-transform duration-200"
+                            onClick={() => handleMessage(booking.client.id)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" /> Message
+                          </Button>
+                        )}
+                        {calendarLink ? (
+                          <Button variant="ghost" className="w-full" asChild>
+                            <a href={calendarLink} target="_blank" rel="noreferrer">
+                              Add to Calendar
+                            </a>
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" className="w-full" disabled>
+                            Add to Calendar
+                          </Button>
+                        )}
+                        {booking.status === 'pending' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              className="w-full text-green-700 hover:text-green-800 hover:bg-green-50"
+                              onClick={() => handleAccept(booking.id)}
+                            >
+                              <Check className="h-4 w-4 mr-2" /> Accept
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDecline(booking.id)}
+                            >
+                              <X className="h-4 w-4 mr-2" /> Decline
+                            </Button>
+                          </>
+                        )}
+                        {booking.status === 'upcoming' && (
+                          <>
+                            {!booking.serviceConfirmedByMusician ? (
+                              <Button
+                                variant="outline"
+                                className="w-full text-green-700 border-green-700 hover:bg-green-50"
+                                onClick={() => handleConfirmService(booking.id)}
+                              >
+                                Confirm Rendering
+                              </Button>
+                            ) : (
+                              <div className="text-center py-2 px-3 bg-green-50 rounded-md border border-green-200">
+                                <span className="text-xs font-medium text-green-700 flex items-center justify-center gap-1">
+                                  <Check className="h-3 w-3" />
+                                  Rendered
+                                </span>
+                              </div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleCancelBooking(booking.id)}
+                            >
+                              Cancel Booking
+                            </Button>
+                          </>
+                        )}
+                        {booking.status === 'completed' && (
+                          <>
+                            <div className="text-center py-2 px-3 bg-green-100 rounded-md mb-2">
+                              <span className="text-xs font-bold text-green-800 uppercase tracking-wider">
+                                Completed
+                              </span>
+                            </div>
+                            {!existingReviews.has(booking.client.id) ? (
+                              <Button
+                                variant="outline"
+                                className="w-full text-yellow-600 border-yellow-600 hover:bg-yellow-50"
+                                onClick={() => {
+                                  setSelectedBookingForReview(booking);
+                                  setReviewDialogOpen(true);
+                                }}
+                              >
+                                <Star className="h-4 w-4 mr-2" />
+                                Leave a Review
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                className="w-full text-green-600 border-green-600 hover:bg-green-50"
+                                disabled
+                              >
+                                ✓ Review Submitted
+                              </Button>
+                            )}
+                          </>
+                        )}
+                        {booking.status === 'cancelled' && (
+                          <Button variant="ghost" className="w-full text-muted-foreground" disabled>
+                            Cancelled
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                );
+              })
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">
+                  No {activeTab === 'all' ? '' : activeTab} bookings found.
+                </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Review Dialog */}
+      {selectedBookingForReview && (
+        <ReviewDialog
+          open={reviewDialogOpen}
+          onOpenChange={setReviewDialogOpen}
+          bookingId={selectedBookingForReview.id}
+          revieweeId={selectedBookingForReview.client.id}
+          revieweeName={selectedBookingForReview.client.name}
+          reviewerId={user?.id || ''}
+          onSuccess={() => {
+            // Refresh existing reviews to update the UI
+            const fetchExistingReviews = async () => {
+              if (!user?.id) return;
+              try {
+                const { data: reviews, error } = await supabase
+                  .from('reviews')
+                  .select('reviewee_id')
+                  .eq('reviewer_id', user.id);
+
+                if (error) throw error;
+
+                const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
+                setExistingReviews(reviewedUserIds);
+              } catch (error) {
+                console.error('Error fetching existing reviews:', error);
+              }
+            };
+            fetchExistingReviews();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default MusicianBookings;

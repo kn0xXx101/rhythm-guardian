@@ -1,0 +1,48 @@
+/* Enhanced Card Styles */
+.card-enhanced {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+  transition: all 0.2s ease-out;
+  transform: translateZ(0);
+}
+
+.card-enhanced:hover {
+  transform: translateY(-4px) translateZ(0);
+  box-shadow: 0 12px 24px rgb(0 0 0 / 0.15);
+}
+
+.card-enhanced::before {
+  display: none;
+}
+
+/* Enhanced Button Styles */
+.btn-enhanced {
+  background: hsl(var(--primary));
+  border-radius: 12px;
+  box-shadow: 0 2px 8px 0 hsl(var(--primary) / 0.3);
+  transition: all 0.2s ease-out;
+}
+
+.btn-enhanced:hover {
+  transform: translateY(-2px);
+  background: hsl(var(--primary-hover));
+  box-shadow: 0 8px 16px 0 hsl(var(--primary) / 0.4);
+}
+
+/* Enhanced Badge Styles */
+.badge-enhanced {
+  background: hsl(var(--secondary));
+  border-radius: 20px;
+  box-shadow: 0 1px 3px 0 hsl(var(--secondary) / 0.3);
+  padding: 6px 12px;
+  font-weight: 500;
+  transition: all 0.2s ease-out;
+}
+
+.badge-enhanced:hover {
+  background: hsl(var(--secondary-hover));
+  box-shadow: 0 2px 6px 0 hsl(var(--secondary) / 0.4);
+  transform: translateY(-1px);
+}

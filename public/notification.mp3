@@ -1,0 +1,8 @@
+# This is a placeholder for the notification sound file
+# You'll need to add an actual notification.mp3 file here
+# You can use a free notification sound from:
+# - https://notificationsounds.com/
+# - https://freesound.org/
+# - Or create your own
+
+# For now, the app will gracefully handle the missing file

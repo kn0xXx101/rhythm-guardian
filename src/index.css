@@ -1,0 +1,979 @@
+/* UI/UX Pro Max Typography - All Available Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Righteous&family=Fredoka:wght@300;400;500;600;700&display=swap');
+
+@import './styles/enhanced-cards.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Set default font families */
+  body {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Righteous', sans-serif;
+  }
+}
+
+@layer base {
+  body {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Righteous', sans-serif;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 250 100% 99%;
+    --foreground: 250 10% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 250 10% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 250 10% 15%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 262 83% 48%;
+
+    --secondary: 250 12% 94%;
+    --secondary-foreground: 250 10% 15%;
+    --secondary-hover: 250 12% 85%;
+
+    --muted: 250 10% 94%;
+    --muted-foreground: 250 10% 38%;
+    --muted-hover: 250 10% 88%;
+
+    --accent: 250 10% 94%;
+    --accent-foreground: 250 10% 15%;
+    --accent-hover: 250 10% 85%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 0 84% 50%;
+
+    --border: 250 10% 88%;
+    --input: 250 10% 88%;
+    --ring: 262 83% 58%;
+
+    --radius: 0.75rem;
+
+    /* Semantic Colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+
+    /* Gradient Definitions */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 65%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 71% 55%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(var(--warning)) 0%, hsl(38 92% 60%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(var(--info)) 0%, hsl(199 89% 58%) 100%);
+    --gradient-error: linear-gradient(135deg, hsl(var(--error)) 0%, hsl(0 84% 70%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+
+    --sidebar-background: 250 20% 15%;
+    --sidebar-foreground: 250 10% 95%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 250 12% 25%;
+    --sidebar-accent-foreground: 250 10% 95%;
+    --sidebar-border: 250 12% 25%;
+    --sidebar-ring: 262 83% 58%;
+  }
+
+  .dark {
+    --background: 250 20% 10%;
+    --foreground: 250 10% 95%;
+
+    --card: 250 20% 13%;
+    --card-foreground: 250 10% 95%;
+
+    --popover: 250 20% 13%;
+    --popover-foreground: 250 10% 95%;
+
+    --primary: 217 91% 60%;          /* #3B82F6 - Trust blue */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 70%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 262 83% 68%;
+
+    --secondary: 250 12% 20%;
+    --secondary-foreground: 250 10% 95%;
+    --secondary-hover: 250 12% 28%;
+
+    --muted: 250 12% 20%;
+    --muted-foreground: 250 10% 70%;
+    --muted-hover: 250 12% 25%;
+
+    --accent: 250 12% 20%;
+    --accent-foreground: 250 10% 95%;
+    --accent-hover: 250 12% 28%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 250 10% 95%;
+    --destructive-hover: 0 84% 70%;
+
+    --border: 250 12% 20%;
+    --input: 250 12% 20%;
+    --ring: 262 83% 58%;
+
+    /* Semantic Colors - Dark Mode */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --error: 0 84% 60%;
+    --error-foreground: 0 0% 100%;
+
+    /* Gradient Definitions - Dark Mode */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(262 83% 65%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(142 71% 55%) 100%);
+    --gradient-warning: linear-gradient(135deg, hsl(var(--warning)) 0%, hsl(38 92% 60%) 100%);
+    --gradient-info: linear-gradient(135deg, hsl(var(--info)) 0%, hsl(199 89% 58%) 100%);
+    --gradient-error: linear-gradient(135deg, hsl(var(--error)) 0%, hsl(0 84% 70%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+
+    --sidebar-background: 250 20% 7%;
+    --sidebar-foreground: 250 10% 95%;
+    --sidebar-primary: 262 83% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 250 12% 15%;
+    --sidebar-accent-foreground: 250 10% 95%;
+    --sidebar-border: 250 12% 15%;
+    --sidebar-ring: 262 83% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Smooth transitions for theme changes - optimized for performance */
+  html {
+    /* Only transition color-related properties */
+    transition: color-scheme 0.2s ease;
+  }
+
+  /* Apply transitions only to body and root-level elements */
+  body {
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+      color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Respect prefers-reduced-motion for accessibility */
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Disable specific animation classes */
+    .animate-float,
+    .animate-orbit-1,
+    .animate-orbit-2,
+    .animate-orbit-3,
+    .animate-orbit-4,
+    .animate-gradient,
+    .animate-bounce-subtle,
+    .animate-spin-slow,
+    .animate-pulse,
+    .animate-bounce,
+    .animate-spin,
+    .animate-shimmer,
+    .particle {
+      animation: none !important;
+    }
+
+    /* Disable hover transforms that cause motion */
+    .hover\:scale-105:hover,
+    .hover\:scale-110:hover,
+    .hover\:-translate-y-0\.5:hover {
+      transform: none !important;
+    }
+  }
+
+  /* Reduce animations on mobile devices for better performance */
+  @media (max-width: 768px) {
+
+    /* Disable complex animations on mobile for better performance */
+    .animate-float,
+    .animate-orbit-1,
+    .animate-orbit-2,
+    .animate-orbit-3,
+    .animate-orbit-4,
+    .animate-gradient,
+    .animate-bounce-subtle,
+    .animate-spin-slow,
+    .particle {
+      animation: none !important;
+    }
+
+    /* Disable hover effects on mobile (touch devices don't have hover states) */
+    .animated-icon:hover,
+    .card-hover:hover,
+    .hover\:scale-110:hover,
+    .hover\:-translate-y-0\.5:hover {
+      transform: none !important;
+      scale: 1 !important;
+    }
+  }
+
+  /* Safe area insets for devices with notches/home indicators */
+  @supports (padding: max(0px)) {
+    .safe-area-inset-bottom {
+      padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+
+    .safe-area-inset-top {
+      padding-top: max(0.5rem, env(safe-area-inset-top));
+    }
+  }
+
+  /* Enhanced focus-visible styles for better keyboard navigation */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove focus outline for mouse users */
+  *:focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Ensure interactive elements have visible focus indicators */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="link"]:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Hide scrollbar for webkit browsers */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for Firefox */
+  html {
+    scrollbar-width: none;
+  }
+
+  /* Ensure scrolling still works */
+  body,
+  html {
+    overflow-x: hidden;
+    -ms-overflow-style: none;
+  }
+}
+
+@layer components {
+
+  /* Icon Animations */
+  .animated-icon {
+    @apply transition-transform duration-200 ease-out;
+  }
+
+  .animated-icon:hover {
+    @apply transform scale-110;
+  }
+
+  /* Card Hover Effects */
+  .card-hover {
+    @apply transition-all duration-200 ease-out hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5;
+  }
+
+  /* Glassmorphism Effects */
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .glass {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .dark .glass-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass-strong {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  /* Gradient Backgrounds */
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .bg-gradient-success {
+    background: var(--gradient-success);
+  }
+
+  .bg-gradient-warning {
+    background: var(--gradient-warning);
+  }
+
+  .bg-gradient-info {
+    background: var(--gradient-info);
+  }
+
+  .bg-gradient-error {
+    background: var(--gradient-error);
+  }
+
+  .bg-gradient-card {
+    background: var(--gradient-card);
+  }
+
+  /* Button Press Animation */
+  .btn-press {
+    @apply transition-transform duration-150 ease-out;
+  }
+
+  .btn-press:active {
+    @apply scale-95;
+  }
+
+  /* Ripple Effect Container */
+  .ripple-container {
+    @apply relative overflow-hidden;
+  }
+
+  /* Loading Skeleton */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+
+  /* Smooth Transitions */
+  .transition-smooth {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .transition-fast {
+    transition: all 0.15s ease-out;
+  }
+
+  /* Fixed Height Text */
+  .fixed-height-text {
+    height: 80px;
+    overflow: hidden;
+  }
+
+  /* Animation Delays */
+  .animation-delay-2000 {
+    animation-delay: 2000ms;
+  }
+
+  .animation-delay-4000 {
+    animation-delay: 4000ms;
+  }
+
+  /* Backdrop Blur Utilities */
+  .backdrop-blur-sm {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .backdrop-blur-md {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .backdrop-blur-lg {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  .backdrop-blur-xl {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Screen reader only - visually hidden but accessible to assistive technologies */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  /* Responsive Typography - Fluid typography using clamp() */
+  .text-fluid-xs {
+    font-size: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  }
+
+  .text-fluid-sm {
+    font-size: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  }
+
+  .text-fluid-base {
+    font-size: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  }
+
+  .text-fluid-lg {
+    font-size: clamp(1.125rem, 1rem + 0.625vw, 1.5rem);
+  }
+
+  .text-fluid-xl {
+    font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.875rem);
+  }
+
+  .text-fluid-2xl {
+    font-size: clamp(1.5rem, 1.3rem + 1vw, 2.25rem);
+  }
+
+  .text-fluid-3xl {
+    font-size: clamp(1.875rem, 1.5rem + 1.875vw, 3rem);
+  }
+
+  .text-fluid-4xl {
+    font-size: clamp(2.25rem, 1.8rem + 2.25vw, 3.75rem);
+  }
+
+  .text-fluid-5xl {
+    font-size: clamp(3rem, 2.4rem + 3vw, 4.5rem);
+  }
+
+  /* Touch target utilities for mobile - ensure minimum 44x44px */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Prefers Reduced Motion - Accessibility */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .touch-target {
+      min-height: auto;
+      min-width: auto;
+    }
+  }
+}
+
+
+/* ===== SOLID HOVER EFFECTS ===== */
+
+/* Navigation Links */
+nav a {
+  transition: all 0.2s ease-out;
+}
+
+nav a:hover {
+  transform: translateX(4px);
+}
+
+/* Sidebar Items */
+.sidebar-item {
+  transition: all 0.2s ease-out;
+}
+
+.sidebar-item:hover {
+  transform: translateX(6px);
+  border-left: 3px solid hsl(var(--primary));
+}
+
+/* Table Rows */
+tr {
+  transition: all 0.2s ease-out;
+}
+
+tr:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Links */
+a {
+  transition: all 0.2s ease-out;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Input Focus */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+  transition: all 0.2s ease-out;
+}
+
+/* Badge Hover */
+.badge {
+  transition: all 0.2s ease-out;
+}
+
+.badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Icon Buttons */
+button[aria-label]:hover,
+[role="button"]:hover {
+  transform: scale(1.1);
+  transition: all 0.2s ease-out;
+}
+
+/* Dropdown Items */
+[role="menuitem"]:hover,
+[role="option"]:hover {
+  transition: all 0.2s ease-out;
+}
+
+/* List Items */
+li:hover {
+  transition: all 0.2s ease-out;
+}
+
+/* Tabs */
+[role="tab"]:hover {
+  border-bottom: 3px solid hsl(var(--primary));
+  transition: all 0.2s ease-out;
+}
+
+/* Checkbox & Radio Hover */
+input[type="checkbox"]:hover,
+input[type="radio"]:hover {
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.2);
+  transition: all 0.2s ease-out;
+}
+
+/* Switch Hover */
+[role="switch"]:hover {
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.2);
+  transition: all 0.2s ease-out;
+}
+
+/* Override any card hover background colors */
+.card:hover,
+[class*="card"]:hover,
+div[class*="Card"]:hover {
+  background-color: inherit !important;
+  background-image: none !important;
+  background: inherit !important;
+}
+
+/* Ensure no gradient backgrounds on hover */
+*:hover {
+  background-image: none !important;
+}
+
+/* Override Tailwind hover background utilities */
+.hover\:bg-primary:hover,
+.hover\:bg-secondary:hover,
+.hover\:bg-accent:hover,
+.hover\:bg-muted:hover,
+.hover\:bg-gradient-to-r:hover,
+.hover\:bg-gradient-to-br:hover,
+.hover\:from-primary:hover,
+.hover\:to-primary:hover {
+  background: inherit !important;
+  background-image: none !important;
+}
+
+/* Ensure no gradient backgrounds on hover */
+*:hover {
+  background-image: none !important;
+}
+
+/* Override Tailwind hover background utilities */
+.hover\:bg-primary:hover,
+.hover\:bg-secondary:hover,
+.hover\:bg-accent:hover,
+.hover\:bg-muted:hover,
+.hover\:bg-gradient-to-r:hover,
+.hover\:bg-gradient-to-br:hover,
+.hover\:from-primary:hover,
+.hover\:to-primary:hover {
+  background: inherit !important;
+  background-image: none !important;
+}
+
+/* Advanced Logo Animations */
+@keyframes logo-breathe {
+  0%, 100% { 
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+  50% { 
+    transform: scale(1.02) rotate(1deg);
+    filter: brightness(1.1);
+  }
+}
+
+@keyframes sparkle-twinkle {
+  0%, 100% { 
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
+@keyframes rainbow-border {
+  0% { 
+    border-color: var(--primary);
+  }
+  33% { 
+    border-color: var(--secondary);
+  }
+  66% { 
+    border-color: var(--accent);
+  }
+  100% { 
+    border-color: var(--primary);
+  }
+}
+
+@keyframes text-glow-pulse {
+  0%, 100% { 
+    text-shadow: 0 0 5px currentColor;
+  }
+  50% { 
+    text-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+}
+
+/* Utility classes for advanced animations */
+.animate-logo-breathe {
+  animation: logo-breathe 4s ease-in-out infinite;
+}
+
+.animate-sparkle-twinkle {
+  animation: sparkle-twinkle 2s ease-in-out infinite;
+}
+
+.animate-rainbow-border {
+  animation: rainbow-border 3s linear infinite;
+}
+
+.animate-text-glow-pulse {
+  animation: text-glow-pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced hover effects */
+.logo-container:hover .logo-image {
+  animation: logo-breathe 1s ease-in-out infinite;
+}
+
+.logo-container:hover .logo-text {
+  animation: text-glow-pulse 1.5s ease-in-out infinite;
+}/*
+ UI/UX Pro Max Typography Classes */
+@layer components {
+  /* Display Typography - Righteous for bold, energetic headers */
+  .text-display {
+    font-family: 'Righteous', sans-serif;
+    font-weight: 400; /* Righteous only has 400 weight */
+  }
+  
+  .text-display-xl {
+    font-family: 'Righteous', sans-serif;
+    font-size: 3.75rem; /* 60px */
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-display-lg {
+    font-family: 'Righteous', sans-serif;
+    font-size: 3rem; /* 48px */
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-display-md {
+    font-family: 'Righteous', sans-serif;
+    font-size: 2.25rem; /* 36px */
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-display-sm {
+    font-family: 'Righteous', sans-serif;
+    font-size: 1.875rem; /* 30px */
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+
+  /* Body Typography - Poppins for readability */
+  .text-body {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  .text-body-xl {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.25rem; /* 20px */
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  
+  .text-body-lg {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  
+  .text-body-md {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem; /* 16px */
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  
+  .text-body-sm {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.5;
+    font-weight: 400;
+  }
+
+  /* Music Platform Specific Typography */
+  .text-hero {
+    font-family: 'Righteous', sans-serif;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-section-title {
+    font-family: 'Righteous', sans-serif;
+    font-size: clamp(1.875rem, 3vw, 2.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-card-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.25rem;
+    line-height: 1.3;
+    font-weight: 600;
+  }
+  
+  .text-button {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    letter-spacing: 0.025em;
+  }
+}/* UI
+/UX Pro Max Typography Utilities */
+@layer utilities {
+  /* Display Font Classes - For headings, logos, and bold statements */
+  .font-display {
+    font-family: 'Righteous', sans-serif;
+  }
+  
+  .font-heading {
+    font-family: 'Righteous', sans-serif;
+  }
+  
+  /* Body Font Classes - For body text and UI elements */
+  .font-body {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  /* Typography Scale - Music Platform Optimized */
+  .text-display-xl {
+    font-family: 'Righteous', sans-serif;
+    font-size: 3.75rem; /* 60px */
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  
+  .text-display-lg {
+    font-family: 'Righteous', sans-serif;
+    font-size: 3rem; /* 48px */
+    line-height: 1.1;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+  
+  .text-display-md {
+    font-family: 'Righteous', sans-serif;
+    font-size: 2.25rem; /* 36px */
+    line-height: 1.2;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  
+  .text-display-sm {
+    font-family: 'Righteous', sans-serif;
+    font-size: 1.875rem; /* 30px */
+    line-height: 1.3;
+    font-weight: 400;
+  }
+  
+  /* Heading Classes */
+  .text-heading-xl {
+    font-family: 'Righteous', sans-serif;
+    font-size: 1.5rem; /* 24px */
+    line-height: 1.3;
+    font-weight: 400;
+  }
+  
+  .text-heading-lg {
+    font-family: 'Righteous', sans-serif;
+    font-size: 1.25rem; /* 20px */
+    line-height: 1.4;
+    font-weight: 400;
+  }
+  
+  .text-heading-md {
+    font-family: 'Righteous', sans-serif;
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.4;
+    font-weight: 400;
+  }
+  
+  /* Body Text Classes */
+  .text-body-xl {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.125rem; /* 18px */
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  
+  .text-body-lg {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem; /* 16px */
+    line-height: 1.6;
+    font-weight: 400;
+  }
+  
+  .text-body-md {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.875rem; /* 14px */
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  
+  .text-body-sm {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.5;
+    font-weight: 400;
+  }
+  
+  /* Music Platform Specific Typography */
+  .text-logo {
+    font-family: 'Righteous', sans-serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  
+  .text-artist-name {
+    font-family: 'Righteous', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.01em;
+  }
+  
+  .text-song-title {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  
+  .text-music-meta {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 400;
+    opacity: 0.8;
+  }
+  
+  /* Interactive Text States */
+  .text-interactive {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .text-interactive:hover {
+    font-weight: 600;
+  }
+  
+  /* Responsive Typography */
+  @media (max-width: 768px) {
+    .text-display-xl {
+      font-size: 2.5rem; /* 40px */
+    }
+    
+    .text-display-lg {
+      font-size: 2rem; /* 32px */
+    }
+    
+    .text-display-md {
+      font-size: 1.75rem; /* 28px */
+    }
+  }
+}
