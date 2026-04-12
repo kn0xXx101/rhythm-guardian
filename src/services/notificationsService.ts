@@ -101,21 +101,19 @@ export const notificationsService = {
   },
 
   async createNotification(notification: Omit<Notification, 'id' | 'created_at'>) {
-    const payload = {
+    const payload: any = {
       user_id: notification.user_id,
       type: notification.type,
       title: notification.title,
       content: notification.message,
-      read: notification.is_read,
+      read: notification.is_read || false,
       action_url: notification.link,
-      metadata: notification.data,
-      priority: notification.priority,
-      icon: notification.icon
+      metadata: notification.data || {},
     };
 
     const { data, error } = await supabase
       .from('notifications')
-      .insert(payload as any)
+      .insert(payload)
       .select()
       .single();
 
@@ -130,7 +128,7 @@ export const notificationsService = {
   },
 
   async getPreferences(userId: string) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
@@ -153,7 +151,7 @@ export const notificationsService = {
         push_messages: true,
       };
 
-      const { data: newPrefs, error: createError } = await supabase
+      const { data: newPrefs, error: createError } = await (supabase as any)
         .from('notification_preferences')
         .insert(defaultPrefs)
         .select()
@@ -167,16 +165,11 @@ export const notificationsService = {
   },
 
   async updatePreferences(userId: string, preferences: Partial<NotificationPreferences>) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('notification_preferences')
       .upsert(
-        {
-          user_id: userId,
-          ...preferences,
-        },
-        {
-          onConflict: 'user_id',
-        }
+        { user_id: userId, ...preferences },
+        { onConflict: 'user_id' }
       )
       .select()
       .single();

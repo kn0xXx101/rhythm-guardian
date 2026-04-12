@@ -160,10 +160,10 @@ class AdminService {
           );
 
       const totalBookings = bookingsList.length;
-      const pendingBookings = countByStatus(['pending', 'accepted', 'confirmed', 'in_progress']);
-      const confirmedBookings = countByStatus(['confirmed', 'accepted']);
+      const pendingBookings = countByStatus(['pending', 'accepted']);
+      const confirmedBookings = countByStatus(['in_progress']);
       const completedBookings = countByStatus(['completed']);
-      const cancelledBookings = countByStatus(['cancelled']);
+      const cancelledBookings = countByStatus(['cancelled', 'rejected']);
 
       const totalSpent = sumAmounts((b) => b.payment_status === 'paid');
       
@@ -250,7 +250,6 @@ class AdminService {
 
   async getUsers(filters?: { status?: string; role?: string; search?: string }): Promise<User[]> {
     try {
-      console.log('Starting getUsers with filters:', filters);
 
       // Try direct database query first (fallback approach)
       try {
@@ -304,7 +303,6 @@ class AdminService {
           completionPercentage: profile.profile_completion_percentage || 0,
         }));
 
-        console.log(`Successfully fetched ${users.length} users via direct query`);
         return users;
 
       } catch (directQueryError) {
@@ -374,7 +372,6 @@ class AdminService {
 
         const data = await response.json();
         const users = data.users || [];
-        console.log(`Successfully fetched ${users.length} users via edge function`);
 
         return users;
       }
@@ -395,7 +392,6 @@ class AdminService {
 
         if (error) throw error;
 
-        console.log(`Successfully updated user ${userId} status to ${status} via direct query`);
         return true;
 
       } catch (directQueryError) {
@@ -468,7 +464,6 @@ class AdminService {
 
         if (error) throw error;
 
-        console.log(`Successfully verified user ${userId} via direct query`);
         return true;
 
       } catch (directQueryError) {

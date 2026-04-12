@@ -15,8 +15,11 @@ SELECT
     b.*,
     h.full_name as hirer_name,
     h.email as hirer_email,
+    h.avatar_url as hirer_avatar,
     m.full_name as musician_name,
     m.email as musician_email,
+    m.avatar_url as musician_avatar,
+    m.rating as musician_rating,
     m.instruments as musician_instruments
 FROM bookings b
 LEFT JOIN profiles h ON h.user_id = b.hirer_id

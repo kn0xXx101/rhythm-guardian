@@ -1,8 +1,8 @@
 // In-App Notification Bell Component
 // Shows unread notification count and dropdown with recent notifications
 
-import { useState, useEffect } from 'react';
-import { Bell, MessageCircle, AlertCircle, CreditCard, Calendar } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bell, MessageCircle, AlertCircle, CreditCard, Calendar, ShieldCheck, DollarSign, Star, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import notificationService from '@/services/notification';
+import { notificationsService } from '@/services/notificationsService';
 
 interface Notification {
   id: string;
@@ -36,6 +37,8 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  // Prevent loadNotifications from overwriting state right after markAllAsRead
+  const suppressReloadRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
@@ -57,16 +60,23 @@ export function NotificationBell() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New notification from database trigger:', payload.new);
-          loadNotifications();
-          
-          // Play sound and show browser notification
-          const notification = payload.new as any;
+          const n = payload.new as any;
+          // Append new notification to local state instead of reloading from DB
+          // This prevents cleared/read notifications from reappearing
+          const newNotif: Notification = {
+            id: n.id,
+            type: n.type,
+            title: n.title,
+            content: n.content,
+            read: n.read ?? false,
+            action_url: n.action_url ?? null,
+            created_at: n.created_at,
+          };
+          setNotifications(prev => [newNotif, ...prev].slice(0, 10));
+          if (!newNotif.read) setUnreadCount(prev => prev + 1);
+
           notificationService.playNotificationSound();
-          notificationService.showBrowserNotification(
-            notification.title,
-            notification.content
-          );
+          notificationService.showBrowserNotification(n.title, n.content);
         }
       )
       .subscribe();
@@ -74,11 +84,10 @@ export function NotificationBell() {
     // Also subscribe to message notifications for real-time updates
     const messagesChannel = notificationService.subscribeToNewMessages(
       user.id,
-      (notification) => {
-        console.log('New message notification:', notification);
-        // Don't reload here as the notification trigger should handle it
-        // Just ensure we have the latest data
-        setTimeout(() => loadNotifications(), 500);
+      (_notification) => {
+        // Sound/browser notification handled inside subscribeToNewMessages
+        // Don't reload here — the DB INSERT trigger on notifications table
+        // will fire the notificationChannel above which reloads automatically
       }
     );
 
@@ -90,72 +99,104 @@ export function NotificationBell() {
 
   const loadNotifications = async () => {
     if (!user) return;
+    if (suppressReloadRef.current) return; // blocked after markAllAsRead
 
     try {
-      const { data, error } = await (supabase as any)
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      const data = await notificationsService.getNotifications(user.id, 10);
+      
+      const mappedNotifications = data.map(n => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        content: n.message,
+        read: n.is_read,
+        action_url: n.link ?? null,
+        created_at: n.created_at
+      }));
 
-      if (error) throw error;
-
-      setNotifications(data || []);
-      setUnreadCount(data?.filter((n: Notification) => !n.read).length || 0);
+      setNotifications(mappedNotifications);
+      setUnreadCount(mappedNotifications.filter(n => !n.read).length);
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
   };
 
   const markAsRead = async (notificationId: string) => {
-    if (!user) {
-      console.error('No user found');
-      return;
-    }
+    if (!user) return;
 
     try {
-      console.log('Marking notification as read:', notificationId, 'for user:', user.id);
-      
-      // Use the most basic update possible
-      const { data, error } = await supabase
-        .from('notifications')
-        .update({ 
-          read: true, 
-          read_at: new Date().toISOString() 
-        })
-        .eq('id', notificationId)
-        .eq('user_id', user.id) // Double-check user ownership
-        .select('id, read');
-
-      if (error) {
-        console.error('Supabase error:', error);
-        throw new Error(`Database error: ${error.message}`);
-      }
-
-      if (!data || data.length === 0) {
-        console.error('No notification updated - notification not found or not owned by user');
-        throw new Error('Notification not found or access denied');
-      }
-
-      console.log('Successfully marked as read:', data);
+      await notificationsService.markAsRead(notificationId);
 
       // Update local state
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
-      
-      // Reload to ensure consistency
-      setTimeout(() => loadNotifications(), 500);
-      
     } catch (error: any) {
       console.error('Error marking notification as read:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to mark notification as read',
-        variant: 'destructive',
-      });
+    }
+  };
+
+  const markAllAsRead = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) return;
+
+    try {
+      suppressReloadRef.current = true;
+      setTimeout(() => { suppressReloadRef.current = false; }, 3000);
+
+      await notificationsService.markAllAsRead(user.id);
+
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnreadCount(0);
+      
+      toast({ title: 'All notifications marked as read' });
+    } catch (error: any) {
+      suppressReloadRef.current = false;
+      console.error('Error marking all as read:', error);
+    }
+  };
+
+  const clearAllNotifications = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) return;
+
+    try {
+      suppressReloadRef.current = true;
+      setTimeout(() => { suppressReloadRef.current = false; }, 3000);
+
+      // Get IDs of read notifications to delete
+      const readIds = notifications.filter(n => n.read).map(n => n.id);
+      
+      if (readIds.length === 0) return;
+
+      // Delete by specific IDs — most reliable approach
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .in('id', readIds);
+
+      if (error) {
+        console.error('Delete error:', error);
+        // Fallback: try deleting all for this user that are read
+        await (supabase as any)
+          .from('notifications')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('read', true);
+      }
+
+      // Always update local state regardless of DB result
+      setNotifications(prev => prev.filter(n => !n.read));
+    } catch (error: any) {
+      suppressReloadRef.current = false;
+      // Still clear from UI even if DB fails
+      setNotifications(prev => prev.filter(n => !n.read));
+      console.error('Error clearing notifications:', error);
     }
   };
 
@@ -173,18 +214,36 @@ export function NotificationBell() {
     
     // Navigate based on notification type and user role
     if (notification.action_url) {
-      if (notification.type === 'message') {
-        // For message notifications, use the action_url which includes the sender ID
-        navigate(notification.action_url);
-      } else {
-        // For other notifications, use the action_url
-        navigate(notification.action_url);
-      }
+      const url = notification.action_url;
+      const resolvedUrl = (() => {
+        // Already a full role-specific path — use as-is
+        if (url.startsWith('/admin/') || url.startsWith('/musician/') || url.startsWith('/hirer/')) {
+          return url;
+        }
+        // Generic paths — resolve by role
+        if (url === '/bookings') {
+          return userRole === 'musician' ? '/musician/bookings' : userRole === 'admin' ? '/admin/bookings' : '/hirer/bookings';
+        }
+        if (url === '/dashboard/messages' || url === '/messages') {
+          return userRole === 'admin' ? '/admin/communications' : userRole === 'musician' ? '/musician/chat' : '/hirer/chat';
+        }
+        if (url === '/transactions') {
+          return '/admin/transactions';
+        }
+        if (url === '/verifications') {
+          return '/admin/verifications';
+        }
+        if (url === '/users') {
+          return '/admin/users';
+        }
+        return url;
+      })();
+      navigate(resolvedUrl);
     } else {
-      // Fallback navigation if no action_url
+      // Fallback navigation by role
       switch (userRole) {
         case 'admin':
-          navigate('/admin/chat');
+          navigate('/admin');
           break;
         case 'hirer':
           navigate('/hirer/chat');
@@ -199,88 +258,6 @@ export function NotificationBell() {
     }
   };
 
-  const markAllAsRead = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!user) {
-      console.error('No user found');
-      return;
-    }
-
-    try {
-      const unreadNotifications = notifications.filter(n => !n.read);
-      
-      console.log('Marking all as read. User:', user.id, 'Unread count:', unreadNotifications.length);
-      
-      if (unreadNotifications.length === 0) {
-        toast({
-          title: 'Info',
-          description: 'No unread notifications',
-        });
-        return;
-      }
-
-      // Try bulk update first (simpler and faster)
-      const { data, error } = await supabase
-        .from('notifications')
-        .update({ 
-          read: true, 
-          read_at: new Date().toISOString() 
-        })
-        .eq('user_id', user.id)
-        .eq('read', false)
-        .select('id');
-
-      if (error) {
-        console.error('Bulk update failed, trying individual updates:', error);
-        
-        // Fallback to individual updates
-        const updatePromises = unreadNotifications.map(notification => {
-          console.log('Updating notification individually:', notification.id);
-          return supabase
-            .from('notifications')
-            .update({ read: true, read_at: new Date().toISOString() })
-            .eq('id', notification.id)
-            .eq('user_id', user.id)
-            .select('id');
-        });
-
-        const results = await Promise.all(updatePromises);
-        const errors = results.filter(r => r.error);
-        
-        if (errors.length > 0) {
-          console.error('Individual update errors:', errors);
-          throw new Error(`Failed to update ${errors.length} notification(s)`);
-        }
-        
-        console.log('Individual updates successful:', results);
-      } else {
-        console.log('Bulk update successful:', data);
-      }
-
-      // Update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-      
-      toast({
-        title: 'Success',
-        description: `Marked ${unreadNotifications.length} notification(s) as read`,
-      });
-      
-      // Reload to ensure consistency
-      setTimeout(() => loadNotifications(), 500);
-      
-    } catch (error: any) {
-      console.error('Error marking all as read:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to mark all as read',
-        variant: 'destructive',
-      });
-    }
-  };
-
   if (!user) return null;
 
   // Get icon for notification type
@@ -292,7 +269,14 @@ export function NotificationBell() {
         return <Calendar className="h-4 w-4 text-green-500" />;
       case 'payment':
         return <CreditCard className="h-4 w-4 text-yellow-500" />;
+      case 'payout':
+        return <DollarSign className="h-4 w-4 text-emerald-500" />;
+      case 'review':
+        return <Star className="h-4 w-4 text-orange-400" />;
+      case 'support_response':
+        return <FileText className="h-4 w-4 text-purple-500" />;
       case 'system':
+        return <ShieldCheck className="h-4 w-4 text-slate-500" />;
       default:
         return <AlertCircle className="h-4 w-4 text-gray-500" />;
     }
@@ -317,16 +301,28 @@ export function NotificationBell() {
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-4 py-2">
           <h3 className="font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={markAllAsRead} 
-              className="h-auto p-1 px-2 text-xs hover:bg-accent"
-            >
-              Mark all as read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={markAllAsRead} 
+                className="h-auto p-1 px-2 text-xs hover:bg-accent"
+              >
+                Mark read
+              </Button>
+            )}
+            {notifications.some(n => n.read) && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={clearAllNotifications}
+                className="h-auto p-1 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-accent"
+              >
+                Clear read
+              </Button>
+            )}
+          </div>
         </div>
         <DropdownMenuSeparator />
         

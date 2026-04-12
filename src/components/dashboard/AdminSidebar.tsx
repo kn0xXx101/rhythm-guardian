@@ -15,7 +15,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Shield,
-  Headphones
+  Headphones,
+  BadgeCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebarContext } from '@/contexts/SidebarContext';
@@ -44,6 +45,11 @@ const AdminSidebar = () => {
       name: 'Users Management',
       path: '/admin/users',
       icon: <Users className="animated-icon" />,
+    },
+    {
+      name: 'Verifications',
+      path: '/admin/verifications',
+      icon: <BadgeCheck className="animated-icon" />,
     },
     {
       name: 'Bookings',

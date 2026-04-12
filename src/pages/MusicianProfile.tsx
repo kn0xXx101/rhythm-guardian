@@ -6,6 +6,7 @@ import { ProfileCompletionBanner } from '@/components/profile/ProfileCompletionB
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TextareaWithCounter } from '@/components/ui/textarea-with-counter';
+import { MaskedInput } from '@/components/ui/input-masked';
 import {
   Select,
   SelectContent,
@@ -17,14 +18,13 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Upload, MapPin, Guitar, Clock, Save, CheckCircle2, AlertCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Upload, MapPin, Guitar, Clock, Save, BadgeCheck, User, Mail, Phone, Calendar as CalendarIcon, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { PortfolioUpload } from '@/components/musician/PortfolioUpload';
 import { PaymentDetailsForm } from '@/components/musician/PaymentDetailsForm';
@@ -32,11 +32,11 @@ import { ReviewsSection } from '@/components/musician/ReviewsSection';
 import { DocumentUpload } from '../components/profile/DocumentUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { calculateProfileCompletion } from '@/lib/profile-completion';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import {
-  calculateProfileCompletion,
-  getCompletionColor,
-} from '@/lib/profile-completion';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogTrigger,
@@ -73,9 +73,12 @@ interface ProfileData {
     soundcloud?: string;
   };
   paymentDetails?: {
-    provider?: string;
-    accountNumber?: string;
-    accountName?: string;
+    bankAccountNumber?: string;
+    bankAccountName?: string;
+    bankCode?: string;
+    mobileMoneyNumber?: string;
+    mobileMoneyProvider?: string;
+    mobileMoneyName?: string;
   };
 }
 
@@ -87,6 +90,9 @@ const MusicianProfile: React.FC = () => {
   const { toast } = useToast();
   const [profileImage, setProfileImage] = useState('/placeholder.svg');
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const profileFromNav = (location.state as any)?.profileData;
@@ -372,102 +378,39 @@ const MusicianProfile: React.FC = () => {
     if (!file || !user?.id) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please upload an image smaller than 2MB',
-        variant: 'destructive',
-      });
+      toast({ title: 'File too large', description: 'Please upload an image smaller than 2MB', variant: 'destructive' });
       return;
     }
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Please upload an image file',
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid file type', description: 'Please upload an image file', variant: 'destructive' });
       return;
     }
 
+    setIsUploadingAvatar(true);
     try {
-      // Upload to Supabase storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false,
-      });
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { cacheControl: '3600', upsert: false });
+      if (uploadError) throw uploadError;
 
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('avatars').getPublicUrl(fileName);
-
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
       setProfileImage(publicUrl);
 
-      toast({
-        title: 'Image uploaded',
-        description: 'Your profile image has been uploaded successfully.',
-      });
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', user.id);
+      if (updateError) throw updateError;
+
+      await refreshUser();
+      toast({ title: 'Photo updated', description: 'Your profile picture has been updated.' });
     } catch (error: any) {
-      console.error('Error uploading image:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Upload failed',
-        description: error.message || 'Failed to upload image. Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Upload failed', description: error.message || 'Failed to upload image.' });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
-  // Calculate profile completion
-  const profileForCompletion = originalProfile
-    ? {
-      ...originalProfile,
-      full_name:
-        originalProfile.full_name ||
-        (formattedProfileData.firstName && formattedProfileData.lastName
-          ? `${formattedProfileData.firstName} ${formattedProfileData.lastName}`.trim()
-          : null),
-      avatar_url: profileImage !== '/placeholder.svg' ? profileImage : originalProfile.avatar_url,
-      bio: formattedProfileData.bio?.trim() ? formattedProfileData.bio : originalProfile.bio,
-      phone: formattedProfileData.phone?.trim() ? formattedProfileData.phone : originalProfile.phone,
-      location: formattedProfileData.location?.trim()
-        ? formattedProfileData.location
-        : originalProfile.location,
-      instruments:
-        (formattedProfileData.instruments?.length ?? 0) > 0
-          ? formattedProfileData.instruments
-          : (originalProfile.instruments ?? []),
-      genres:
-        (formattedProfileData.genres?.length ?? 0) > 0
-          ? formattedProfileData.genres
-          : (originalProfile.genres ?? []),
-      hourly_rate:
-        typeof formattedProfileData.hourlyRate === 'number' && formattedProfileData.hourlyRate > 0
-          ? formattedProfileData.hourlyRate
-          : originalProfile.hourly_rate,
-      base_price:
-        typeof formattedProfileData.basePrice === 'number' && formattedProfileData.basePrice > 0
-          ? formattedProfileData.basePrice
-          : (originalProfile as any).base_price,
-      pricing_model:
-        formattedProfileData.pricingModel || (originalProfile as any).pricing_model || null,
-      available_days:
-        (formattedProfileData.availability?.length ?? 0) > 0
-          ? formattedProfileData.availability
-          : (originalProfile.available_days ?? []),
-      role: originalProfile.role || 'musician',
-    }
-    : null;
-
-  const completionResult = calculateProfileCompletion(profileForCompletion);
-
   return (
-    <div className="container mx-auto py-8 space-y-6 animate-fade-in">
+    <div className="container mx-auto p-6 animate-fade-in">
       <DashboardHeader
         heading="My Profile"
         text="Manage your musician profile, portfolio, and settings."
@@ -475,130 +418,236 @@ const MusicianProfile: React.FC = () => {
 
       <ProfileCompletionBanner />
 
-      <Tabs defaultValue="basic">
-        <TabsList className="mb-6">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="instruments">Instruments & Skills</TabsTrigger>
-          <TabsTrigger value="samples">Portfolio & Samples</TabsTrigger>
-          <TabsTrigger value="availability">Availability</TabsTrigger>
-          <TabsTrigger value="payment">Payment Details</TabsTrigger>
-          <TabsTrigger value="verification">Verification & Documents</TabsTrigger>
-          <TabsTrigger value="reviews">Reviews</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="basic">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="md:col-span-1">
-              <CardHeader>
-                <CardTitle>Profile Picture</CardTitle>
-                <CardDescription>Upload a professional photo</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center">
-                <div className="w-40 h-40 rounded-full overflow-hidden mb-4 border-4 border-primary/20">
-                  <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
-                </div>
-                <Label
-                  htmlFor="profile-image"
-                  className="cursor-pointer flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-4 py-2 rounded-md transition-colors"
+      <Card variant="glass" className="mt-6 overflow-hidden border-primary/10 shadow-2xl">
+        <div className="h-32 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+        <CardContent className="-mt-16 relative">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            {/* Avatar */}
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative group">
+                <Avatar className="h-32 w-32 border-4 border-background shadow-xl group-hover:shadow-2xl transition-all duration-300">
+                  <AvatarImage src={profileImage !== '/placeholder.svg' ? profileImage : undefined} />
+                  <AvatarFallback className="text-2xl bg-primary/5">
+                    {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'M'}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={cn(
+                    'absolute inset-0 bg-black/40 rounded-full flex items-center justify-center transition-all cursor-pointer border-4 border-transparent',
+                    isUploadingAvatar ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  )}
+                  onClick={() => !isUploadingAvatar && fileInputRef.current?.click()}
                 >
-                  <Upload className="h-4 w-4" />
-                  Upload Photo
-                </Label>
-                <Input
-                  id="profile-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <p className="text-xs text-muted-foreground mt-2">PNG, JPG or JPEG (max. 2MB)</p>
-              </CardContent>
-            </Card>
+                  {isUploadingAvatar ? (
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white" />
+                  ) : (
+                    <Upload className="h-8 w-8 text-white" />
+                  )}
+                </div>
+              </div>
 
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>Update your basic information</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first-name">First Name</Label>
-                    <Input
-                      id="first-name"
-                      placeholder="First Name"
-                      value={formattedProfileData.firstName || ''}
-                      onChange={(e) => setFormattedProfileData(prev => ({ ...prev, firstName: e.target.value }))}
-                    />
+              <div className="flex flex-col items-center gap-2">
+                <Badge variant={user?.status === 'active' ? 'default' : 'secondary'} className="capitalize px-3 py-1">
+                  {user?.status || 'Pending'}
+                </Badge>
+                {user?.created_at && (
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <CalendarIcon className="h-3 w-3 mr-1" />
+                    Joined {new Date(user.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last-name">Last Name</Label>
-                    <Input
-                      id="last-name"
-                      placeholder="Last Name"
-                      value={formattedProfileData.lastName || ''}
-                      onChange={(e) => setFormattedProfileData(prev => ({ ...prev, lastName: e.target.value }))}
-                    />
+                )}
+                {originalProfile?.documents_verified && (
+                  <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 rounded-full px-3 py-1">
+                    <BadgeCheck className="h-3.5 w-3.5 text-blue-600" />
+                    <span className="text-xs font-semibold text-blue-700">Verified</span>
                   </div>
-                </div>
+                )}
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="email@example.com"
-                    value={formattedProfileData.email || ''}
-                    readOnly
-                  />
-                </div>
+              <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
+            </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="+233 50 123 4567"
-                    value={formattedProfileData.phone || ''}
-                    onChange={(e) => setFormattedProfileData(prev => ({ ...prev, phone: e.target.value }))}
-                  />
+            {/* Main content */}
+            <div className="flex-1 w-full space-y-6 pt-16">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+                    {user?.full_name || 'Your Name'}
+                    {user?.status === 'active' && <CheckCircle2 className="h-6 w-6 text-green-600" />}
+                  </h2>
+                  <p className="text-muted-foreground flex items-center gap-2 mt-1">
+                    <Mail className="h-4 w-4" />
+                    {user?.email}
+                  </p>
                 </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {isEditing && (
+                    <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20 flex items-center gap-1">
+                      <div className="h-3 w-3 animate-pulse bg-amber-500 rounded-full" />
+                      Editing Mode
+                    </Badge>
+                  )}
+                  <Badge variant="outline" className="text-xs py-1">MUSICIAN</Badge>
+                  {!isEditing && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditing(true)}
+                      className="h-8 gap-2 border-primary/20 hover:border-primary/50 transition-colors"
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="location"
-                      className="pl-9"
-                      placeholder="Your location"
-                      value={formattedProfileData.location || ''}
-                      onChange={(e) => setFormattedProfileData(prev => ({ ...prev, location: e.target.value }))}
-                    />
+              <Separator className="opacity-50" />
+
+              <Tabs defaultValue="basic">
+                <TabsList className="mb-6 flex-wrap h-auto gap-1">
+                  <TabsTrigger value="basic">Basic Info</TabsTrigger>
+                  <TabsTrigger value="instruments">Instruments & Skills</TabsTrigger>
+                  <TabsTrigger value="samples">Portfolio</TabsTrigger>
+                  <TabsTrigger value="availability">Availability</TabsTrigger>
+                  <TabsTrigger value="payment">Payment Details</TabsTrigger>
+                  <TabsTrigger value="verification">Verification</TabsTrigger>
+                  <TabsTrigger value="reviews">Reviews</TabsTrigger>
+                </TabsList>
+
+                {/* ── Basic Info ── */}
+                <TabsContent value="basic">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="first-name">First Name</Label>
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          id="first-name"
+                          placeholder="First Name"
+                          value={formattedProfileData.firstName || ''}
+                          disabled={!isEditing}
+                          onChange={(e) => setFormattedProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+                          className={cn(!isEditing && 'bg-muted/50 border-transparent cursor-default')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">Last Name</Label>
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          id="last-name"
+                          placeholder="Last Name"
+                          value={formattedProfileData.lastName || ''}
+                          disabled={!isEditing}
+                          onChange={(e) => setFormattedProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+                          className={cn(!isEditing && 'bg-muted/50 border-transparent cursor-default')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email Address</Label>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formattedProfileData.email || ''}
+                          disabled
+                          className="bg-muted/50 border-transparent cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="flex items-center space-x-2">
+                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                        {isEditing ? (
+                          <MaskedInput
+                            id="phone"
+                            type="tel"
+                            mask="phoneGhana"
+                            defaultValue={formattedProfileData.phone || ''}
+                            placeholder="+233 50 123 4567"
+                          />
+                        ) : (
+                          <Input
+                            value={formattedProfileData.phone || 'No phone provided'}
+                            disabled
+                            className="bg-muted/50 border-transparent cursor-default"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="location">Location</Label>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          id="location"
+                          placeholder="Your location"
+                          value={formattedProfileData.location || ''}
+                          disabled={!isEditing}
+                          onChange={(e) => setFormattedProfileData(prev => ({ ...prev, location: e.target.value }))}
+                          className={cn(!isEditing && 'bg-muted/50 border-transparent cursor-default')}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="bio">Bio</Label>
+                      {isEditing ? (
+                        <TextareaWithCounter
+                          id="bio"
+                          placeholder="Tell clients about yourself..."
+                          value={formattedProfileData.bio || ''}
+                          onChange={(e) => setFormattedProfileData(prev => ({ ...prev, bio: e.target.value }))}
+                          maxLength={500}
+                          className="min-h-[120px] bg-background/50 focus:bg-background transition-colors"
+                        />
+                      ) : (
+                        <div className="p-4 rounded-lg bg-primary/5 border border-primary/10 min-h-[120px] text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap italic">
+                          {formattedProfileData.bio || 'No bio provided yet. Click Edit Profile to add one.'}
+                        </div>
+                      )}
+                    </div>
+
+                    {isEditing && (
+                      <div className="flex justify-end space-x-4 md:col-span-2 pt-6 border-t border-border/50">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          disabled={isSaving}
+                          onClick={() => setIsEditing(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="min-w-[140px] shadow-lg shadow-primary/20 bg-primary hover:bg-primary-hover transition-all duration-300"
+                        >
+                          {isSaving ? (
+                            <>
+                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="mr-2 h-4 w-4" />
+                              Save Changes
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <TextareaWithCounter
-                    id="bio"
-                    placeholder="Tell clients about yourself..."
-                    value={formattedProfileData.bio || ''}
-                    onChange={(e) => setFormattedProfileData(prev => ({ ...prev, bio: e.target.value }))}
-                    maxLength={500}
-                    className="min-h-32"
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button onClick={handleSave} className="ml-auto" disabled={isSaving}>
-                  <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </TabsContent>
+                </TabsContent>
 
         <TabsContent value="instruments">
           <Card>
@@ -1022,19 +1071,19 @@ const MusicianProfile: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {(formattedProfileData.availability?.includes('weekdays') || 
                       formattedProfileData.availability?.includes('all_week')) && (
-                      <div className="space-y-4 p-4 rounded-xl bg-blue-50/30 border border-blue-100">
-                        <div className="flex items-center gap-2 text-blue-700">
-                          <Clock className="h-4 w-4" />
-                          <span className="text-sm font-bold uppercase tracking-wider">Weekday Hours</span>
+                      <div className="space-y-4 p-4 rounded-xl border border-border bg-muted/20">
+                        <div className="flex items-center gap-2 text-foreground">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-semibold">Weekday Hours</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Start</Label>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-muted-foreground">Start Time</Label>
                             <Select 
                               value={formattedProfileData.weekdayStart || '18:00'}
                               onValueChange={(val) => setFormattedProfileData(prev => ({ ...prev, weekdayStart: val }))}
                             >
-                              <SelectTrigger className="h-10 bg-white border-blue-200">
+                              <SelectTrigger className="h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1045,13 +1094,13 @@ const MusicianProfile: React.FC = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">End</Label>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-muted-foreground">End Time</Label>
                             <Select 
                               value={formattedProfileData.weekdayEnd || '23:00'}
                               onValueChange={(val) => setFormattedProfileData(prev => ({ ...prev, weekdayEnd: val }))}
                             >
-                              <SelectTrigger className="h-10 bg-white border-blue-200">
+                              <SelectTrigger className="h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1068,19 +1117,19 @@ const MusicianProfile: React.FC = () => {
 
                     {(formattedProfileData.availability?.includes('weekends') || 
                       formattedProfileData.availability?.includes('all_week')) && (
-                      <div className="space-y-4 p-4 rounded-xl bg-orange-50/30 border border-orange-100">
-                        <div className="flex items-center gap-2 text-orange-700">
-                          <Clock className="h-4 w-4" />
-                          <span className="text-sm font-bold uppercase tracking-wider">Weekend Hours</span>
+                      <div className="space-y-4 p-4 rounded-xl border border-border bg-muted/20">
+                        <div className="flex items-center gap-2 text-foreground">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <span className="text-sm font-semibold">Weekend Hours</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Start</Label>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-muted-foreground">Start Time</Label>
                             <Select 
                               value={formattedProfileData.weekendStart || '09:00'}
                               onValueChange={(val) => setFormattedProfileData(prev => ({ ...prev, weekendStart: val }))}
                             >
-                              <SelectTrigger className="h-10 bg-white border-orange-200">
+                              <SelectTrigger className="h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1091,13 +1140,13 @@ const MusicianProfile: React.FC = () => {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">End</Label>
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-muted-foreground">End Time</Label>
                             <Select 
                               value={formattedProfileData.weekendEnd || '23:00'}
                               onValueChange={(val) => setFormattedProfileData(prev => ({ ...prev, weekendEnd: val }))}
                             >
-                              <SelectTrigger className="h-10 bg-white border-orange-200">
+                              <SelectTrigger className="h-10">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -1138,7 +1187,11 @@ const MusicianProfile: React.FC = () => {
         <TabsContent value="reviews">
           {user?.id && <ReviewsSection musicianId={user.id} />}
         </TabsContent>
-      </Tabs>
+              </Tabs>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

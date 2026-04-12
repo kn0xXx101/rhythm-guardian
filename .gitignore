@@ -75,3 +75,21 @@ Thumbs.db
 .env.example
 node_modules
 
+
+# Debug/diagnostic SQL files in root (should be in supabase/debug/)
+DEBUG_*.sql
+CHECK_*.sql
+TEST_*.sql
+TRACE_*.sql
+INVESTIGATE_*.sql
+FIND_*.sql
+SIMPLE_*.sql
+FIX_*.sql
+COMPLETE_*.sql
+CREATE_*.sql
+DIAGNOSE_*.sql
+FINAL_*.sql
+QUICK_*.sql
+MIGRATIONS_TO_RUN.md
+PROJECT_AUDIT.md
+DISABLE_BOOKING_TRIGGER.sql

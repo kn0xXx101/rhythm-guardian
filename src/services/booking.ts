@@ -7,18 +7,19 @@ type DbPaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
 // Map DB booking statuses to app-facing statuses used in the UI
 const dbToAppStatus: Record<string, BookingStatus> = {
   pending: 'pending',
-  accepted: 'upcoming',
+  accepted: 'accepted',
   in_progress: 'upcoming',
   completed: 'completed',
   cancelled: 'cancelled',
-  rejected: 'cancelled',
-  expired: 'expired', // Add expired status mapping
+  rejected: 'rejected',
+  expired: 'expired',
 };
 
 // Map app-facing statuses back to DB enum values
 const appToDbStatus: Record<string, DbBookingStatus> = {
   pending: 'pending',
-  upcoming: 'accepted',
+  accepted: 'accepted',
+  upcoming: 'in_progress',
   completed: 'completed',
   cancelled: 'cancelled',
   expired: 'expired', // Add expired status mapping

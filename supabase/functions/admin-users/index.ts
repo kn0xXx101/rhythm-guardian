@@ -183,14 +183,14 @@ Deno.serve(async (req: Request) => {
           (b: any) => b.status === "pending" || b.status === "accepted"
         ).length,
         confirmedBookings: hirerBookings.filter(
-          (b: any) => b.status === "accepted" || b.status === "in_progress"
+          (b: any) => b.status === "in_progress"
         ).length,
         completedBookings: hirerBookings.filter((b: any) => b.status === "completed").length,
         cancelledBookings: hirerBookings.filter(
           (b: any) => b.status === "cancelled" || b.status === "rejected"
         ).length,
         totalSpent: hirerBookings
-          .filter((b: any) => b.status === "completed")
+          .filter((b: any) => b.payment_status === "paid")
           .reduce((sum: number, b: any) => sum + parseFloat(b.total_amount?.toString() || "0"), 0),
       };
 
@@ -201,10 +201,9 @@ Deno.serve(async (req: Request) => {
         pendingBookings: musicianBookings.filter(
           (b: any) => b.status === "pending" || b.status === "accepted"
         ).length,
-        totalEarned: completedMusicianBookings.reduce(
-          (sum: number, b: any) => sum + parseFloat(b.total_amount?.toString() || "0"),
-          0
-        ),
+        totalEarned: musicianBookings
+          .filter((b: any) => b.payment_status === "paid")
+          .reduce((sum: number, b: any) => sum + parseFloat(b.total_amount?.toString() || "0"), 0),
         pendingPayouts: musicianBookings.filter(
           (b: any) =>
             b.payment_status === "paid" &&

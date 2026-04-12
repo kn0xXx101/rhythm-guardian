@@ -76,11 +76,33 @@ export function ProfileCompletionBanner() {
 
     setIsVerifying(true);
     try {
+      // Fetch required_documents so we can store submission timestamp there (schema-safe).
+      const { data: currentProfile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('required_documents')
+        .eq('user_id', user?.id || '')
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const nowIso = new Date().toISOString();
+      const requiredDocs = Array.isArray((currentProfile as any)?.required_documents)
+        ? ((currentProfile as any).required_documents as any[])
+        : [];
+
+      const updatedRequiredDocs =
+        requiredDocs.length > 0
+          ? requiredDocs.map((doc) => ({
+              ...doc,
+              submitted_at: doc?.submitted_at || nowIso,
+            }))
+          : requiredDocs;
+
       const { error } = await supabase
         .from('profiles')
-        .update({ 
+        .update({
           documents_submitted: true,
-          submitted_at: new Date().toISOString()
+          ...(updatedRequiredDocs.length > 0 ? { required_documents: updatedRequiredDocs } : {}),
         })
         .eq('user_id', user?.id || '');
 

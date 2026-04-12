@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { notifyAdmins } from '@/services/admin-notify';
 
 export interface FraudDetection {
   id: string;
@@ -146,6 +147,14 @@ export async function flagUserForReview(
     console.error('Error flagging user:', error);
     return false;
   }
+
+  // Notify admins about fraud flag
+  await notifyAdmins(
+    'system',
+    '🚨 Fraud Alert — User Flagged',
+    `A user has been flagged for review. Reason: ${reason}`,
+    '/admin/fraud-monitoring'
+  );
 
   return true;
 }

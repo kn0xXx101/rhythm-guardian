@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { notifyAdmins } from '@/services/admin-notify';
 import type {
   FlaggedChat,
   ChatMessage,
@@ -182,6 +183,17 @@ export class ChatMonitorService {
       .eq('id', messageId);
 
     if (error) throw error;
+
+    // Notify admins when a message is flagged
+    if (flagged) {
+      const severity = this.determineSeverity(reason);
+      await notifyAdmins(
+        'system',
+        `🚩 Message Flagged (${severity.toUpperCase()})`,
+        `A message was flagged${reason ? `: "${reason}"` : ''}. Review in Communications.`,
+        '/admin/communications'
+      );
+    }
   }
 
   // Send a warning message to the sender of the flagged message

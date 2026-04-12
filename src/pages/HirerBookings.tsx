@@ -462,7 +462,7 @@ const HirerBookings = () => {
                           </Button>
                         )}
 
-                        {booking.status === 'upcoming' && (
+                        {(booking.status === 'upcoming' || (booking.status === 'accepted' && (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid'))) && (
                           <>
                             {!booking.serviceConfirmedByHirer ? (
                               <Button

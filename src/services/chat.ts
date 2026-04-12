@@ -1,6 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+// Supabase client cast to any for tables/views/functions not in the generated types
+const db = supabase as any;
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -58,29 +61,24 @@ export interface TypingIndicator {
   user_name?: string;
 }
 
-/**
- * Get or create a conversation between two users
- */
+/** Get or create a conversation between two users */
 export async function getOrCreateConversation(
   user1Id: string,
   user2Id: string,
   bookingId?: string
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('get_or_create_conversation', {
+  const { data, error } = await db.rpc('get_or_create_conversation', {
     p_user1_id: user1Id,
     p_user2_id: user2Id,
     p_booking_id: bookingId || undefined,
   });
-
   if (error) throw error;
-  return data;
+  return data as string;
 }
 
-/**
- * Get all conversations for current user
- */
+/** Get all conversations for current user */
 export async function getUserConversations(userId: string): Promise<Conversation[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from('conversation_list')
     .select('*')
     .or(`participant_1_id.eq.${userId},participant_2_id.eq.${userId}`)
@@ -88,27 +86,20 @@ export async function getUserConversations(userId: string): Promise<Conversation
 
   if (error) throw error;
 
-  // Get unread counts for each conversation
   const conversationsWithUnread = await Promise.all(
-    (data || []).map(async (conv) => {
-      const { data: unreadCount } = await supabase.rpc('get_unread_count', {
+    ((data as any[]) || []).map(async (conv) => {
+      const { data: unreadCount } = await db.rpc('get_unread_count', {
         p_user_id: userId,
         p_conversation_id: conv.id || '',
       });
-
-      return {
-        ...conv,
-        unread_count: unreadCount || 0,
-      };
+      return { ...conv, unread_count: (unreadCount as number) || 0 };
     })
   );
 
-  return conversationsWithUnread;
+  return conversationsWithUnread as Conversation[];
 }
 
-/**
- * Get messages for a conversation
- */
+/** Get messages for a conversation */
 export async function getConversationMessages(
   conversationId: string,
   limit: number = 50,
@@ -128,10 +119,9 @@ export async function getConversationMessages(
 
   if (error) throw error;
 
-  // Get read receipts
   const messagesWithReceipts = await Promise.all(
-    (data || []).map(async (msg) => {
-      const { data: receipts } = await supabase
+    ((data as any[]) || []).map(async (msg) => {
+      const { data: receipts } = await db
         .from('message_read_receipts')
         .select('user_id')
         .eq('message_id', msg.id);
@@ -140,17 +130,15 @@ export async function getConversationMessages(
         ...msg,
         is_edited: msg.is_edited || false,
         is_deleted: msg.is_deleted || false,
-        read_by: receipts?.map((r) => r.user_id) || [],
+        read_by: ((receipts as any[]) || []).map((r: any) => r.user_id),
       };
     })
   );
 
-  return messagesWithReceipts.reverse();
+  return messagesWithReceipts.reverse() as Message[];
 }
 
-/**
- * Send a message
- */
+/** Send a message */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
@@ -164,7 +152,7 @@ export async function sendMessage(
     replyToId?: string;
   }
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('send_message', {
+  const { data, error } = await db.rpc('send_message', {
     p_conversation_id: conversationId,
     p_sender_id: senderId,
     p_content: content,
@@ -175,137 +163,93 @@ export async function sendMessage(
     p_file_type: options?.fileType || undefined,
     p_reply_to_id: options?.replyToId || undefined,
   });
-
   if (error) throw error;
-  return data;
+  return data as string;
 }
 
-/**
- * Mark message as read
- */
+/** Mark message as read */
 export async function markMessageRead(messageId: string, userId: string): Promise<void> {
-  const { error } = await supabase.rpc('mark_message_read', {
+  const { error } = await db.rpc('mark_message_read', {
     p_message_id: messageId,
     p_user_id: userId,
   });
-
   if (error) throw error;
 }
 
-/**
- * Mark all messages in conversation as read
- */
-export async function markConversationRead(
-  conversationId: string,
-  userId: string
-): Promise<void> {
-  const { error } = await supabase.rpc('mark_conversation_read', {
+/** Mark all messages in conversation as read */
+export async function markConversationRead(conversationId: string, userId: string): Promise<void> {
+  const { error } = await db.rpc('mark_conversation_read', {
     p_conversation_id: conversationId,
     p_user_id: userId,
   });
-
   if (error) throw error;
 }
 
-/**
- * Update typing indicator
- */
-export async function updateTypingIndicator(
-  conversationId: string,
-  userId: string
-): Promise<void> {
-  const { error } = await supabase.rpc('update_typing_indicator', {
+/** Update typing indicator */
+export async function updateTypingIndicator(conversationId: string, userId: string): Promise<void> {
+  const { error } = await db.rpc('update_typing_indicator', {
     p_conversation_id: conversationId,
     p_user_id: userId,
   });
-
   if (error) throw error;
 }
 
-/**
- * Get unread message count
- */
-export async function getUnreadCount(
-  userId: string,
-  conversationId?: string
-): Promise<number> {
-  const { data, error } = await supabase.rpc('get_unread_count', {
+/** Get unread message count */
+export async function getUnreadCount(userId: string, conversationId?: string): Promise<number> {
+  const { data, error } = await db.rpc('get_unread_count', {
     p_user_id: userId,
     p_conversation_id: conversationId || undefined,
   });
-
   if (error) throw error;
-  return data || 0;
+  return (data as number) || 0;
 }
 
-/**
- * Edit a message
- */
+/** Edit a message */
 export async function editMessage(
   messageId: string,
   userId: string,
   newContent: string
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc('edit_message', {
+  const { data, error } = await db.rpc('edit_message', {
     p_message_id: messageId,
     p_user_id: userId,
     p_new_content: newContent,
   });
-
   if (error) throw error;
-  return data;
+  return data as boolean;
 }
 
-/**
- * Delete a message
- */
+/** Delete a message */
 export async function deleteMessage(messageId: string, userId: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('delete_message', {
+  const { data, error } = await db.rpc('delete_message', {
     p_message_id: messageId,
     p_user_id: userId,
   });
-
   if (error) throw error;
-  return data;
+  return data as boolean;
 }
 
-/**
- * Add reaction to message
- */
-export async function addReaction(
-  messageId: string,
-  userId: string,
-  reaction: string
-): Promise<void> {
-  const { error } = await supabase.rpc('add_message_reaction', {
+/** Add reaction to message */
+export async function addReaction(messageId: string, userId: string, reaction: string): Promise<void> {
+  const { error } = await db.rpc('add_message_reaction', {
     p_message_id: messageId,
     p_user_id: userId,
     p_reaction: reaction,
   });
-
   if (error) throw error;
 }
 
-/**
- * Remove reaction from message
- */
-export async function removeReaction(
-  messageId: string,
-  userId: string,
-  reaction: string
-): Promise<void> {
-  const { error } = await supabase.rpc('remove_message_reaction', {
+/** Remove reaction from message */
+export async function removeReaction(messageId: string, userId: string, reaction: string): Promise<void> {
+  const { error } = await db.rpc('remove_message_reaction', {
     p_message_id: messageId,
     p_user_id: userId,
     p_reaction: reaction,
   });
-
   if (error) throw error;
 }
 
-/**
- * Upload file for chat
- */
+/** Upload file for chat */
 export async function uploadChatFile(
   file: File,
   conversationId: string
@@ -315,130 +259,78 @@ export async function uploadChatFile(
 
   const { data, error } = await supabase.storage
     .from('chat-files')
-    .upload(fileName, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
+    .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
   if (error) throw error;
 
   const { data: urlData } = supabase.storage.from('chat-files').getPublicUrl(data.path);
-
-  return {
-    url: urlData.publicUrl,
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  };
+  return { url: urlData.publicUrl, name: file.name, size: file.size, type: file.type };
 }
 
-/**
- * Subscribe to new messages in a conversation
- */
+/** Subscribe to new messages in a conversation */
 export function subscribeToMessages(
   conversationId: string,
   onMessage: (message: Message) => void
 ): RealtimeChannel {
-  const channel = supabase
+  return supabase
     .channel(`messages:${conversationId}`)
     .on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
       async (payload) => {
-        // Fetch full message with relations
         const { data } = await supabase
           .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey(full_name, avatar_url)
-          `)
+          .select('*, sender:profiles!messages_sender_id_fkey(full_name, avatar_url)')
           .eq('id', payload.new.id)
           .single();
-
-        if (data) {
-          onMessage(data as Message);
-        }
+        if (data) onMessage(data as unknown as Message);
       }
     )
     .subscribe();
-
-  return channel;
 }
 
-/**
- * Subscribe to message updates (edits, deletes)
- */
+/** Subscribe to message updates (edits, deletes) */
 export function subscribeToMessageUpdates(
   conversationId: string,
   onUpdate: (message: Message) => void
 ): RealtimeChannel {
-  const channel = supabase
+  return supabase
     .channel(`message-updates:${conversationId}`)
     .on(
       'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
+      { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
       async (payload) => {
         const { data } = await supabase
           .from('messages')
-          .select(`
-            *,
-            sender:profiles!messages_sender_id_fkey(full_name, avatar_url),
-            reactions:message_reactions(*)
-          `)
+          .select('*, sender:profiles!messages_sender_id_fkey(full_name, avatar_url), reactions:message_reactions(*)')
           .eq('id', payload.new.id)
           .single();
-
-        if (data) {
-          onUpdate(data as any);
-        }
+        if (data) onUpdate(data as unknown as Message);
       }
     )
     .subscribe();
-
-  return channel;
 }
 
-/**
- * Subscribe to typing indicators
- */
+/** Subscribe to typing indicators */
 export function subscribeToTypingIndicators(
   conversationId: string,
   onTyping: (indicators: TypingIndicator[]) => void
 ): RealtimeChannel {
-  const channel = supabase
+  return supabase
     .channel(`typing:${conversationId}`)
     .on(
       'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'typing_indicators',
-        filter: `conversation_id=eq.${conversationId}`,
-      },
+      { event: '*', schema: 'public', table: 'typing_indicators', filter: `conversation_id=eq.${conversationId}` },
       async () => {
-        // Fetch current typing indicators
-        const { data } = await supabase
+        const { data } = await db
           .from('typing_indicators')
-          .select(`
-            *,
-            user:profiles!typing_indicators_user_id_fkey(full_name)
-          `)
+          .select('*, user:profiles!typing_indicators_user_id_fkey(full_name)')
           .eq('conversation_id', conversationId)
           .gt('expires_at', new Date().toISOString());
 
         if (data) {
           onTyping(
-            data.map((d: any) => ({
+            (data as any[]).map((d: any) => ({
               conversation_id: d.conversation_id,
               user_id: d.user_id,
               user_name: d.user?.full_name,
@@ -448,63 +340,28 @@ export function subscribeToTypingIndicators(
       }
     )
     .subscribe();
-
-  return channel;
 }
 
-/**
- * Subscribe to read receipts
- */
+/** Subscribe to read receipts */
 export function subscribeToReadReceipts(
   conversationId: string,
   onRead: (messageId: string, userId: string) => void
 ): RealtimeChannel {
-  const channel = supabase
+  return supabase
     .channel(`read-receipts:${conversationId}`)
     .on(
       'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'message_read_receipts',
-      },
-      (payload) => {
-        onRead(payload.new.message_id, payload.new.user_id);
-      }
+      { event: 'INSERT', schema: 'public', table: 'message_read_receipts' },
+      (payload) => { onRead(payload.new.message_id, payload.new.user_id); }
     )
     .subscribe();
-
-  return channel;
 }
 
-/**
- * Subscribe to conversation list updates
- */
-export function subscribeToConversations(
-  userId: string,
-  onUpdate: () => void
-): RealtimeChannel {
-  const channel = supabase
+/** Subscribe to conversation list updates */
+export function subscribeToConversations(userId: string, onUpdate: () => void): RealtimeChannel {
+  return supabase
     .channel(`conversations:${userId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'conversations',
-      },
-      onUpdate
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-      },
-      onUpdate
-    )
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'conversations' }, onUpdate)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, onUpdate)
     .subscribe();
-
-  return channel;
 }

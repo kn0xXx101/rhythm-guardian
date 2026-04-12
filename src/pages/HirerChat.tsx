@@ -410,7 +410,7 @@ const HirerChat = () => {
               .select('user_id, full_name, avatar_url, last_active_at, role, instruments')
               .eq('user_id', senderId)
               .single()
-              .then(({ data: profile, error }) => {
+              .then(({ data: profile }) => {
                 const lastActive = profile?.last_active_at
                   ? new Date(profile.last_active_at)
                   : new Date();

@@ -46,6 +46,7 @@ const AuditLogs = lazy(() => import('./components/admin/AuditLogs'));
 const UserMessaging = lazy(() => import('./pages/admin/UserMessaging'));
 const FraudMonitoringPage = lazy(() => import('./pages/admin/FraudMonitoringPage'));
 const CommunicationsPage = lazy(() => import('./pages/admin/CommunicationsPage'));
+const VerificationsPage = lazy(() => import('./pages/admin/VerificationsPage'));
 
 // Lazy load pages
 const Index = lazy(() => import('./pages/Index'));
@@ -108,7 +109,7 @@ const AppContent = () => {
       <SkipLinks />
       <LiveRegion id="app-live-region" message="" politeness="polite" />
       <OfflineIndicator />
-      <SessionDebug />
+      {import.meta.env.DEV && <SessionDebug />}
       <SuspensionCheck />
       <div className="min-h-screen bg-background text-foreground">
         <AppErrorBoundary context="Application">
@@ -283,6 +284,14 @@ const AppContent = () => {
                       }
                     />
                     <Route
+                      path="verifications"
+                      element={
+                        <Suspense fallback={<RouteLoading />}>
+                          <VerificationsPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
                       path="bookings"
                       element={
                         <Suspense fallback={<RouteLoading />}>
@@ -420,9 +429,11 @@ const AppContent = () => {
                     <Route
                       path="bookings"
                       element={
-                        <Suspense fallback={<RouteLoading />}>
-                          <HirerBookings />
-                        </Suspense>
+                        <RouteErrorBoundary context="Hirer Bookings">
+                          <Suspense fallback={<RouteLoading />}>
+                            <HirerBookings />
+                          </Suspense>
+                        </RouteErrorBoundary>
                       }
                     />
                     <Route
@@ -475,9 +486,11 @@ const AppContent = () => {
                     <Route
                       path="bookings"
                       element={
-                        <Suspense fallback={<RouteLoading />}>
-                          <MusicianBookings />
-                        </Suspense>
+                        <RouteErrorBoundary context="Musician Bookings">
+                          <Suspense fallback={<RouteLoading />}>
+                            <MusicianBookings />
+                          </Suspense>
+                        </RouteErrorBoundary>
                       }
                     />
                     <Route

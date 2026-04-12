@@ -53,12 +53,12 @@ export function calculateProfileCompletion(
       const pricingModel = profile.pricing_model;
       
       if (pricingModel === 'fixed') {
-        isComplete = typeof basePrice === 'number' && basePrice > 0;
+        isComplete = typeof basePrice === 'number' && Number(basePrice) > 0;
       } else if (pricingModel === 'hourly') {
-        isComplete = typeof hourlyRate === 'number' && hourlyRate > 0;
+        isComplete = typeof hourlyRate === 'number' && Number(hourlyRate) > 0;
       } else {
-        isComplete = (typeof hourlyRate === 'number' && hourlyRate > 0) || 
-                     (typeof basePrice === 'number' && basePrice > 0);
+        isComplete = (typeof hourlyRate === 'number' && Number(hourlyRate) > 0) || 
+                     (typeof basePrice === 'number' && Number(basePrice) > 0);
       }
     } 
     // Special handling for payment - MUST have EITHER full Mobile Money OR full Bank Account
@@ -71,20 +71,20 @@ export function calculateProfileCompletion(
       const bankName = profile.bank_account_name;
       const bankCode = profile.bank_code;
 
-      const momoComplete = !!(momoNumber && momoName && momoProvider);
-      const bankComplete = !!(bankNumber && bankName && bankCode);
+      const momoComplete = !!(momoNumber && momoNumber.toString().trim() && momoName && momoProvider);
+      const bankComplete = !!(bankNumber && bankNumber.toString().trim() && bankName && bankCode);
 
       isComplete = momoComplete || bankComplete;
     }
     // Special handling for availability - At least one selection
     else if (field.key === 'available_days') {
       const days = Array.isArray(value) ? value : [];
-      isComplete = days.some(d => ['weekdays', 'weekends', 'all_week'].includes(d));
+      isComplete = days.some(d => ['weekdays', 'weekends', 'all_week'].includes(d) || d.startsWith('wd_start:') || d.startsWith('we_start:'));
     }
     else if (Array.isArray(value)) {
       isComplete = value.length > 0;
     } else if (typeof value === 'number') {
-      isComplete = value > 0;
+      isComplete = Number(value) > 0;
     } else if (typeof value === 'string') {
       isComplete = value.trim().length > 0;
     } else {

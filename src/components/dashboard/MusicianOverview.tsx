@@ -117,7 +117,7 @@ export function MusicianOverview() {
         const statsData: MusicianOverviewStats = {
           totalBookings: bookings?.length || 0,
           pendingBookings:
-            bookings?.filter((b) => b.status === 'pending' || b.status === 'accepted').length || 0,
+            bookings?.filter((b) => b.status === 'pending').length || 0,
           completedBookings: paidBookings.length, // Count paid bookings as completed
           cancelledBookings:
             bookings?.filter((b) => b.status === 'cancelled' || b.status === 'rejected').length ||

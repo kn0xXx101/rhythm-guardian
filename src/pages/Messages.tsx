@@ -97,7 +97,9 @@ export default function Messages() {
                       </div>
                       <p className="text-sm text-gray-600 truncate">{conv.last_message_preview}</p>
                       <span className="text-xs text-gray-400">
-                        {formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })}
+                        {conv.last_message_at
+                          ? formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })
+                          : 'No messages'}
                       </span>
                     </div>
                   </div>

@@ -13,6 +13,16 @@ const AdminDashboardLayout = () => {
   const { toast } = useToast();
   const hasShownWelcome = useRef(false);
 
+  // Admin defaults to dark mode if no theme preference has been saved
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (!savedTheme) {
+      localStorage.setItem('theme', 'dark');
+      document.documentElement.classList.remove('light', 'system');
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   useEffect(() => {
     // Show welcome toast once per session when admin first navigates to dashboard after login
     const welcomeKey = 'welcomeShown_admin';
