@@ -3,7 +3,7 @@
  * This is a basic service worker that can be enhanced based on specific needs
  */
 
-const CACHE_NAME = 'rhythm-guardian-v1';
+const CACHE_NAME = 'rhythm-guardian-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
