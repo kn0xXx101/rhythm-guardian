@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/supabase';
 import { logger } from '@/utils/console-logger';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim();
+const supabaseServiceRoleKey = (import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || '').trim();
 
 // Create client with empty strings as fallback to prevent app from crashing
 // The app will still work but Supabase features won't function until env vars are set
@@ -33,7 +33,7 @@ export const supabase = createClient<Database>(
       flowType: 'pkce',
       storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       storageKey: 'supabase.auth.token',
-      debug: process.env.NODE_ENV === 'development',
+      debug: import.meta.env.DEV,
     },
     global: {
       headers: {
@@ -55,16 +55,12 @@ export const supabaseAdmin = supabaseServiceRoleKey
     })
   : supabase; // Fallback to regular client if service role key not available
 
-// Debug session state (development only)
-if (process.env.NODE_ENV === 'development') {
+// Auth state listener (development only)
+if (import.meta.env.DEV) {
   supabase.auth.onAuthStateChange((event, session) => {
-    console.log('🔐 Auth State Change:', {
-      event,
-      hasSession: !!session,
-      expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null,
-      user: session?.user?.email,
-      role: session?.user?.app_metadata?.role || session?.user?.user_metadata?.role,
-    });
+    if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+      console.log('🔐 Auth:', event, session?.user?.email);
+    }
   });
 }
 
