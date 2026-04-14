@@ -39,6 +39,11 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   // Prevent loadNotifications from overwriting state right after markAllAsRead
   const suppressReloadRef = useRef(false);
+  const channelInstanceIdRef = useRef<string>(
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -50,7 +55,10 @@ export function NotificationBell() {
 
     // Subscribe to notifications table directly (for database trigger notifications)
     const notificationChannel = supabase
-      .channel(`notifications:${user.id}`)
+      // In React 18 StrictMode (dev), effects mount/unmount twice; Supabase channels with the same name
+      // can still be in "subscribed" state briefly, and adding callbacks then throws.
+      // Use a per-instance suffix to avoid reusing an already-subscribed channel name.
+      .channel(`notifications:${user.id}:${channelInstanceIdRef.current}`)
       .on(
         'postgres_changes',
         {
@@ -92,8 +100,16 @@ export function NotificationBell() {
     );
 
     return () => {
-      notificationChannel.unsubscribe();
-      messagesChannel.unsubscribe();
+      // Ensure channels are fully removed to prevent callback registration errors on remount.
+      // unsubscribe() is async; we don't await in React cleanup, but removeChannel helps.
+      try {
+        notificationChannel.unsubscribe();
+        supabase.removeChannel(notificationChannel);
+      } catch {}
+      try {
+        messagesChannel.unsubscribe();
+        supabase.removeChannel(messagesChannel as any);
+      } catch {}
     };
   }, [user]);
 

@@ -8,6 +8,7 @@ import React, {
   useRef,
 } from 'react';
 import type { Settings } from '@/types/settings';
+import { getSettings } from '@/api/settings';
 
 interface ThemeContextType {
   settings: Settings | null;
@@ -164,9 +165,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-        // Load saved settings to check for default dark mode preference
+        // Use cached settings for fastest first paint.
         const savedSettings = localStorage.getItem('theme-settings');
-        const settings = savedSettings ? (JSON.parse(savedSettings) as Settings) : defaultSettings;
+        const cachedSettings = savedSettings
+          ? (JSON.parse(savedSettings) as Settings)
+          : defaultSettings;
+
+        // 1) Apply cached settings immediately (instant UI).
+        // 2) Fetch authoritative settings in the background and apply if different.
+        let settings: Settings = cachedSettings;
 
         // Determine initial theme
         // Priority: saved theme > settings darkMode > system preference > light
@@ -191,6 +198,21 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         root.classList.add(actualTheme);
 
         applyTheme(settings);
+
+        // Background refresh from DB (non-blocking).
+        // This is what makes appearance consistent across devices without slowing down startup.
+        void (async () => {
+          try {
+            const dbSettings = await getSettings();
+            const cachedString = JSON.stringify(cachedSettings);
+            const dbString = JSON.stringify(dbSettings);
+            if (dbString !== cachedString) {
+              applyTheme(dbSettings);
+            }
+          } catch (e) {
+            // Ignore — cached/default settings already applied.
+          }
+        })();
       } catch (error) {
         console.error('Error initializing theme:', error);
         // Fallback to defaults

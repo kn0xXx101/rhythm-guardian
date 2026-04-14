@@ -113,17 +113,34 @@ export const disableCaching = (): void => {
     const originalFetch = window.fetch;
     window.fetch = function (...args) {
       const [resource, config] = args;
-      const newConfig = {
-        ...config,
-        cache: 'no-store' as RequestCache,
-        headers: {
-          ...config?.headers,
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
+      const noCacheHeaders: Record<string, string> = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
       };
-      return originalFetch(resource, newConfig);
+
+      // If fetch is called with a Request object and no init config, we MUST preserve the Request headers.
+      // Some SDKs (e.g. Supabase) rely on Request headers like `apikey`; overwriting them breaks auth.
+      if (resource instanceof Request && !config) {
+        const mergedHeaders = new Headers(resource.headers);
+        Object.entries(noCacheHeaders).forEach(([k, v]) => mergedHeaders.set(k, v));
+        const newRequest = new Request(resource, {
+          cache: 'no-store',
+          headers: mergedHeaders,
+        });
+        return originalFetch(newRequest);
+      }
+
+      const mergedHeaders = new Headers((config as any)?.headers || {});
+      Object.entries(noCacheHeaders).forEach(([k, v]) => mergedHeaders.set(k, v));
+
+      const newConfig: RequestInit = {
+        ...(config || {}),
+        cache: 'no-store',
+        headers: mergedHeaders,
+      };
+
+      return originalFetch(resource as any, newConfig);
     };
   }
 };

@@ -115,15 +115,56 @@ const defaultSettings: Settings = {
   },
 };
 
-// Sync key settings to platform_settings for edge functions (paystack, auto-payouts)
+const SETTINGS_CACHE_KEY = 'rg:settings:platform_settings:v1';
+const SETTINGS_CACHE_TS_KEY = 'rg:settings:platform_settings:ts:v1';
+// Keep it short so changes propagate quickly, but still remove startup/network latency.
+const SETTINGS_CACHE_TTL_MS = 60_000; // 1 minute
+
+const readSettingsCache = (): Settings | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+    const tsRaw = localStorage.getItem(SETTINGS_CACHE_TS_KEY);
+    if (!raw || !tsRaw) return null;
+    const ts = Number(tsRaw);
+    if (!Number.isFinite(ts)) return null;
+    if (Date.now() - ts > SETTINGS_CACHE_TTL_MS) return null;
+    return JSON.parse(raw) as Settings;
+  } catch {
+    return null;
+  }
+};
+
+const writeSettingsCache = (settings: Settings) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_CACHE_TS_KEY, String(Date.now()));
+  } catch {
+    // ignore quota/serialization errors
+  }
+};
+
+// Sync full settings into platform_settings so public clients (and edge code)
+// can read appearance + other global config without requiring auth.
 const syncToPlatformSettings = async (s: Settings) => {
   try {
     await (supabase as any)
       .from('platform_settings')
       .upsert(
         [
+          { key: 'general', value: s.general },
+          { key: 'security', value: s.security },
+          { key: 'notifications', value: s.notifications },
+          { key: 'appearance', value: s.appearance },
+          { key: 'integrations', value: s.integrations },
+          { key: 'user_management', value: s.userManagement },
           { key: 'booking', value: s.bookingPayments },
           { key: 'chat', value: s.chatCommunication },
+          { key: 'content_moderation', value: s.contentModeration },
+          { key: 'analytics_reporting', value: s.analyticsReporting },
+          { key: 'platform_policies', value: s.platformPolicies },
+          { key: 'system_monitoring', value: s.systemMonitoring },
         ],
         { onConflict: 'key' }
       );
@@ -215,6 +256,42 @@ const getSettingsFromPlatformTable = async () => {
 };
 
 export const getSettings = async (): Promise<Settings> => {
+  const cached = readSettingsCache();
+  if (cached) {
+    // Stale-while-revalidate: return immediately, then refresh in background.
+    void (async () => {
+      try {
+        const fresh = await (async (): Promise<Settings> => {
+          const settingsTableResult = await getSettingsFromSettingsTable();
+          if (!settingsTableResult.error && settingsTableResult.data?.value) {
+            return mergeSettings(settingsTableResult.data.value as Partial<Settings>);
+          }
+
+          const platformTableResult = await getSettingsFromPlatformTable();
+          if (!platformTableResult.error && Array.isArray(platformTableResult.data)) {
+            return buildSettingsFromPlatformRows(
+              platformTableResult.data as Array<{ key: string; value: Record<string, unknown> }>
+            );
+          }
+
+          return defaultSettings;
+        })();
+
+        // Only write if different to reduce localStorage churn
+        if (JSON.stringify(fresh) !== JSON.stringify(cached)) {
+          writeSettingsCache(fresh);
+        } else {
+          // bump timestamp to keep cache warm
+          writeSettingsCache(cached);
+        }
+      } catch {
+        // ignore background refresh errors
+      }
+    })();
+
+    return cached;
+  }
+
   try {
     console.log('Fetching settings from database...');
 
@@ -223,15 +300,18 @@ export const getSettings = async (): Promise<Settings> => {
       const mergedSettings = mergeSettings(
         settingsTableResult.data.value as Partial<Settings>
       );
+      writeSettingsCache(mergedSettings);
       return mergedSettings;
     }
 
     const platformTableResult = await getSettingsFromPlatformTable();
     if (!platformTableResult.error && Array.isArray(platformTableResult.data)) {
-      return buildSettingsFromPlatformRows(platformTableResult.data as Array<{
+      const built = buildSettingsFromPlatformRows(platformTableResult.data as Array<{
         key: string;
         value: Record<string, unknown>;
       }>);
+      writeSettingsCache(built);
+      return built;
     }
 
     if (settingsTableResult.error) {
@@ -241,6 +321,7 @@ export const getSettings = async (): Promise<Settings> => {
       console.error('Error fetching platform settings:', platformTableResult.error);
     }
 
+    writeSettingsCache(defaultSettings);
     return defaultSettings;
   } catch (error) {
     const isConnectionError = 
@@ -251,6 +332,7 @@ export const getSettings = async (): Promise<Settings> => {
       console.error('Failed to load settings from database:', error);
     }
     
+    writeSettingsCache(defaultSettings);
     return defaultSettings;
   }
 };
@@ -275,6 +357,7 @@ export const updateSettings = async (newSettings: Settings): Promise<Settings> =
     if (!upsertResult.error && upsertResult.data?.value) {
       // Sync to platform_settings for edge functions (paystack, auto-payouts) that read from there
       await syncToPlatformSettings(newSettings);
+      writeSettingsCache(upsertResult.data.value as Settings);
       return upsertResult.data.value as Settings;
     }
 
@@ -303,6 +386,7 @@ export const updateSettings = async (newSettings: Settings): Promise<Settings> =
     }
 
     // syncToPlatformSettings already done via platformPayload above
+    writeSettingsCache(newSettings);
     return newSettings;
   } catch (error) {
     console.error('An unexpected error occurred while saving settings:', error);

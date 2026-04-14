@@ -43,6 +43,32 @@ export const supabase = createClient<Database>(
   }
 );
 
+// Dev-only: quick connectivity check to surface real errors on localhost.
+// This helps distinguish env/config issues from network/CORS/auth problems.
+if (import.meta.env.DEV) {
+  (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .limit(1);
+
+      if (error) {
+        console.error('🧪 Supabase health check failed:', {
+          message: error.message,
+          details: (error as any).details,
+          hint: (error as any).hint,
+          code: (error as any).code,
+        });
+      } else {
+        console.log('🧪 Supabase health check ok:', { rows: data?.length ?? 0 });
+      }
+    } catch (e) {
+      console.error('🧪 Supabase health check crashed:', e);
+    }
+  })();
+}
+
 // Admin client with service role key for elevated permissions
 // Note: Service role key bypasses RLS and should only be used server-side
 // For client-side admin operations, we use the regular client with admin user session
