@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { CreditCard, Building2, Smartphone, QrCode, Loader2 } from 'lucide-react
 import { getSettings } from '@/api/settings';
 import { SessionManager } from '@/utils/session-manager';
 import { notifyAdmins } from '@/services/admin-notify';
+import { scheduleFullReload } from '@/utils/schedule-full-reload';
 
 interface PaymentModalProps {
   open: boolean;
@@ -58,6 +59,8 @@ export function PaymentModal({
   const [isInitialized, setIsInitialized] = useState(false);
   const [allowedMethods, setAllowedMethods] = useState<string[] | null>(null);
   const [platformFeePercentage, setPlatformFeePercentage] = useState<number>(10);
+  /** Paystack may fire `onClose` after success; avoid reopening the booking dialog in that case. */
+  const paystackSucceededRef = useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -199,6 +202,7 @@ export function PaymentModal({
     }
 
     setIsProcessing(true);
+    paystackSucceededRef.current = false;
 
     try {
       const reference = paystackService.generateReference();
@@ -220,6 +224,18 @@ export function PaymentModal({
         // Continue with payment even if transaction record creation fails
       }
 
+      // Radix Dialog overlay is z-50 and captures pointer events. Paystack's inline iframe mounts
+      // on `document.body` under that layer, so users cannot click Paystack until the dialog closes.
+      onOpenChange(false);
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      toast({
+        title: 'Secure checkout',
+        description: 'Use the Paystack window to complete your test or live payment.',
+      });
+
       await paystackService.initializePayment({
         email: userEmail,
         amount: Math.round(totalToPay * 100),
@@ -233,6 +249,7 @@ export function PaymentModal({
         },
         callback: async (response) => {
           if (response.status === 'success') {
+            paystackSucceededRef.current = true;
             try {
 
               // For test mode, skip server verification and trust Paystack's response
@@ -336,6 +353,7 @@ export function PaymentModal({
 
               onPaymentSuccess();
               onOpenChange(false);
+              scheduleFullReload(800);
             } catch (error: any) {
               console.error('Payment processing error details:', error);
               const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown error occurred');
@@ -344,6 +362,7 @@ export function PaymentModal({
                 title: 'Payment Processing Failed',
                 description: `${errorMessage}. Reference: ${reference}`,
               });
+              onOpenChange(true);
             }
           } else {
             console.error('Payment callback status not success:', response);
@@ -352,15 +371,20 @@ export function PaymentModal({
               title: 'Payment Failed',
               description: response.message || 'Your payment was not successful. Please try again.',
             });
+            onOpenChange(true);
           }
           setIsProcessing(false);
         },
         onClose: () => {
           setIsProcessing(false);
-          toast({
-            title: 'Payment Cancelled',
-            description: 'You closed the payment window.',
-          });
+          if (!paystackSucceededRef.current) {
+            toast({
+              title: 'Payment Cancelled',
+              description: 'You closed the payment window.',
+            });
+            onOpenChange(true);
+          }
+          paystackSucceededRef.current = false;
         },
       });
     } catch (error: any) {
@@ -371,6 +395,7 @@ export function PaymentModal({
         description: error.message || error.details || 'Failed to process payment',
       });
       setIsProcessing(false);
+      onOpenChange(true);
     }
   };
 
@@ -383,7 +408,7 @@ export function PaymentModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[520px] max-h-[90vh] flex flex-col p-0">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[520px] max-h-[calc(100vh-2rem)] flex flex-col p-0">
         <div className="border-b px-6 pt-6 pb-4">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-lg">Complete Your Booking Payment</DialogTitle>
@@ -463,7 +488,7 @@ export function PaymentModal({
             <h4 className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
               Select Payment Methods
             </h4>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {enabledChannels.map((channel) => {
                 const Icon = channel.icon;
                 const isSelected = selectedChannel === channel.value;

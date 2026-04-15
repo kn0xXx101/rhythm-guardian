@@ -407,8 +407,17 @@
 
   /* Fixed Height Text */
   .fixed-height-text {
+    /* Default for large screens where we want consistent hero height */
     height: 80px;
     overflow: hidden;
+  }
+
+  /* On phones, never clip headlines */
+  @media (max-width: 639px) {
+    .fixed-height-text {
+      height: auto;
+      overflow: visible;
+    }
   }
 
   /* Animation Delays */

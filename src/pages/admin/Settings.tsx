@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/use-toast';
 import { getSettings, updateSettings } from '@/api/settings';
+import { scheduleFullReload } from '@/utils/schedule-full-reload';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Settings } from '@/types/settings';
 import { auditService } from '@/services/audit';
@@ -173,6 +174,7 @@ const Settings = () => {
         title: 'Settings saved',
         description: 'Your changes have been saved successfully.',
       });
+      scheduleFullReload(600);
 
       try {
         await auditService.logEvent({

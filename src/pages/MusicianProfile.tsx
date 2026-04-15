@@ -1076,7 +1076,7 @@ const MusicianProfile: React.FC = () => {
                           <Clock className="h-4 w-4 text-primary" />
                           <span className="text-sm font-semibold">Weekday Hours</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-sm font-medium text-muted-foreground">Start Time</Label>
                             <Select 
@@ -1122,7 +1122,7 @@ const MusicianProfile: React.FC = () => {
                           <Clock className="h-4 w-4 text-primary" />
                           <span className="text-sm font-semibold">Weekend Hours</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label className="text-sm font-medium text-muted-foreground">Start Time</Label>
                             <Select 

@@ -1,6 +1,8 @@
 import { Bot } from 'lucide-react';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 
 interface ChatHeaderProps {
   contact: {
@@ -11,13 +13,26 @@ interface ChatHeaderProps {
     [key: string]: any;
   } | null;
   renderDetailComponent: () => React.ReactNode;
+  onBack?: () => void;
 }
 
-const ChatHeader = ({ contact, renderDetailComponent }: ChatHeaderProps) => {
+const ChatHeader = ({ contact, renderDetailComponent, onBack }: ChatHeaderProps) => {
   if (!contact) return null;
 
   return (
     <div className="p-4 border-b flex items-center gap-3 flex-shrink-0 bg-background sticky top-0 z-10">
+      {onBack && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={onBack}
+          className="md:hidden -ml-2"
+          aria-label="Back to conversations"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+      )}
       <div className="relative flex-shrink-0">
         <div
           className={`w-10 h-10 rounded-full overflow-hidden ${contact.id === AI_ASSISTANT_ID ? 'bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center' : ''}`}

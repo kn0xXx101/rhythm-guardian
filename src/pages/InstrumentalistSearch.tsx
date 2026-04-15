@@ -904,10 +904,6 @@ const InstrumentalistSearch = () => {
 					userId={user.id}
 					userEmail={user.email || ''}
 					onPaymentSuccess={() => {
-						toast({
-							title: 'Payment successful',
-							description: 'Your booking has been confirmed!',
-						});
 						setShowPaymentModal(false);
 						navigate('/hirer/bookings');
 					}}

@@ -751,7 +751,7 @@ const AdminChat = () => {
         </div>
       }
       contactsList={
-        <div className="flex flex-col h-full min-h-0">
+        <div className={`flex flex-col h-full min-h-0 ${selectedContact ? 'hidden md:flex' : ''}`}>
           {/* Search bar */}
           <div className="p-3 border-b flex-shrink-0">
             <div className="relative">
@@ -839,10 +839,17 @@ const AdminChat = () => {
         </div>
       }
       chatArea={
-        <div className="flex flex-col h-full min-h-0 overflow-hidden">
+        <div className={`flex flex-col h-full min-h-0 overflow-hidden ${selectedContact ? '' : 'hidden md:flex'}`}>
           {selectedContact ? (
             <>
-              <ChatHeader contact={selectedContact} renderDetailComponent={renderHeaderDetail} />
+              <ChatHeader
+                contact={selectedContact}
+                renderDetailComponent={renderHeaderDetail}
+                onBack={() => {
+                  setSelectedContact(null);
+                  setActiveContactId(null);
+                }}
+              />
               <ChatMessages />
               <MessageInput />
             </>

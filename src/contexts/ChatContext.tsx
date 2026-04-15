@@ -21,7 +21,7 @@ interface ChatContextType {
   ) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
-  setActiveContactId: (id: number | string) => void;
+  setActiveContactId: (id: number | string | null) => void;
   activeContactId: number | string | null;
   typingIndicators: TypingIndicator[];
   setTyping: (contactId: number | string, isTyping: boolean) => void;

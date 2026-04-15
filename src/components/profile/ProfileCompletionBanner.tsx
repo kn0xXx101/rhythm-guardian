@@ -8,6 +8,7 @@ import { AlertTriangle, CheckCircle, ArrowRight, Loader2, CheckCircle2 } from 'l
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
+import { scheduleFullReload } from '@/utils/schedule-full-reload';
 
 export function ProfileCompletionBanner() {
   const { user } = useAuth();
@@ -113,6 +114,7 @@ export function ProfileCompletionBanner() {
         title: 'Submitted Successfully',
         description: 'Your profile has been submitted for verification. We\'ll review it soon!',
       });
+      scheduleFullReload(700);
     } catch (error: any) {
       console.error('Error submitting for verification:', error);
       toast({

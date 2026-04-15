@@ -569,7 +569,7 @@ const MusicianChat = () => {
         </DashboardHeader>
       }
       contactsList={
-        <div className="flex flex-col h-full min-h-0">
+        <div className={`flex flex-col h-full min-h-0 ${selectedContact ? 'hidden md:flex' : ''}`}>
           <ChatSearchBar searchRoles={['hirer']} onSelect={handleSearchSelect} />
           <div className="flex-1 overflow-y-auto">
         {isLoading ? (
@@ -598,10 +598,17 @@ const MusicianChat = () => {
         </div>
       }
       chatArea={
-        <div className="flex flex-col h-full min-h-0 overflow-hidden">
+        <div className={`flex flex-col h-full min-h-0 overflow-hidden ${selectedContact ? '' : 'hidden md:flex'}`}>
           {selectedContact ? (
             <>
-              <ChatHeader contact={selectedContact} renderDetailComponent={renderHeaderDetail} />
+              <ChatHeader
+                contact={selectedContact}
+                renderDetailComponent={renderHeaderDetail}
+                onBack={() => {
+                  setSelectedContact(null);
+                  setActiveContactId(null);
+                }}
+              />
               <ChatMessages />
               <MessageInput />
             </>

@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { refundTicketingService } from '@/services/refund-ticketing';
 import { supabase } from '@/lib/supabase';
+import { scheduleFullReload } from '@/utils/schedule-full-reload';
 import {
   Dialog,
   DialogContent,
@@ -130,6 +131,7 @@ const HirerBookings = () => {
         title: 'Service Confirmed',
         description: 'You have confirmed that the service was successfully rendered.',
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -146,6 +148,7 @@ const HirerBookings = () => {
         title: 'Booking cancelled',
         description: `Booking #${bookingId} has been cancelled.`,
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -204,10 +207,7 @@ const HirerBookings = () => {
           description: 'A support ticket has been opened for your request. Our team will investigate shortly.',
         });
         setSelectedRefundBooking(null);
-        // Refetch bookings to update status
-        if (refetch) {
-          refetch();
-        }
+        scheduleFullReload(600);
       } else {
         throw new Error(result.error || 'Failed to submit refund request');
       }
@@ -543,13 +543,7 @@ const HirerBookings = () => {
           booking={selectedBooking}
           userId={user.id}
           userEmail={user.email || ''}
-          onPaymentSuccess={() => {
-            toast({
-              title: 'Payment successful',
-              description: 'Your payment has been confirmed!',
-            });
-            setShowPaymentModal(false);
-          }}
+          onPaymentSuccess={() => setShowPaymentModal(false)}
         />
       )}
 
@@ -561,25 +555,7 @@ const HirerBookings = () => {
           revieweeId={reviewBooking.musician?.id}
           revieweeName={reviewBooking.musician?.name || 'Musician'}
           reviewerId={user.id}
-          onSuccess={() => {
-            // Refresh existing reviews to update the UI
-            const fetchExistingReviews = async () => {
-              try {
-                const { data: reviews, error } = await supabase
-                  .from('reviews')
-                  .select('reviewee_id')
-                  .eq('reviewer_id', user.id);
-
-                if (error) throw error;
-
-                const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
-                setExistingReviews(reviewedUserIds);
-              } catch (error) {
-                console.error('Error fetching existing reviews:', error);
-              }
-            };
-            fetchExistingReviews();
-          }}
+          onSuccess={() => scheduleFullReload(600)}
         />
       )}
 

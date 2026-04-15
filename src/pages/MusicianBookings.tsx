@@ -12,6 +12,7 @@ import { OptimizedImage } from '@/components/ui/optimized-image';
 import { ReviewDialog } from '@/components/booking/ReviewDialog';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { supabase } from '@/lib/supabase';
+import { scheduleFullReload } from '@/utils/schedule-full-reload';
 
 const MusicianBookings = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -105,6 +106,7 @@ const MusicianBookings = () => {
         title: 'Service Confirmed',
         description: 'You have confirmed that the service has been rendered.',
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -122,6 +124,7 @@ const MusicianBookings = () => {
         title: 'Booking Accepted',
         description: `You've accepted ${booking?.client.name}'s booking request for ${booking?.date}.`,
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -140,6 +143,7 @@ const MusicianBookings = () => {
         description: `You've declined ${booking?.client.name}'s booking request.`,
         variant: 'destructive',
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -157,6 +161,7 @@ const MusicianBookings = () => {
         description: `You've cancelled the booking.`,
         variant: 'destructive',
       });
+      scheduleFullReload(600);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -454,26 +459,7 @@ const MusicianBookings = () => {
           revieweeId={selectedBookingForReview.client.id}
           revieweeName={selectedBookingForReview.client.name}
           reviewerId={user?.id || ''}
-          onSuccess={() => {
-            // Refresh existing reviews to update the UI
-            const fetchExistingReviews = async () => {
-              if (!user?.id) return;
-              try {
-                const { data: reviews, error } = await supabase
-                  .from('reviews')
-                  .select('reviewee_id')
-                  .eq('reviewer_id', user.id);
-
-                if (error) throw error;
-
-                const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
-                setExistingReviews(reviewedUserIds);
-              } catch (error) {
-                console.error('Error fetching existing reviews:', error);
-              }
-            };
-            fetchExistingReviews();
-          }}
+          onSuccess={() => scheduleFullReload(600)}
         />
       )}
     </div>
