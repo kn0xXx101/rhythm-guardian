@@ -160,8 +160,8 @@ class AdminService {
           );
 
       const totalBookings = bookingsList.length;
-      const pendingBookings = countByStatus(['pending', 'accepted']);
-      const confirmedBookings = countByStatus(['in_progress']);
+      const pendingBookings = countByStatus(['pending']);
+      const confirmedBookings = countByStatus(['in_progress', 'accepted']);
       const completedBookings = countByStatus(['completed']);
       const cancelledBookings = countByStatus(['cancelled', 'rejected']);
 
@@ -573,17 +573,21 @@ class AdminService {
   async getRevenueAnalytics(dateRange: { start: string; end: string } | null = null) {
     try {
       const data = await this.getAnalyticsData(dateRange);
-      
-      // Calculate revenue metrics
-      const totalRevenue = (data.bookings || []).reduce(
+
+      const paidBookingRows = (data.bookings || []).filter(
+        (b: any) => b.payment_status === 'paid'
+      );
+
+      // Gross booking value and fees only from paid bookings (consistent with charts)
+      const totalRevenue = paidBookingRows.reduce(
         (sum: number, b: any) => sum + (parseFloat(String(b.total_amount ?? '0')) || 0),
         0
       );
-      const platformFees = (data.bookings || []).reduce(
+      const platformFees = paidBookingRows.reduce(
         (sum: number, b: any) => sum + (parseFloat(String(b.platform_fee ?? '0')) || 0),
         0
       );
-      const paidBookings = (data.bookings || []).filter(b => b.payment_status === 'paid').length;
+      const paidBookings = paidBookingRows.length;
       const completedBookings = (data.bookings || []).filter(b => b.status === 'completed').length;
       
       // Revenue by month

@@ -49,12 +49,17 @@ const AdminDashboardLayout = () => {
       )}
       
       <AdminSidebar />
-      <div className={cn(
-        "transition-all duration-300 ease-in-out",
-        isMobile ? "ml-0" : isCollapsed ? "ml-16" : "ml-64"
-      )}>
+      <div
+        className={cn(
+          'transition-all duration-300 ease-in-out min-h-screen flex flex-col',
+          isMobile ? 'ml-0' : isCollapsed ? 'ml-16' : 'ml-64'
+        )}
+      >
         <TopNav userType="admin" />
-        <main id="main-content" className="container py-6 lg:py-10 px-4">
+        <main
+          id="main-content"
+          className="container flex flex-1 flex-col min-h-0 py-6 lg:py-10 px-4"
+        >
           <Outlet />
         </main>
       </div>

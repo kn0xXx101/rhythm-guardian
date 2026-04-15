@@ -21,18 +21,20 @@ export async function notifyAdmins(
 
     if (!admins || admins.length === 0) return;
 
-    await (supabase as any).from('notifications').insert(
-      admins.map((a: any) => ({
-        user_id: a.user_id,
-        type,
-        title,
-        content,
-        read: false,
-        action_url: actionUrl,
-      }))
-    );
+    for (const a of admins) {
+      const { error } = await supabase.rpc('create_notification', {
+        p_user_id: a.user_id,
+        p_type: type,
+        p_title: title,
+        p_content: content,
+        p_action_url: actionUrl,
+        p_metadata: {},
+      });
+      if (error) {
+        console.error('notifyAdmins RPC error for admin', a.user_id, error);
+      }
+    }
   } catch (err) {
-    // Never throw — notifications are non-critical
     console.error('notifyAdmins error (ignored):', err);
   }
 }

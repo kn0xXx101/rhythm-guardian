@@ -60,23 +60,19 @@ export function ReviewDialog({
 
     setIsSubmitting(true);
     try {
-      // Check if review already exists for this reviewer-reviewee pair
       const { data: existingReview, error: checkError } = await supabase
         .from('reviews')
         .select('id')
         .eq('reviewer_id', reviewerId)
-        .eq('reviewee_id', revieweeId)
-        .single();
+        .eq('booking_id', bookingId)
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        // PGRST116 is "not found" error, which is what we want
-        throw checkError;
-      }
+      if (checkError) throw checkError;
 
       if (existingReview) {
         toast({
-          title: 'Review Already Exists',
-          description: 'You have already reviewed this person.',
+          title: 'Review already submitted',
+          description: 'You have already left a review for this booking.',
           variant: 'destructive',
         });
         return;
@@ -93,10 +89,9 @@ export function ReviewDialog({
 
       if (reviewError) {
         if (reviewError.code === '23505') {
-          // Unique constraint violation
           toast({
-            title: 'Review Already Exists',
-            description: 'You have already reviewed this person.',
+            title: 'Review already submitted',
+            description: 'You have already left a review for this booking.',
             variant: 'destructive',
           });
           return;

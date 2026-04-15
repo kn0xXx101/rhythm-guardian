@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, memo } from 'react';
+import { useEffect, useRef, useState, useMemo, memo, useCallback } from 'react';
 import { useChat } from '@/contexts/ChatContext';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import {
@@ -29,12 +29,13 @@ const ChatMessages = memo(() => {
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
 
-  useEffect(() => {
-    setScrollElement(messagesContainerRef.current);
+  const setMessagesScrollRef = useCallback((el: HTMLDivElement | null) => {
+    messagesContainerRef.current = el;
+    setScrollElement(el);
   }, []);
 
   // Prepare items with date separators for virtual scrolling
@@ -195,7 +196,10 @@ const ChatMessages = memo(() => {
   };
 
   return (
-    <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 min-h-0">
+    <div
+      ref={setMessagesScrollRef}
+      className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y p-4 min-h-0 max-h-full [scrollbar-gutter:stable]"
+    >
       {!activeContactId ? (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           <div className="text-center space-y-2">

@@ -75,11 +75,13 @@ export function HirerOverview() {
 
         setBookings(bookings || []);
 
+        const isConfirmedActive = (status: string) =>
+          status === 'upcoming' || status === 'accepted';
+
         const statsData: HirerOverviewStats = {
           totalBookings: bookings?.length || 0,
-          pendingBookings:
-            bookings?.filter((b) => b.status === 'pending' || b.status === 'accepted').length || 0,
-          confirmedBookings: bookings?.filter((b) => b.status === 'accepted').length || 0,
+          pendingBookings: bookings?.filter((b) => b.status === 'pending').length || 0,
+          confirmedBookings: bookings?.filter((b) => isConfirmedActive(b.status)).length || 0,
           completedBookings: bookings?.filter((b) => b.status === 'completed').length || 0,
           cancelledBookings:
             bookings?.filter((b) => b.status === 'cancelled' || b.status === 'rejected').length ||
@@ -89,9 +91,8 @@ export function HirerOverview() {
             bookings
               ?.filter((b) => b.payment_status === 'paid')
               .reduce((sum, b) => sum + parseFloat(b.total_amount?.toString() || '0'), 0) || 0,
-          activeBookings:
-            bookings?.filter((b) => b.status === 'accepted' || b.status === 'pending').length ||
-            0,
+          // Confirmed & in progress: musician accepted (upcoming), not pending requests
+          activeBookings: bookings?.filter((b) => isConfirmedActive(b.status)).length || 0,
         };
 
         setStats(statsData);
@@ -245,7 +246,7 @@ export function HirerOverview() {
             ) : (
               <div className="text-fluid-2xl font-bold">
                 {(() => {
-                  const paidBookingsCount = bookings.filter((b) => (b.status as string) === 'paid' || b.status === 'completed').length;
+                  const paidBookingsCount = bookings.filter((b) => b.payment_status === 'paid').length;
                   return paidBookingsCount > 0
                     ? formatGHSWithSymbol(stats.totalSpent / paidBookingsCount)
                     : formatGHSWithSymbol(0);

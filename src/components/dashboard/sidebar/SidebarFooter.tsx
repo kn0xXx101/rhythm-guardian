@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 import { Separator } from '@/components/ui/separator';
 import { LogOut, SunMoon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -12,12 +12,14 @@ interface SidebarFooterProps {
 
 const SidebarFooter = ({ isCollapsed = false }: SidebarFooterProps) => {
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
-    // Replace the current history entry with /login
-    // This way when user clicks back, they'll go to homepage instead of previous authenticated pages
-    navigate('/login', { replace: true });
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      // AuthContext already surfaces errors via toast
+    }
   };
 
   const themeButton = (

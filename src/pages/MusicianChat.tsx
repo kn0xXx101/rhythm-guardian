@@ -16,12 +16,14 @@ import { useSearchParams } from 'react-router-dom';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ChatSearchBar, type SearchContact } from '@/components/chat/ChatSearchBar';
+import { useToast } from '@/hooks/use-toast';
 
 interface MusicianContact extends Contact {
   eventType: string;
 }
 
 const MusicianChat = () => {
+  const { toast } = useToast();
   const { user } = useAuth();
   const [contacts, setContacts] = useState<MusicianContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<MusicianContact | null>(null);
@@ -86,6 +88,26 @@ const MusicianChat = () => {
         if (error) throw error;
         if (!profile) return;
 
+        const { data: paidBooking } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('musician_id', user.id)
+          .eq('hirer_id', userIdParam)
+          .eq('payment_status', 'paid')
+          .limit(1)
+          .maybeSingle();
+
+        if (!paidBooking) {
+          toast({
+            variant: 'destructive',
+            title: 'Payment pending',
+            description:
+              'Chat opens after the hirer completes payment on an accepted booking.',
+          });
+          setSearchParams({});
+          return;
+        }
+
         const lastActive = profile.last_active_at ? new Date(profile.last_active_at) : new Date();
         const isOnline = new Date().getTime() - lastActive.getTime() < 5 * 60 * 1000;
 
@@ -119,7 +141,7 @@ const MusicianChat = () => {
     };
 
     loadHirerContact();
-  }, [searchParams, user, setSearchParams, setActiveContactId, updateContactStatus]);
+  }, [searchParams, user, setSearchParams, setActiveContactId, updateContactStatus, toast]);
 
     const fetchContacts = async () => {
       if (!user) {
@@ -223,7 +245,8 @@ const MusicianChat = () => {
           .from('bookings')
           .select('hirer_id, profiles!bookings_hirer_id_fkey(user_id, full_name, avatar_url, last_active_at, role)')
           .eq('musician_id', user.id)
-          .in('status', ['pending', 'accepted', 'in_progress', 'completed']);
+          .eq('payment_status', 'paid')
+          .in('status', ['accepted', 'in_progress', 'completed']);
 
         if (!bookingsError && bookings) {
           bookings.forEach((booking: any) => {
@@ -450,7 +473,28 @@ const MusicianChat = () => {
     updateContactStatus(musicianContact.id, musicianContact);
   };
 
-  const handleSearchSelect = (result: SearchContact) => {
+  const handleSearchSelect = async (result: SearchContact) => {
+    if (result.role === 'hirer' && user?.id && result.id !== AI_ASSISTANT_ID) {
+      const { data: paidBooking } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('musician_id', user.id)
+        .eq('hirer_id', result.id)
+        .eq('payment_status', 'paid')
+        .limit(1)
+        .maybeSingle();
+
+      if (!paidBooking) {
+        toast({
+          variant: 'destructive',
+          title: 'Payment pending',
+          description:
+            'You can message this hirer after they pay for an accepted booking.',
+        });
+        return;
+      }
+    }
+
     const newContact: MusicianContact = {
       id: result.id,
       name: result.name,
@@ -463,7 +507,7 @@ const MusicianChat = () => {
       eventType: result.role === 'hirer' ? 'Hirer' : result.role,
       publicKey: '',
     };
-    setContacts((prev) => prev.find((c) => c.id === result.id) ? prev : [newContact, ...prev]);
+    setContacts((prev) => (prev.find((c) => c.id === result.id) ? prev : [newContact, ...prev]));
     handleSelectContact(newContact);
   };
 

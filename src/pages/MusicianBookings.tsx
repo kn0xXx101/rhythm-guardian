@@ -18,7 +18,7 @@ const MusicianBookings = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState<any>(null);
-  const [existingReviews, setExistingReviews] = useState<Set<string>>(new Set());
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const {
     bookings,
     updateBooking,
@@ -46,28 +46,29 @@ const MusicianBookings = () => {
     checkExpiredBookings();
   }, [refetch]);
 
-  // Fetch existing reviews to check which reviewees already have reviews from this user
   useEffect(() => {
-    const fetchExistingReviews = async () => {
+    const fetchReviewedBookings = async () => {
       if (!user?.id) return;
 
       try {
         const { data: reviews, error } = await supabase
           .from('reviews')
-          .select('reviewee_id')
+          .select('booking_id')
           .eq('reviewer_id', user.id);
 
         if (error) throw error;
 
-        const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
-        setExistingReviews(reviewedUserIds);
+        const ids = new Set(
+          (reviews?.map((r) => r.booking_id).filter(Boolean) as string[]) || []
+        );
+        setReviewedBookingIds(ids);
       } catch (error) {
-        console.error('Error fetching existing reviews:', error);
+        console.error('Error fetching reviews for bookings:', error);
       }
     };
 
-    fetchExistingReviews();
-  }, [user?.id, bookings]); // Re-fetch when bookings change
+    fetchReviewedBookings();
+  }, [user?.id, bookings]);
 
   // Filter bookings for current musician
   const musicianBookings = bookings.filter((b) => b.musician.id === user?.id);
@@ -334,7 +335,9 @@ const MusicianBookings = () => {
                       </div>
 
                       <div className="md:w-1/5 p-6 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l">
-                        {(booking.status !== 'expired' && booking.status !== 'cancelled') && (
+                        {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') &&
+                          booking.status !== 'expired' &&
+                          booking.status !== 'cancelled' && (
                           <Button
                             className="w-full hover:scale-105 transition-transform duration-200"
                             onClick={() => handleMessage(booking.client.id)}
@@ -389,13 +392,6 @@ const MusicianBookings = () => {
                                 </span>
                               </div>
                             )}
-                            <Button
-                              variant="ghost"
-                              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleCancelBooking(booking.id)}
-                            >
-                              Cancel Booking
-                            </Button>
                           </>
                         )}
                         {booking.status === 'completed' && (
@@ -405,7 +401,7 @@ const MusicianBookings = () => {
                                 Completed
                               </span>
                             </div>
-                            {!existingReviews.has(booking.client.id) ? (
+                            {!reviewedBookingIds.has(booking.id) ? (
                               <Button
                                 variant="outline"
                                 className="w-full text-yellow-600 border-yellow-600 hover:bg-yellow-50"

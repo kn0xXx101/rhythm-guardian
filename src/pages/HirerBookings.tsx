@@ -35,7 +35,7 @@ const HirerBookings = () => {
   const [selectedRefundBooking, setSelectedRefundBooking] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
-  const [existingReviews, setExistingReviews] = useState<Set<string>>(new Set());
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const {
     bookings,
     updateBooking,
@@ -64,28 +64,29 @@ const HirerBookings = () => {
     checkExpiredBookings();
   }, [refetch]);
 
-  // Fetch existing reviews to check which reviewees already have reviews from this user
   useEffect(() => {
-    const fetchExistingReviews = async () => {
+    const fetchReviewedBookings = async () => {
       if (!user?.id) return;
 
       try {
         const { data: reviews, error } = await supabase
           .from('reviews')
-          .select('reviewee_id')
+          .select('booking_id')
           .eq('reviewer_id', user.id);
 
         if (error) throw error;
 
-        const reviewedUserIds = new Set(reviews?.map(r => r.reviewee_id) || []);
-        setExistingReviews(reviewedUserIds);
+        const ids = new Set(
+          (reviews?.map((r) => r.booking_id).filter(Boolean) as string[]) || []
+        );
+        setReviewedBookingIds(ids);
       } catch (error) {
-        console.error('Error fetching existing reviews:', error);
+        console.error('Error fetching reviews for bookings:', error);
       }
     };
 
-    fetchExistingReviews();
-  }, [user?.id, bookings]); // Re-fetch when bookings change
+    fetchReviewedBookings();
+  }, [user?.id, bookings]);
 
   const getMapLink = (location?: string) => {
     if (!location) return '';
@@ -413,7 +414,10 @@ const HirerBookings = () => {
                       </div>
 
                       <div className="md:w-1/5 p-6 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l">
-                        {booking.paymentStatus === 'unpaid' && (booking.status !== 'expired' && booking.status !== 'cancelled') && (
+                        {booking.paymentStatus === 'unpaid' &&
+                          booking.status !== 'pending' &&
+                          booking.status !== 'expired' &&
+                          booking.status !== 'cancelled' && (
                           <Button className="w-full" onClick={() => handlePayNow(booking)}>
                             <CreditCard className="h-4 w-4 mr-2" /> Pay Now
                           </Button>
@@ -452,9 +456,11 @@ const HirerBookings = () => {
                           </Button>
                         )}
                         
-                        {(booking.status !== 'expired' && booking.status !== 'cancelled') && (
+                        {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') &&
+                          booking.status !== 'expired' &&
+                          booking.status !== 'cancelled' && (
                           <Button
-                            variant={booking.paymentStatus === 'unpaid' ? 'ghost' : 'default'}
+                            variant="default"
                             className="w-full"
                             onClick={() => handleMessage(booking.musician.id)}
                           >
@@ -490,7 +496,7 @@ const HirerBookings = () => {
                           </>
                         )}
 
-                        {booking.status === 'completed' && !existingReviews.has(booking.musician?.id) && (
+                        {booking.status === 'completed' && !reviewedBookingIds.has(booking.id) && (
                           <Button
                             variant="ghost"
                             className="w-full"
@@ -499,7 +505,7 @@ const HirerBookings = () => {
                             Leave Review
                           </Button>
                         )}
-                        {booking.status === 'completed' && existingReviews.has(booking.musician?.id) && (
+                        {booking.status === 'completed' && reviewedBookingIds.has(booking.id) && (
                           <Button
                             variant="ghost"
                             className="w-full text-green-600 hover:text-green-700 hover:bg-green-50"

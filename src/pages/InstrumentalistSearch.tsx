@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatGHSWithSymbol } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
-import { PaymentModal } from "@/components/booking/PaymentModal";
 import { ReviewsDialog } from "@/components/musician/ReviewsDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { OptimizedImage } from "@/components/ui/optimized-image";
@@ -239,10 +238,8 @@ const InstrumentalistSearch = () => {
 	const [musicians, setMusicians] = useState<Musician[]>([]);
 	const [filteredMusicians, setFilteredMusicians] = useState<Musician[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [showPaymentModal, setShowPaymentModal] = useState(false);
 	const [showBookingDialog, setShowBookingDialog] = useState(false);
 	const [selectedMusicianForBooking, setSelectedMusicianForBooking] = useState<Musician | null>(null);
-	const [selectedBooking, setSelectedBooking] = useState<any>(null);
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 	const [sortBy, setSortBy] = useState<string>('recommended');
 	const [showReviewsDialog, setShowReviewsDialog] = useState(false);
@@ -513,23 +510,14 @@ const InstrumentalistSearch = () => {
 				console.error('Failed to create notification:', error);
 			}
 
-			// Shape booking for PaymentModal
-			setSelectedBooking({
-				id: newBooking.id,
-				totalAmount: details.totalBudget,
-				depositAmount: details.totalBudget, // Full payment
-				musician: {
-					id: musicianId,
-					name: musician.full_name,
-					instruments: musician.instruments || [],
-				},
-				event: {
-					type: details.eventType,
-					date: details.eventDate,
-					location: details.location,
-				},
+			setShowBookingDialog(false);
+			setSelectedMusicianForBooking(null);
+			toast({
+				title: 'Booking request sent',
+				description:
+					'The musician must accept before you can pay. You will pay from My Bookings after acceptance.',
 			});
-			setShowPaymentModal(true);
+			navigate('/hirer/bookings');
 		} catch (error) {
 			console.error('Error creating booking:', error);
 			toast({
@@ -893,20 +881,6 @@ const InstrumentalistSearch = () => {
 					onOpenChange={setShowBookingDialog}
 					musician={selectedMusicianForBooking}
 					onConfirm={handleConfirmBookingDetails}
-				/>
-			)}
-
-			{selectedBooking && user && (
-				<PaymentModal
-					open={showPaymentModal}
-					onOpenChange={setShowPaymentModal}
-					booking={selectedBooking}
-					userId={user.id}
-					userEmail={user.email || ''}
-					onPaymentSuccess={() => {
-						setShowPaymentModal(false);
-						navigate('/hirer/bookings');
-					}}
 				/>
 			)}
 

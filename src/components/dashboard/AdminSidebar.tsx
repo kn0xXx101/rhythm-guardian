@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -21,10 +22,8 @@ import {
 import { cn } from '@/lib/utils';
 import { useSidebarContext } from '@/contexts/SidebarContext';
 import SidebarLogo from './sidebar/SidebarLogo';
-import { useSiteSettings } from '@/contexts/SiteSettingsContext';
-
 const AdminSidebar = () => {
-  const { siteName } = useSiteSettings();
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { isMobileOpen, setMobileSidebarOpen, isCollapsed, toggleCollapse, isMobile } = useSidebarContext();
   const location = useLocation();
@@ -189,22 +188,26 @@ const AdminSidebar = () => {
             {(!isCollapsed || isMobile) && (theme === 'light' ? 'Dark Mode' : 'Light Mode')}
           </Button>
 
-          <Link to="/login">
-            <Button
-              variant="ghost"
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              void logout();
+            }}
+            className={cn(
+              'flex w-full items-center px-4 py-2 text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent/50 group transition-colors',
+              isCollapsed && !isMobile ? 'justify-center px-2' : 'justify-start'
+            )}
+            title={isCollapsed && !isMobile ? 'Logout' : undefined}
+          >
+            <LogOut
               className={cn(
-                "flex w-full items-center px-4 py-2 text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent/50 group transition-colors",
-                isCollapsed && !isMobile ? "justify-center px-2" : "justify-start"
+                'text-sidebar-foreground group-hover:text-destructive transition-colors animated-icon',
+                !isCollapsed || isMobile ? 'mr-3' : ''
               )}
-              title={isCollapsed && !isMobile ? "Logout" : undefined}
-            >
-              <LogOut className={cn(
-                "text-sidebar-foreground group-hover:text-destructive transition-colors animated-icon",
-                !isCollapsed || isMobile ? "mr-3" : ""
-              )} />
-              {(!isCollapsed || isMobile) && "Logout"}
-            </Button>
-          </Link>
+            />
+            {(!isCollapsed || isMobile) && 'Logout'}
+          </Button>
         </div>
       </div>
     </>

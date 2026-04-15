@@ -201,6 +201,40 @@ export function PaymentModal({
       return;
     }
 
+    const { data: bookingRow, error: bookingFetchError } = await supabase
+      .from('bookings')
+      .select('status, payment_status')
+      .eq('id', booking.id)
+      .single();
+
+    if (bookingFetchError || !bookingRow) {
+      toast({
+        variant: 'destructive',
+        title: 'Booking unavailable',
+        description: 'Could not load this booking. Refresh and try again.',
+      });
+      return;
+    }
+
+    const acceptedDbStatuses = ['in_progress', 'accepted'];
+    if (!acceptedDbStatuses.includes(String(bookingRow.status))) {
+      toast({
+        variant: 'destructive',
+        title: 'Musician must accept first',
+        description:
+          'Payment opens only after the musician accepts your booking. Check My Bookings for status.',
+      });
+      return;
+    }
+
+    if (bookingRow.payment_status === 'paid') {
+      toast({
+        title: 'Already paid',
+        description: 'This booking is already paid.',
+      });
+      return;
+    }
+
     setIsProcessing(true);
     paystackSucceededRef.current = false;
 
