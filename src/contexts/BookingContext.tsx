@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { bookingService } from '@/services/booking';
 import { BookingConfirmationService } from '@/services/booking-confirmation';
 import { useRealtime } from '@/hooks/use-realtime';
@@ -43,7 +50,7 @@ interface BookingContextType {
   updatePaymentStatus: (id: string, paymentStatus: PaymentStatus) => Promise<void>;
   updatePayoutStatus: (id: string, payoutStatus: 'pending' | 'released') => Promise<void>;
   confirmService: (id: string, role: 'hirer' | 'musician') => Promise<void>;
-  refetch: () => Promise<void>;
+  refetch: (options?: { silent?: boolean }) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -61,6 +68,39 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const realtimeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchBookings = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
+    try {
+      if (!silent) setIsLoading(true);
+      const data = await bookingService.getBookings();
+      setBookings(data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching bookings:', err);
+      const errorMessage = err?.message || String(err);
+      if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
+        console.log('Bookings table not yet created, showing empty state');
+        setBookings([]);
+        setError(null);
+      } else {
+        setError('Failed to load bookings');
+      }
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, []);
+
+  const scheduleRealtimeSync = useCallback(() => {
+    if (realtimeSyncTimerRef.current) {
+      clearTimeout(realtimeSyncTimerRef.current);
+    }
+    realtimeSyncTimerRef.current = setTimeout(() => {
+      realtimeSyncTimerRef.current = null;
+      void fetchBookings({ silent: true });
+    }, 320);
+  }, [fetchBookings]);
 
   // Get current user ID for real-time subscriptions
   useEffect(() => {
@@ -73,57 +113,29 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     getUserId();
   }, []);
 
-  // Fetch bookings on mount
   useEffect(() => {
-    fetchBookings();
+    void fetchBookings();
+  }, [fetchBookings]);
+
+  useEffect(() => {
+    return () => {
+      if (realtimeSyncTimerRef.current) {
+        clearTimeout(realtimeSyncTimerRef.current);
+      }
+    };
   }, []);
 
-  const fetchBookings = async () => {
-    try {
-      setIsLoading(true);
-      const data = await bookingService.getBookings();
-      setBookings(data);
-      setError(null);
-    } catch (err: any) {
-      console.error('Error fetching bookings:', err);
-      // Check if error is due to missing table
-      const errorMessage = err?.message || String(err);
-      if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
-        console.log('Bookings table not yet created, showing empty state');
-        setBookings([]);
-        setError(null); // Don't show error for missing table
-      } else {
-        setError('Failed to load bookings');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Set up real-time updates for bookings
+  // Set up real-time updates for bookings (silent refetch — avoids full-page loading flicker)
   useRealtime({
     table: 'bookings',
     filter: userId ? `or(hirer_id.eq.${userId},musician_id.eq.${userId})` : undefined,
-    onInsert: async (_payload) => {
-      try {
-        // Refetch bookings to get the complete booking with all related data
-        const data = await bookingService.getBookings();
-        setBookings(data);
-      } catch (err) {
-        console.error('Error refreshing bookings after insert:', err);
-      }
+    onInsert: () => {
+      scheduleRealtimeSync();
     },
-    onUpdate: async (_payload) => {
-      try {
-        // Refetch bookings to get updated data
-        const data = await bookingService.getBookings();
-        setBookings(data);
-      } catch (err) {
-        console.error('Error refreshing bookings after update:', err);
-      }
+    onUpdate: () => {
+      scheduleRealtimeSync();
     },
     onDelete: async (payload) => {
-      // Remove deleted booking from state
       setBookings((prev) => prev.filter((b) => b.id !== payload.old.id));
     },
     onError: (err) => {
@@ -238,7 +250,11 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         updates.serviceConfirmedAt = new Date().toISOString();
         
         // Auto-release payout if payment has been received
-        if (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'service_completed') {
+        if (
+          booking.paymentStatus === 'paid_to_admin' ||
+          booking.paymentStatus === 'paid' ||
+          booking.paymentStatus === 'service_completed'
+        ) {
           updates.payoutStatus = 'released';
         }
       }

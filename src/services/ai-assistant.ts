@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { openAIService } from './openai-service';
+import { SessionManager } from '@/utils/session-manager';
 
 // Special ID for AI Assistant contact
 export const AI_ASSISTANT_ID = 'ai-assistant';
@@ -369,6 +370,11 @@ export class AIAssistantService {
     responses: Array<{ ticket_id: string; admin_name: string; message: string; timestamp: string }>;
   }> {
     try {
+      const session = await SessionManager.getValidSession();
+      if (!session) {
+        return { hasNewResponses: false, responses: [] };
+      }
+
       console.log('🔍 Checking for admin responses for user:', userId);
       
       // Use RPC function to get user's active tickets
@@ -439,6 +445,11 @@ export class AIAssistantService {
    */
   async listUserTickets(userId: string): Promise<{ success: boolean; tickets: any[]; error?: string }> {
     try {
+      const session = await SessionManager.getValidSession();
+      if (!session) {
+        return { success: false, tickets: [], error: 'Session expired. Please log in again.' };
+      }
+
       const { data, error } = await supabase.rpc('get_user_active_tickets_with_session' as any, {
         p_user_id: userId,
       });
@@ -464,6 +475,11 @@ export class AIAssistantService {
     */
    async closeUserTicket(userId: string, ticketId: string): Promise<{ success: boolean; error?: string }> {
      try {
+       const session = await SessionManager.getValidSession();
+       if (!session) {
+         return { success: false, error: 'Session expired. Please log in again.' };
+       }
+
        // We'll use resolve_ticket but from user's perspective it's closing it
        const { error } = await supabase.rpc('resolve_ticket' as any, {
          p_ticket_id: ticketId,

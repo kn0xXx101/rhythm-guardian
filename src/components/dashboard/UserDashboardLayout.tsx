@@ -6,12 +6,14 @@ import { BackToTop } from '@/components/ui/back-to-top';
 import { useToast } from '@/hooks/use-toast';
 import { useSidebarContext } from '@/contexts/SidebarContext';
 import { cn } from '@/lib/utils';
+import { useBookingReminders } from '@/hooks/use-booking-reminders';
 
 const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) => {
   const location = useLocation();
   const { toast } = useToast();
   const { isCollapsed, isMobile, isMobileOpen, setMobileSidebarOpen } = useSidebarContext();
   const hasShownWelcome = useRef(false);
+  useBookingReminders(userType);
 
   useEffect(() => {
     // Show welcome toast once per session when user first navigates to their dashboard after login
@@ -66,7 +68,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
         <TopNav userType={userType} />
         <main
           id="main-content"
-          className="container flex flex-1 flex-col min-h-0 py-6 lg:py-10 px-4"
+          className="container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden py-6 lg:py-10 px-3 sm:px-4"
         >
           <Outlet />
         </main>

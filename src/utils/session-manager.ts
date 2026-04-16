@@ -9,6 +9,7 @@ export class SessionManager {
   private static refreshPromise: Promise<boolean> | null = null;
   private static lastRefreshAttempt: number = 0;
   private static readonly REFRESH_COOLDOWN = 5000; // 5 seconds between refresh attempts
+  private static readonly FORCE_REFRESH_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
 
   /**
    * Check if there's an active session
@@ -47,7 +48,7 @@ export class SessionManager {
   /**
    * Refresh the current session
    */
-  static async refreshSession(): Promise<boolean> {
+  static async refreshSession(options?: { force?: boolean }): Promise<boolean> {
     // Prevent multiple simultaneous refresh attempts
     if (this.refreshPromise) {
       return this.refreshPromise;
@@ -55,7 +56,12 @@ export class SessionManager {
 
     // Prevent refresh attempts too close together
     const now = Date.now();
-    if (now - this.lastRefreshAttempt < this.REFRESH_COOLDOWN) {
+    const force = options?.force === true;
+    if (!force && now - this.lastRefreshAttempt < this.REFRESH_COOLDOWN) {
+      // If we have an active (non-expired) session, treat this as "good enough"
+      // to avoid cascading failures during bursts of requests.
+      const stillValid = await this.hasActiveSession();
+      if (stillValid) return true;
       console.log('Refresh cooldown active, skipping refresh');
       return false;
     }
@@ -112,6 +118,7 @@ export class SessionManager {
       if (expiresAt) {
         const expiresInMs = expiresAt * 1000 - Date.now();
         const tenMinutes = 10 * 60 * 1000;
+        const forceRefresh = expiresInMs > 0 && expiresInMs < this.FORCE_REFRESH_WINDOW_MS;
 
         // If expired, return null
         if (expiresInMs <= 0) {
@@ -122,7 +129,7 @@ export class SessionManager {
         // If expiring within 10 minutes, try to refresh
         if (expiresInMs < tenMinutes) {
           console.log(`Session expiring in ${Math.round(expiresInMs / 1000 / 60)} minutes, refreshing...`);
-          const refreshed = await this.refreshSession();
+          const refreshed = await this.refreshSession({ force: forceRefresh });
           
           if (refreshed) {
             const { data: { session: newSession } } = await supabase.auth.getSession();
@@ -211,6 +218,15 @@ export class SessionManager {
    */
   static initializeSessionMonitoring(): () => void {
     let intervalId: number | null = null;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        void checkAndRefreshSession();
+      }
+    };
+
+    const handleOnline = () => {
+      void checkAndRefreshSession();
+    };
 
     const checkAndRefreshSession = async () => {
       const session = await this.getValidSession();
@@ -224,12 +240,16 @@ export class SessionManager {
 
     // Initial check
     checkAndRefreshSession();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
 
     // Return cleanup function
     return () => {
       if (intervalId !== null) {
         window.clearInterval(intervalId);
       }
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
     };
   }
 }

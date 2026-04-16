@@ -111,7 +111,7 @@ const AppContent = () => {
       <OfflineIndicator />
       {import.meta.env.DEV && <SessionDebug />}
       <SuspensionCheck />
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
         <AppErrorBoundary context="Application">
           <BookingProvider>
             <ChatProvider>

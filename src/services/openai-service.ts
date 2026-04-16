@@ -39,7 +39,7 @@ class OpenAIService {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-4o-mini',
           messages,
           max_tokens: 300,
           temperature: 0.7,
@@ -80,7 +80,7 @@ class OpenAIService {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: 'gpt-4o-mini',
           messages,
           max_tokens: 300,
           temperature: 0.7,

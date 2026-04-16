@@ -593,6 +593,160 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // Route: DELETE /admin-users/bookings/:id - Delete a booking (admin only)
+    if (method === "DELETE" && path.includes("/admin-users/bookings/")) {
+      const parts = path.split("/").filter(Boolean);
+      const bookingId = parts[parts.length - 1];
+      if (!bookingId) {
+        return new Response(JSON.stringify({ error: "Missing booking id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: deleteError } = await supabaseAdmin.from("bookings").delete().eq("id", bookingId);
+      if (deleteError) throw deleteError;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Route: POST /admin-users/bookings/purge - Delete all bookings (admin only)
+    if (method === "POST" && path.endsWith("/admin-users/bookings/purge")) {
+      const body = (await req.json().catch(() => ({}))) as { confirm?: string };
+      if (body.confirm !== "DELETE_ALL_BOOKINGS") {
+        return new Response(JSON.stringify({ error: "Confirmation required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: purgeError } = await supabaseAdmin.from("bookings").delete().neq("id", "");
+      if (purgeError) throw purgeError;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Route: DELETE /admin-users/:id - Delete a user account (admin only)
+    // Note: this deletes the auth user and best-effort related rows.
+    if (method === "DELETE" && path.includes("/admin-users/") && !path.includes("/status") && !path.includes("/verify")) {
+      const parts = path.split("/").filter(Boolean);
+      const userId = parts[parts.length - 1];
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Missing user id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (user?.id === userId) {
+        return new Response(JSON.stringify({ error: "You cannot delete your own admin account" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: targetProfile, error: targetProfileError } = await supabaseAdmin
+        .from("profiles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (targetProfileError) throw targetProfileError;
+      if (targetProfile?.role === "admin") {
+        return new Response(JSON.stringify({ error: "Cannot delete admin accounts" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Best-effort cleanup (ignore failures to avoid partial blocks)
+      try {
+        await supabaseAdmin
+          .from("bookings")
+          .delete()
+          .or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("notifications").delete().eq("user_id", userId);
+      } catch (_) {}
+      try {
+        await supabaseAdmin
+          .from("messages")
+          .delete()
+          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
+      } catch (_) {}
+
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (authDeleteError) throw authDeleteError;
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Route: POST /admin-users/purge - Delete all non-admin users (admin only)
+    if (method === "POST" && path.endsWith("/admin-users/purge")) {
+      const body = (await req.json().catch(() => ({}))) as { confirm?: string; limit?: number };
+      if (body.confirm !== "DELETE_ALL_USERS") {
+        return new Response(JSON.stringify({ error: "Confirmation required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const limit = typeof body.limit === "number" && body.limit > 0 ? Math.min(body.limit, 500) : 500;
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id, role")
+        .not("role", "eq", "admin")
+        .limit(limit);
+      if (profilesError) throw profilesError;
+
+      const ids = (profiles || []).map((p: any) => p.user_id).filter(Boolean);
+      if (ids.length === 0) {
+        return new Response(JSON.stringify({ success: true, deleted: 0 }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Delete related rows first (best-effort)
+      try {
+        await supabaseAdmin.from("bookings").delete().in("hirer_id", ids);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("bookings").delete().in("musician_id", ids);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("notifications").delete().in("user_id", ids);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("messages").delete().in("sender_id", ids);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("messages").delete().in("receiver_id", ids);
+      } catch (_) {}
+      try {
+        await supabaseAdmin.from("profiles").delete().in("user_id", ids);
+      } catch (_) {}
+
+      let deleted = 0;
+      for (const id of ids) {
+        const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(id);
+        if (!delErr) deleted += 1;
+      }
+
+      return new Response(JSON.stringify({ success: true, deleted }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(
       JSON.stringify({ error: "Not found" }),
       {

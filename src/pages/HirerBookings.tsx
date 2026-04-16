@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { refundTicketingService } from '@/services/refund-ticketing';
 import { supabase } from '@/lib/supabase';
-import { scheduleFullReload } from '@/utils/schedule-full-reload';
+import { isBookingEventWindowPast } from '@/utils/booking-event-window';
 import {
   Dialog,
   DialogContent,
@@ -48,16 +48,11 @@ const HirerBookings = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Check for expired bookings when component mounts
   useEffect(() => {
     const checkExpiredBookings = async () => {
       const result = await checkAndExpireBookings();
-      if (result.success && result.expiredCount > 0) {
-        console.log(`Expired ${result.expiredCount} booking(s)`);
-        // Refetch bookings to get updated data
-        if (refetch) {
-          refetch();
-        }
+      if (result.success && refetch) {
+        await refetch({ silent: true });
       }
     };
 
@@ -91,6 +86,28 @@ const HirerBookings = () => {
   const getMapLink = (location?: string) => {
     if (!location) return '';
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+  };
+
+  const buildCalendarLink = (booking: any) => {
+    if (!booking.date) return '';
+    const start = new Date(booking.date);
+    if (isNaN(start.getTime())) return '';
+    const durationHours = booking.durationHours || 1;
+    const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
+    const formatGoogleDate = (value: Date) => value.toISOString().replace(/[-:]|\.\d{3}/g, '');
+    const dates = `${formatGoogleDate(start)}/${formatGoogleDate(end)}`;
+    const text = encodeURIComponent(`Booking with ${booking.musician?.name || 'Musician'}`);
+    const details = encodeURIComponent(booking.description || 'Booking');
+    const location = encodeURIComponent(booking.location || '');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&details=${details}&location=${location}`;
+  };
+
+  const paymentStatusLabel = (ps: string | undefined) => {
+    if (ps === 'unpaid') return 'Unpaid';
+    if (ps === 'paid_to_admin' || ps === 'paid') return 'Escrow (paid to platform)';
+    if (ps === 'refunded') return 'Refunded';
+    if (ps === 'refund_pending') return 'Refund pending';
+    return ps?.replace(/_/g, ' ') || 'Unpaid';
   };
 
   // Filter bookings for current user (hirer)
@@ -132,7 +149,7 @@ const HirerBookings = () => {
         title: 'Service Confirmed',
         description: 'You have confirmed that the service was successfully rendered.',
       });
-      scheduleFullReload(600);
+      void refetch({ silent: true });
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -149,7 +166,7 @@ const HirerBookings = () => {
         title: 'Booking cancelled',
         description: `Booking #${bookingId} has been cancelled.`,
       });
-      scheduleFullReload(600);
+      void refetch({ silent: true });
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -165,6 +182,15 @@ const HirerBookings = () => {
   };
 
   const handlePayNow = (booking: any) => {
+    if (isBookingEventWindowPast(booking.date, booking.durationHours)) {
+      toast({
+        variant: 'destructive',
+        title: 'Event no longer bookable',
+        description:
+          'The scheduled event time has passed. You cannot pay for this slot. Refresh the page to update status.',
+      });
+      return;
+    }
     // Transform booking data to match PaymentModal expected structure
     const transformedBooking = {
       id: booking.id,
@@ -208,7 +234,7 @@ const HirerBookings = () => {
           description: 'A support ticket has been opened for your request. Our team will investigate shortly.',
         });
         setSelectedRefundBooking(null);
-        scheduleFullReload(600);
+        void refetch({ silent: true });
       } else {
         throw new Error(result.error || 'Failed to submit refund request');
       }
@@ -227,8 +253,8 @@ const HirerBookings = () => {
   // Show error if there's a booking error
   if (bookingError) {
     return (
-      <div className="container mx-auto py-8 space-y-6 animate-fade-in">
-        <h1 className="text-3xl font-bold">My Bookings</h1>
+      <div className="container mx-auto max-w-full py-6 sm:py-8 space-y-6 animate-fade-in">
+        <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
         <div className="text-center py-12">
           <p className="text-destructive">Error loading bookings: {bookingError}</p>
           <Button className="mt-4" variant="outline" onClick={() => window.location.reload()}>
@@ -242,8 +268,8 @@ const HirerBookings = () => {
   // Show loading or message if user is not available
   if (!user) {
     return (
-      <div className="container mx-auto py-8 space-y-6 animate-fade-in">
-        <h1 className="text-3xl font-bold">My Bookings</h1>
+      <div className="container mx-auto max-w-full py-6 sm:py-8 space-y-6 animate-fade-in">
+        <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
         <div className="text-center py-12">
           <p className="text-muted-foreground">Loading user information...</p>
         </div>
@@ -252,8 +278,8 @@ const HirerBookings = () => {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6 animate-fade-in">
-      <h1 className="text-3xl font-bold">My Bookings</h1>
+    <div className="container mx-auto max-w-full py-6 sm:py-8 space-y-6 animate-fade-in">
+      <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6 w-full flex-wrap h-auto gap-1 justify-start">
@@ -290,10 +316,18 @@ const HirerBookings = () => {
                 ))}
               </div>
             ) : filteredBookings.length > 0 ? (
-              filteredBookings.map((booking) => (
+              filteredBookings.map((booking) => {
+                const calendarLink = buildCalendarLink(booking);
+                const cardTone =
+                  booking.status === 'expired'
+                    ? 'border-amber-900/40 bg-amber-950/10'
+                    : booking.status === 'cancelled'
+                      ? 'border-destructive/30 bg-destructive/[0.06]'
+                      : 'border-muted/40';
+                return (
                 <Card
                   key={booking.id}
-                  className="overflow-hidden border-muted/40 shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/20"
+                  className={`overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/20 ${cardTone}`}
                 >
                   <CardContent className="p-0">
                     <div className="flex flex-col md:flex-row">
@@ -404,10 +438,7 @@ const HirerBookings = () => {
                               {formatGHSWithSymbol(booking.price || 0)}
                             </p>
                             <p className="text-xs text-muted-foreground capitalize">
-                              {booking.paymentStatus === 'unpaid' ? 'Unpaid' : 
-                               booking.paymentStatus === 'paid_to_admin' ? 'Paid' :
-                               booking.paymentStatus === 'refunded' ? 'Refunded' :
-                               booking.paymentStatus?.replace('_', ' ') || 'Unpaid'}
+                              {paymentStatusLabel(booking.paymentStatus)}
                             </p>
                           </div>
                         </div>
@@ -417,9 +448,21 @@ const HirerBookings = () => {
                         {booking.paymentStatus === 'unpaid' &&
                           booking.status !== 'pending' &&
                           booking.status !== 'expired' &&
-                          booking.status !== 'cancelled' && (
+                          booking.status !== 'cancelled' &&
+                          !isBookingEventWindowPast(booking.date, booking.durationHours) && (
                           <Button className="w-full" onClick={() => handlePayNow(booking)}>
                             <CreditCard className="h-4 w-4 mr-2" /> Pay Now
+                          </Button>
+                        )}
+                        {calendarLink &&
+                          booking.status !== 'expired' &&
+                          booking.status !== 'cancelled' &&
+                          booking.status !== 'rejected' && (
+                          <Button variant="outline" className="w-full" asChild>
+                            <a href={calendarLink} target="_blank" rel="noreferrer">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              Add to Calendar
+                            </a>
                           </Button>
                         )}
                         
@@ -527,7 +570,8 @@ const HirerBookings = () => {
                     </div>
                   </CardContent>
                 </Card>
-              ))
+              );
+              })
             ) : (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
@@ -549,7 +593,10 @@ const HirerBookings = () => {
           booking={selectedBooking}
           userId={user.id}
           userEmail={user.email || ''}
-          onPaymentSuccess={() => setShowPaymentModal(false)}
+          onPaymentSuccess={async () => {
+            setShowPaymentModal(false);
+            await refetch({ silent: true });
+          }}
         />
       )}
 
@@ -561,7 +608,7 @@ const HirerBookings = () => {
           revieweeId={reviewBooking.musician?.id}
           revieweeName={reviewBooking.musician?.name || 'Musician'}
           reviewerId={user.id}
-          onSuccess={() => scheduleFullReload(600)}
+          onSuccess={() => void refetch({ silent: true })}
         />
       )}
 

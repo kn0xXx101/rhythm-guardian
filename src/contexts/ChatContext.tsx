@@ -4,6 +4,7 @@ import { encryptionService } from '@/services/encryption';
 import { notificationService } from '@/services/notifications';
 import { getSettings } from '@/api/settings';
 import { aiAssistantService, AI_ASSISTANT_ID } from '@/services/ai-assistant';
+import { SessionManager } from '@/utils/session-manager';
 
 interface ChatContextType {
   messages: Message[];
@@ -144,6 +145,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let cleanup: (() => void) | null = null;
 
     const setupNotificationListener = async () => {
+      const session = await SessionManager.getValidSession();
+      if (!session) return;
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -608,6 +611,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      const session = await SessionManager.getValidSession();
+      if (!session) {
+        throw new Error('Your session has expired. Please log in again.');
+      }
       const {
         data: { user },
       } = await supabase.auth.getUser();

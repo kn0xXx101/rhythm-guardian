@@ -293,13 +293,13 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/90 to-primary/20 overflow-x-hidden">
       {/* Logo centered at the top with floating animation */}
-      <div className="container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+      <div className="container mx-auto px-4 pt-6 pb-8 sm:py-8 flex flex-col items-center justify-center">
         <div className="relative">
           {/* Audio Waveform Shield Logo */}
           <img 
             src="/logo.svg" 
             alt="Rhythm Guardian Logo"
-            className={`w-72 h-72 -mb-8 object-contain ${prefersReducedMotion ? '' : 'animate-float'} hover:scale-110 transition-transform duration-300`}
+            className={`w-44 h-44 sm:w-72 sm:h-72 -mb-6 sm:-mb-8 object-contain ${prefersReducedMotion ? '' : 'animate-float'} md:hover:scale-110 transition-transform duration-300`}
             style={{
               filter: `drop-shadow(0 0 20px ${primaryColor}60)`,
             } as React.CSSProperties}
@@ -313,7 +313,7 @@ const Index = () => {
         </div>
 
         <h1
-          className={`text-display-xl text-logo bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary pointer-events-none ${prefersReducedMotion ? '' : 'animate-gradient'}`}
+          className={`text-3xl sm:text-display-xl text-logo bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary pointer-events-none ${prefersReducedMotion ? '' : 'animate-gradient'}`}
         >
           Rhythm Guardian
         </h1>
@@ -355,7 +355,7 @@ const Index = () => {
       </div>
 
       {/* Enhanced Hero Section with Animations */}
-      <main id="main-content" className="container mx-auto px-4 py-12">
+      <main id="main-content" className="container mx-auto px-4 py-10 sm:py-12">
         <div
           className={`grid grid-cols-1 md:grid-cols-2 gap-8 items-center ${prefersReducedMotion ? '' : 'transition-all duration-1000'} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
         >
@@ -420,9 +420,9 @@ const Index = () => {
           </div>
 
           {/* Right Column - Enhanced Visual Element with Animations */}
-          <div className="relative hidden md:block">
+          <div className="relative md:block">
             <div
-              className={`aspect-square max-w-md mx-auto rounded-full flex items-center justify-center ${prefersReducedMotion ? '' : 'animate-float'} group cursor-pointer`}
+              className={`aspect-square max-w-[260px] md:max-w-md mx-auto rounded-full flex items-center justify-center ${prefersReducedMotion ? '' : 'animate-float'} group`}
               style={{
                 background: `radial-gradient(circle, ${primaryColor}15, ${secondaryColor}10, transparent)`
               }}
@@ -432,7 +432,7 @@ const Index = () => {
                 <img 
                   src="/logo.svg" 
                   alt="Rhythm Guardian Logo"
-                  className={`w-80 h-80 object-contain opacity-90 transition-transform duration-300 ${prefersReducedMotion ? '' : 'group-hover:scale-105'}`}
+                  className={`w-56 h-56 md:w-80 md:h-80 object-contain opacity-90 transition-transform duration-300 ${prefersReducedMotion ? '' : 'md:group-hover:scale-105'}`}
                   style={{
                     filter: `drop-shadow(0 0 28px ${primaryColor}50)`,
                   } as React.CSSProperties}
@@ -441,7 +441,7 @@ const Index = () => {
 
               {/* Orbiting elements with enhanced animations */}
               <div
-                className={`absolute w-full h-full pointer-events-none ${prefersReducedMotion ? '' : 'animate-orbit-1'}`}
+                className={`absolute w-full h-full pointer-events-none hidden md:block ${prefersReducedMotion ? '' : 'animate-orbit-1'}`}
               >
                 <div
                   className="absolute top-0 left-1/2 -translate-x-1/2 p-3 bg-background rounded-full shadow-lg hover:scale-125 hover:bg-primary/20 transition-all duration-300 cursor-pointer"
@@ -454,7 +454,7 @@ const Index = () => {
               </div>
 
               <div
-                className={`absolute w-full h-full pointer-events-none ${prefersReducedMotion ? '' : 'animate-orbit-2'}`}
+                className={`absolute w-full h-full pointer-events-none hidden md:block ${prefersReducedMotion ? '' : 'animate-orbit-2'}`}
               >
                 <div
                   className="absolute bottom-0 left-1/2 -translate-x-1/2 p-3 bg-background rounded-full shadow-lg hover:scale-125 hover:bg-primary/20 transition-all duration-300 cursor-pointer"
@@ -467,7 +467,7 @@ const Index = () => {
               </div>
 
               <div
-                className={`absolute w-full h-full pointer-events-none ${prefersReducedMotion ? '' : 'animate-orbit-3'}`}
+                className={`absolute w-full h-full pointer-events-none hidden md:block ${prefersReducedMotion ? '' : 'animate-orbit-3'}`}
               >
                 <div
                   className="absolute top-1/2 right-0 -translate-y-1/2 p-3 bg-background rounded-full shadow-lg hover:scale-125 hover:bg-primary/20 transition-all duration-300 cursor-pointer"
@@ -480,7 +480,7 @@ const Index = () => {
               </div>
 
               <div
-                className={`absolute w-full h-full pointer-events-none ${prefersReducedMotion ? '' : 'animate-orbit-4'}`}
+                className={`absolute w-full h-full pointer-events-none hidden md:block ${prefersReducedMotion ? '' : 'animate-orbit-4'}`}
               >
                 <div
                   className="absolute top-1/2 left-0 -translate-y-1/2 p-3 bg-background rounded-full shadow-lg hover:scale-125 hover:bg-primary/20 transition-all duration-300 cursor-pointer"
@@ -797,8 +797,25 @@ const Index = () => {
 
       </main>
 
+      {/* Mobile sticky CTA */}
+      <div className="fixed inset-x-0 bottom-0 z-40 md:hidden">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+        <div className="relative pointer-events-auto border-t bg-background/85 backdrop-blur-md">
+          <div className="container mx-auto px-3 py-3 flex gap-2">
+            <Link to="/signup?type=hirer" className="flex-1">
+              <Button className="w-full touch-manipulation">Hire a Musician</Button>
+            </Link>
+            <Link to="/signup?type=musician" className="flex-1">
+              <Button variant="outline" className="w-full touch-manipulation">
+                Join as Musician
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Call to Action */}
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-16 pb-28 md:pb-16">
         <div className="bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl p-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">

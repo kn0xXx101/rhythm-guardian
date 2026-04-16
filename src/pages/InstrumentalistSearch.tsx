@@ -124,7 +124,7 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-hidden flex flex-col">
+			<DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[500px] max-h-[85dvh] overflow-hidden flex flex-col">
 				<DialogHeader>
 					<DialogTitle>Book {musician?.full_name}</DialogTitle>
 					<DialogDescription>
@@ -132,7 +132,7 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4 py-4 overflow-y-auto">
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<Label htmlFor="event-type">Event Type</Label>
 							<Select value={eventType} onValueChange={setEventType}>
@@ -157,7 +157,7 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 							/>
 						</div>
 					</div>
-					<div className="grid grid-cols-2 gap-4">
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<Label htmlFor="start-time">Start Time</Label>
 							<Input
@@ -582,13 +582,13 @@ const InstrumentalistSearch = () => {
 	};
 
 	return (
-		<div className="container mx-auto py-8 space-y-6 animate-fade-in">
+		<div className="container mx-auto max-w-full px-3 sm:px-4 py-6 sm:py-8 space-y-6 animate-fade-in">
         <DashboardHeader
           heading="Find Musicians"
           text="Search by instrument, availability, and location to find the right performer."
         />
 
-        <Card variant="gradient-border" className="hover-scale">
+        <Card variant="gradient-border" className="touch-manipulation">
 				<CardHeader>
 					<CardTitle>Search Filters</CardTitle>
 					<CardDescription>Find the perfect musician for your event</CardDescription>
@@ -650,8 +650,8 @@ const InstrumentalistSearch = () => {
 						</div>
 					</div>
 				</CardContent>
-				<CardFooter>
-					<Button onClick={handleSearch} className="ml-auto">
+				<CardFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+					<Button onClick={handleSearch} className="w-full sm:w-auto touch-manipulation">
 						Apply Filters
 					</Button>
 				</CardFooter>
@@ -713,7 +713,7 @@ const InstrumentalistSearch = () => {
 				</div>
 			</div>
 
-			<div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+			<div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" : "space-y-4"}>
 				{isLoading ? (
 					Array.from({ length: 6 }).map((_, i) => (
 						<CardSkeleton key={i} className={viewMode === 'grid' ? "h-[400px]" : "h-[200px]"} />
@@ -723,13 +723,13 @@ const InstrumentalistSearch = () => {
 						<Card 
 							key={musician.id} 
 							variant="gradient-border" 
-							className={`card-enhanced overflow-hidden transition-all duration-300 group ${viewMode === 'grid' ? 'h-full flex flex-col' : 'flex flex-col md:flex-row'}`}
+							className={`card-enhanced overflow-hidden transition-all duration-300 group touch-manipulation ${viewMode === 'grid' ? 'h-full flex flex-col' : 'flex flex-col md:flex-row'}`}
 						>
 							<div className={`relative overflow-hidden ${viewMode === 'grid' ? 'h-48 w-full' : 'h-48 md:h-full md:w-72 shrink-0'}`}>
 								<OptimizedImage
 									src={musician.avatar_url || 'https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg'}
 									alt={musician.full_name || 'Musician'}
-									className="h-full w-full object-cover absolute inset-0 transition-transform duration-500 group-hover:scale-105"
+									className="h-full w-full object-cover absolute inset-0 transition-transform duration-500 md:group-hover:scale-105"
 									fallbackSrc="/placeholder.svg"
 								/>
 								<div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
@@ -826,11 +826,11 @@ const InstrumentalistSearch = () => {
 										)}
 										<span className="font-medium">{musician.total_bookings || 0} bookings</span>
 									</div>
-									<div className="flex gap-3 justify-center">
+									<div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center">
 										<Button
 											size="sm"
 											variant="outline"
-											className="gap-1 flex-1 max-w-[120px]"
+											className="gap-1 w-full sm:flex-1 sm:max-w-[140px] touch-manipulation"
 											onClick={() => {
 												setSelectedMusicianForReviews(musician);
 												setShowReviewsDialog(true);
@@ -841,7 +841,7 @@ const InstrumentalistSearch = () => {
 										</Button>
 										<Button
 											size="sm"
-											className="gap-2 flex-1 max-w-[120px] font-medium shadow-sm hover:shadow-md transition-all"
+											className="gap-2 w-full sm:flex-1 sm:max-w-[140px] font-medium shadow-sm hover:shadow-md transition-all touch-manipulation"
 											onClick={() => handleBookNow(musician)}
 										>
 											Book Now

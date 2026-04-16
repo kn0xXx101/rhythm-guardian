@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { payoutService } from '@/services/payout';
+import { adminService } from '@/services/admin';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { PaymentVerificationPanel } from '@/components/admin/PaymentVerificationPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,6 +74,10 @@ export function BookingsManagement() {
   const [isReleasing, setIsReleasing] = useState(false);
   const [isProcessingAll, setIsProcessingAll] = useState(false);
   const [platformCommissionRate, setPlatformCommissionRate] = useState(10);
+  const [dangerDialogOpen, setDangerDialogOpen] = useState(false);
+  const [dangerAction, setDangerAction] = useState<'delete_booking' | 'purge_bookings' | null>(null);
+  const [dangerBooking, setDangerBooking] = useState<Booking | null>(null);
+  const [isDangerWorking, setIsDangerWorking] = useState(false);
   const { toast } = useToast();
 
   const fetchBookings = useCallback(async () => {
@@ -362,6 +367,44 @@ export function BookingsManagement() {
     setIsDialogOpen(true);
   };
 
+  const openDangerDialog = (action: 'delete_booking' | 'purge_bookings', booking?: Booking) => {
+    setDangerAction(action);
+    setDangerBooking(booking || null);
+    setDangerDialogOpen(true);
+  };
+
+  const runDangerAction = async () => {
+    if (!dangerAction) return;
+    setIsDangerWorking(true);
+    try {
+      if (dangerAction === 'delete_booking') {
+        if (!dangerBooking) throw new Error('No booking selected');
+        await adminService.deleteBooking(dangerBooking.id);
+        toast({ title: 'Booking deleted', description: `Booking ${dangerBooking.id.substring(0, 8)} removed.` });
+        setDangerDialogOpen(false);
+        setDangerBooking(null);
+        await fetchBookings();
+        return;
+      }
+      if (dangerAction === 'purge_bookings') {
+        await adminService.deleteAllBookings();
+        toast({ title: 'Bookings cleared', description: 'All bookings were deleted.' });
+        setDangerDialogOpen(false);
+        setDangerBooking(null);
+        await fetchBookings();
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Operation failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDangerWorking(false);
+    }
+  };
+
   const handleProcessAllPayouts = async () => {
     setIsProcessingAll(true);
     try {
@@ -491,6 +534,13 @@ export function BookingsManagement() {
             <CardTitle>All Bookings</CardTitle>
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
+                variant="destructive"
+                className="gap-2"
+                onClick={() => openDangerDialog('purge_bookings')}
+              >
+                Clear all bookings
+              </Button>
+              <Button
                 onClick={() => exportToCSV(filteredBookings, bookingExportColumns, 'bookings')}
                 variant="outline"
                 className="gap-2"
@@ -609,13 +659,18 @@ export function BookingsManagement() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openBookingDetails(booking)}
-                        >
-                          Details
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => openBookingDetails(booking)}>
+                            Details
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDangerDialog('delete_booking', booking)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -625,6 +680,39 @@ export function BookingsManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* Danger Confirm Dialog */}
+      <Dialog open={dangerDialogOpen} onOpenChange={setDangerDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              {dangerAction === 'delete_booking' ? 'Delete booking' : 'Clear all bookings'}
+            </DialogTitle>
+            <DialogDescription>
+              {dangerAction === 'delete_booking'
+                ? 'This will permanently delete this booking. This cannot be undone.'
+                : 'This will permanently delete ALL bookings. This cannot be undone.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            {dangerAction === 'delete_booking' && dangerBooking ? (
+              <div>
+                You are about to delete booking: <span className="font-mono">{dangerBooking.id}</span>
+              </div>
+            ) : (
+              <div>You are about to clear all bookings.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDangerDialogOpen(false)} disabled={isDangerWorking}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={runDangerAction} disabled={isDangerWorking}>
+              {isDangerWorking ? 'Working…' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Booking Details Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

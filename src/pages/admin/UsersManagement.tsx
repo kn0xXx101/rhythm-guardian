@@ -64,6 +64,9 @@ export function UsersManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'view' | 'approve' | 'reject' | 'suspend' | 'unsuspend'>('view');
+  const [dangerDialogOpen, setDangerDialogOpen] = useState(false);
+  const [dangerAction, setDangerAction] = useState<'delete_user' | 'purge_users' | null>(null);
+  const [isDangerWorking, setIsDangerWorking] = useState(false);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -171,6 +174,48 @@ export function UsersManagement() {
     setSelectedUser(user);
     setActionType(action);
     setIsDialogOpen(true);
+  };
+
+  const openDangerDialog = (action: 'delete_user' | 'purge_users', user?: User) => {
+    if (user) setSelectedUser(user);
+    setDangerAction(action);
+    setDangerDialogOpen(true);
+  };
+
+  const runDangerAction = async () => {
+    if (!dangerAction) return;
+    setIsDangerWorking(true);
+    try {
+      if (dangerAction === 'delete_user') {
+        if (!selectedUser) throw new Error('No user selected');
+        await adminService.deleteUser(selectedUser.id);
+        toast({ title: 'User deleted', description: `${selectedUser.name} has been deleted.` });
+        setDangerDialogOpen(false);
+        setSelectedUser(null);
+        await fetchUsers();
+        return;
+      }
+
+      if (dangerAction === 'purge_users') {
+        const result = await adminService.deleteAllUsers();
+        toast({
+          title: 'Users cleared',
+          description: `Deleted ${result.deleted ?? 0} user(s).`,
+        });
+        setDangerDialogOpen(false);
+        setSelectedUser(null);
+        await fetchUsers();
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Operation failed',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDangerWorking(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -511,6 +556,17 @@ export function UsersManagement() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
+            {selectedUser && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  openDangerDialog('delete_user', selectedUser);
+                }}
+              >
+                Delete User
+              </Button>
+            )}
             {actionType !== 'view' && selectedUser && (
               <Button
                 onClick={() => handleUserAction(selectedUser, actionType as 'approve' | 'reject' | 'suspend' | 'unsuspend')}
@@ -522,6 +578,55 @@ export function UsersManagement() {
                 {actionType === 'unsuspend' && 'Unsuspend User'}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Danger Zone */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-destructive">Danger Zone</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <div className="text-sm text-muted-foreground">
+            These actions are permanent. Use with extreme caution.
+          </div>
+          <Button variant="destructive" onClick={() => openDangerDialog('purge_users')}>
+            Clear all user accounts
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Danger Confirm Dialog */}
+      <Dialog open={dangerDialogOpen} onOpenChange={setDangerDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">
+              {dangerAction === 'delete_user' ? 'Delete user account' : 'Clear all user accounts'}
+            </DialogTitle>
+            <DialogDescription>
+              {dangerAction === 'delete_user'
+                ? 'This will permanently delete this user and related data (best effort). This cannot be undone.'
+                : 'This will permanently delete ALL non-admin user accounts (in batches) and related data. This cannot be undone.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+            {dangerAction === 'delete_user' && selectedUser ? (
+              <div>
+                You are about to delete: <span className="font-medium">{selectedUser.name}</span> (
+                <span className="font-mono">{selectedUser.id}</span>)
+              </div>
+            ) : (
+              <div>You are about to clear all non-admin user accounts.</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDangerDialogOpen(false)} disabled={isDangerWorking}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={runDangerAction} disabled={isDangerWorking}>
+              {isDangerWorking ? 'Working…' : 'Confirm'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

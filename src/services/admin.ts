@@ -521,6 +521,106 @@ class AdminService {
     }
   }
 
+  async deleteUser(userId: string): Promise<boolean> {
+    const session = await SessionManager.getValidSession();
+    if (!session) throw new Error('No active session. Please log in again.');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase environment variables not configured');
+
+    const url = `${supabaseUrl}/functions/v1/admin-users/${userId}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `HTTP ${res.status}: Failed to delete user`);
+    }
+    return true;
+  }
+
+  async deleteAllUsers(): Promise<{ deleted: number }> {
+    const session = await SessionManager.getValidSession();
+    if (!session) throw new Error('No active session. Please log in again.');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase environment variables not configured');
+
+    const url = `${supabaseUrl}/functions/v1/admin-users/purge`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirm: 'DELETE_ALL_USERS' }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `HTTP ${res.status}: Failed to delete users`);
+    }
+    return await res.json();
+  }
+
+  async deleteBooking(bookingId: string): Promise<boolean> {
+    const session = await SessionManager.getValidSession();
+    if (!session) throw new Error('No active session. Please log in again.');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase environment variables not configured');
+
+    const url = `${supabaseUrl}/functions/v1/admin-users/bookings/${bookingId}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `HTTP ${res.status}: Failed to delete booking`);
+    }
+    return true;
+  }
+
+  async deleteAllBookings(): Promise<boolean> {
+    const session = await SessionManager.getValidSession();
+    if (!session) throw new Error('No active session. Please log in again.');
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase environment variables not configured');
+
+    const url = `${supabaseUrl}/functions/v1/admin-users/bookings/purge`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: supabaseAnonKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ confirm: 'DELETE_ALL_BOOKINGS' }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `HTTP ${res.status}: Failed to delete bookings`);
+    }
+    return true;
+  }
+
   // Analytics Methods
   async getAnalyticsData(dateRange: { start: string; end: string } | null = null) {
     try {

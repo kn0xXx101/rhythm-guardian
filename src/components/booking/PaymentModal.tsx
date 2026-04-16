@@ -12,7 +12,7 @@ import { CreditCard, Building2, Smartphone, QrCode, Loader2 } from 'lucide-react
 import { getSettings } from '@/api/settings';
 import { SessionManager } from '@/utils/session-manager';
 import { notifyAdmins } from '@/services/admin-notify';
-import { scheduleFullReload } from '@/utils/schedule-full-reload';
+import { isBookingEventWindowPast } from '@/utils/booking-event-window';
 
 interface PaymentModalProps {
   open: boolean;
@@ -34,7 +34,7 @@ interface PaymentModalProps {
   };
   userId: string;
   userEmail: string;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: () => void | Promise<void>;
 }
 
 const paymentChannels = [
@@ -203,7 +203,7 @@ export function PaymentModal({
 
     const { data: bookingRow, error: bookingFetchError } = await supabase
       .from('bookings')
-      .select('status, payment_status')
+      .select('status, payment_status, event_date, duration_hours')
       .eq('id', booking.id)
       .single();
 
@@ -216,6 +216,15 @@ export function PaymentModal({
       return;
     }
 
+    if (String(bookingRow.status) === 'expired') {
+      toast({
+        variant: 'destructive',
+        title: 'Booking expired',
+        description: 'This booking is no longer open for payment.',
+      });
+      return;
+    }
+
     const acceptedDbStatuses = ['in_progress', 'accepted'];
     if (!acceptedDbStatuses.includes(String(bookingRow.status))) {
       toast({
@@ -223,6 +232,21 @@ export function PaymentModal({
         title: 'Musician must accept first',
         description:
           'Payment opens only after the musician accepts your booking. Check My Bookings for status.',
+      });
+      return;
+    }
+
+    const durationH =
+      bookingRow.duration_hours != null ? Number(bookingRow.duration_hours) : undefined;
+    if (
+      bookingRow.event_date &&
+      isBookingEventWindowPast(String(bookingRow.event_date), durationH)
+    ) {
+      toast({
+        variant: 'destructive',
+        title: 'Event has ended',
+        description:
+          'Payment is not available after the scheduled event time. Contact support if you need help.',
       });
       return;
     }
@@ -387,7 +411,6 @@ export function PaymentModal({
 
               onPaymentSuccess();
               onOpenChange(false);
-              scheduleFullReload(800);
             } catch (error: any) {
               console.error('Payment processing error details:', error);
               const errorMessage = error?.message || (typeof error === 'string' ? error : 'Unknown error occurred');

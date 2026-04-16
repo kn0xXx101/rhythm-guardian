@@ -8,9 +8,11 @@
   transform: translateZ(0);
 }
 
-.card-enhanced:hover {
-  transform: translateY(-4px) translateZ(0);
-  box-shadow: 0 12px 24px rgb(0 0 0 / 0.15);
+@media (hover: hover) and (pointer: fine) {
+  .card-enhanced:hover {
+    transform: translateY(-4px) translateZ(0);
+    box-shadow: 0 12px 24px rgb(0 0 0 / 0.15);
+  }
 }
 
 .card-enhanced::before {
@@ -41,8 +43,10 @@
   transition: all 0.2s ease-out;
 }
 
-.badge-enhanced:hover {
-  background: hsl(var(--secondary-hover));
-  box-shadow: 0 2px 6px 0 hsl(var(--secondary) / 0.4);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .badge-enhanced:hover {
+    background: hsl(var(--secondary-hover));
+    box-shadow: 0 2px 6px 0 hsl(var(--secondary) / 0.4);
+    transform: translateY(-1px);
+  }
 }
