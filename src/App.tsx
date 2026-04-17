@@ -12,6 +12,17 @@ const ChatRedirect = () => {
   params.set('tab', 'chats');
   return <Navigate to={`/admin/communications?${params.toString()}`} replace />;
 };
+
+const MessagesRedirect = () => {
+  const { user } = useAuth();
+  const { search } = useLocation();
+  const aiAssistant = new URLSearchParams(search).get('ai_assistant');
+
+  if (!user) return <Navigate to={`/login${search || ''}`} replace />;
+  if (user.role === 'admin') return <Navigate to={`/admin/communications?tab=chats${aiAssistant ? '&ai_assistant=true' : ''}`} replace />;
+  if (user.role === 'musician') return <Navigate to={`/musician/chat${search || ''}`} replace />;
+  return <Navigate to={`/hirer/chat${search || ''}`} replace />;
+};
 import { ChatProvider } from '@/contexts/ChatContext';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -225,6 +236,7 @@ const AppContent = () => {
                       </ProtectedRoute>
                     }
                   />
+                  <Route path="/messages" element={<MessagesRedirect />} />
                   <Route
                     path="/favorites"
                     element={

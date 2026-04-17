@@ -22,6 +22,12 @@ interface User {
   completionPercentage: number;
 }
 
+/** Pathnames may be `/functions/v1/admin-users/...` — never use `split("/")[2]` (that yields `v1`). */
+function extractUserIdAfterAdminUsers(pathname: string): string | null {
+  const m = pathname.match(/\/admin-users\/([0-9a-f-]{36})/i);
+  return m ? m[1] : null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -366,7 +372,13 @@ Deno.serve(async (req: Request) => {
 
     // Route: PUT /admin-users/:id/status - Update user status
     if (method === "PUT" && path.includes("/status")) {
-      const userId = path.split("/")[2];
+      const userId = extractUserIdAfterAdminUsers(path);
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Invalid user id in path" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const body = (await req.json()) as { status?: string };
       const { status } = body;
 
@@ -442,7 +454,13 @@ Deno.serve(async (req: Request) => {
 
     // Route: PUT /admin-users/:id/verify - Verify user
     if (method === "PUT" && path.includes("/verify")) {
-      const userId = path.split("/")[2];
+      const userId = extractUserIdAfterAdminUsers(path);
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Invalid user id in path" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       console.log(`Verifying user: ${userId}`);
 
       // Get profile
@@ -663,25 +681,30 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Best-effort cleanup (ignore failures to avoid partial blocks)
-      try {
-        await supabaseAdmin
-          .from("bookings")
-          .delete()
-          .or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("notifications").delete().eq("user_id", userId);
-      } catch (_) {}
-      try {
-        await supabaseAdmin
-          .from("messages")
-          .delete()
-          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
-      } catch (_) {}
+      // Cleanup dependent rows first to prevent profile deletion constraints.
+      await supabaseAdmin.from("bookings").delete().or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
+      await supabaseAdmin.from("notifications").delete().eq("user_id", userId);
+      await supabaseAdmin.from("messages").delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
+      await supabaseAdmin.from("conversations").delete().or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`);
+      await supabaseAdmin.from("reviews").delete().or(`reviewer_id.eq.${userId},reviewee_id.eq.${userId}`);
+      await supabaseAdmin.from("support_tickets").delete().or(`user_id.eq.${userId},assigned_admin_id.eq.${userId}`);
+      await supabaseAdmin.from("ticket_messages").delete().eq("sender_id", userId);
+      await supabaseAdmin.from("disputes").delete().or(`filed_by.eq.${userId},filed_against.eq.${userId},resolved_by.eq.${userId}`);
+      await supabaseAdmin.from("dispute_messages").delete().eq("sender_id", userId);
+      await supabaseAdmin.from("dispute_evidence").delete().eq("uploaded_by", userId);
+      await supabaseAdmin.from("referrals").delete().or(`referrer_id.eq.${userId},referred_user_id.eq.${userId}`);
+      await supabaseAdmin.from("fraud_reports").delete().or(`user_id.eq.${userId},resolved_by.eq.${userId}`);
+      await supabaseAdmin.from("content_flags").delete().eq("actor_user_id", userId);
+      await supabaseAdmin.from("user_settings").delete().eq("user_id", userId);
+      await supabaseAdmin.from("musician_availability").delete().eq("musician_user_id", userId);
+      await supabaseAdmin.from("availability_patterns").delete().eq("musician_user_id", userId);
+      await supabaseAdmin.from("musician_packages").delete().eq("musician_user_id", userId);
+      await supabaseAdmin.from("musician_addons").delete().eq("musician_user_id", userId);
+      await supabaseAdmin.from("musician_portfolio").delete().eq("musician_user_id", userId);
+
+      // Profile row must be deleted; otherwise user still appears in admin list.
+      const { error: profileDeleteError } = await supabaseAdmin.from("profiles").delete().eq("user_id", userId);
+      if (profileDeleteError) throw profileDeleteError;
 
       const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
       if (authDeleteError) throw authDeleteError;
@@ -716,25 +739,26 @@ Deno.serve(async (req: Request) => {
         });
       }
 
-      // Delete related rows first (best-effort)
-      try {
-        await supabaseAdmin.from("bookings").delete().in("hirer_id", ids);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("bookings").delete().in("musician_id", ids);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("notifications").delete().in("user_id", ids);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("messages").delete().in("sender_id", ids);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("messages").delete().in("receiver_id", ids);
-      } catch (_) {}
-      try {
-        await supabaseAdmin.from("profiles").delete().in("user_id", ids);
-      } catch (_) {}
+      // Delete related rows first, then profiles (strict: fail if profiles can't be deleted).
+      await supabaseAdmin.from("bookings").delete().in("hirer_id", ids);
+      await supabaseAdmin.from("bookings").delete().in("musician_id", ids);
+      await supabaseAdmin.from("notifications").delete().in("user_id", ids);
+      await supabaseAdmin.from("messages").delete().in("sender_id", ids);
+      await supabaseAdmin.from("messages").delete().in("receiver_id", ids);
+      await supabaseAdmin.from("reviews").delete().in("reviewer_id", ids);
+      await supabaseAdmin.from("reviews").delete().in("reviewee_id", ids);
+      await supabaseAdmin.from("support_tickets").delete().in("user_id", ids);
+      await supabaseAdmin.from("ticket_messages").delete().in("sender_id", ids);
+      await supabaseAdmin.from("dispute_messages").delete().in("sender_id", ids);
+      await supabaseAdmin.from("dispute_evidence").delete().in("uploaded_by", ids);
+      await supabaseAdmin.from("user_settings").delete().in("user_id", ids);
+      await supabaseAdmin.from("musician_availability").delete().in("musician_user_id", ids);
+      await supabaseAdmin.from("availability_patterns").delete().in("musician_user_id", ids);
+      await supabaseAdmin.from("musician_packages").delete().in("musician_user_id", ids);
+      await supabaseAdmin.from("musician_addons").delete().in("musician_user_id", ids);
+      await supabaseAdmin.from("musician_portfolio").delete().in("musician_user_id", ids);
+      const { error: profilePurgeError } = await supabaseAdmin.from("profiles").delete().in("user_id", ids);
+      if (profilePurgeError) throw profilePurgeError;
 
       let deleted = 0;
       for (const id of ids) {

@@ -20,10 +20,11 @@ export function ProfileCompletionBanner() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [documentsSubmitted, setDocumentsSubmitted] = useState(false);
   const [documentsVerified, setDocumentsVerified] = useState(false);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   useEffect(() => {
-    if (user?.role === 'musician') {
-      calculateCompletion();
+    if (user?.role === 'musician' || user?.role === 'hirer') {
+      void calculateCompletion();
     }
   }, [user]);
 
@@ -45,6 +46,7 @@ export function ProfileCompletionBanner() {
       
       setCompletion(result.percentage);
       setMissingFields(result.missingFields);
+      setIsProfileComplete(result.isComplete);
       
       // Check for payment details specifically for the verification button
       const hasPayment = !!((profile.bank_account_number && profile.bank_account_name && profile.bank_code) || 
@@ -57,10 +59,10 @@ export function ProfileCompletionBanner() {
   };
 
   const handleSubmitVerification = async () => {
-    if (completion < 80) {
+    if (!isProfileComplete) {
       toast({
         title: 'Profile Incomplete',
-        description: 'Please complete at least 80% of your profile before submitting for verification.',
+        description: 'Please fill in all required profile fields before submitting for verification.',
         variant: 'destructive',
       });
       return;
@@ -127,17 +129,68 @@ export function ProfileCompletionBanner() {
     }
   };
 
-  if (user?.role !== 'musician') {
+  if (user?.role !== 'musician' && user?.role !== 'hirer') {
     return null;
   }
 
-  // Don't show if verified
-  if (documentsVerified) {
+  if (user?.role === 'hirer' && isProfileComplete) {
     return null;
+  }
+
+  if (user?.role === 'musician' && documentsVerified) {
+    return null;
+  }
+
+  if (user?.role === 'hirer') {
+    return (
+      <Card
+        className={`border-l-4 ${
+          isProfileComplete ? 'border-l-green-500' : completion >= 50 ? 'border-l-amber-500' : 'border-l-blue-500'
+        }`}
+      >
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            Profile Status
+            {isProfileComplete ? (
+              <CheckCircle className="h-5 w-5 text-green-500" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+            )}
+          </CardTitle>
+          <CardDescription>
+            A complete profile helps musicians respond faster and builds trust for your events.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Profile completion</span>
+              <span className="text-sm font-semibold tabular-nums">{completion}%</span>
+            </div>
+            <Progress value={completion} className="h-2.5" />
+            {missingFields.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium">Still needed:</span>{' '}
+                {missingFields.slice(0, 5).join(', ')}
+                {missingFields.length > 5 && ` and ${missingFields.length - 5} more`}
+              </div>
+            )}
+          </div>
+          <Button onClick={() => navigate('/hirer/profile')} variant="outline" className="w-full mt-4 gap-2">
+            {isProfileComplete ? 'View profile' : 'Complete profile'}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
-    <Card className={`border-l-4 ${documentsSubmitted ? 'border-l-yellow-500' : completion >= 80 ? 'border-l-green-500' : 'border-l-blue-500'}`}>
+    <Card
+      className={`border-l-4 ${
+        documentsSubmitted ? 'border-l-yellow-500' : isProfileComplete ? 'border-l-green-500' : 'border-l-blue-500'
+      }`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
@@ -146,7 +199,7 @@ export function ProfileCompletionBanner() {
               <CheckCircle2 className="h-5 w-5 text-green-600" />
             ) : documentsSubmitted ? (
               <Loader2 className="h-5 w-5 text-yellow-600 animate-spin" />
-            ) : completion >= 80 ? (
+            ) : isProfileComplete ? (
               <CheckCircle className="h-5 w-5 text-green-500" />
             ) : (
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
@@ -156,9 +209,9 @@ export function ProfileCompletionBanner() {
         <CardDescription>
           {documentsVerified
             ? 'Your profile has been verified!'
-            : documentsSubmitted
+              : documentsSubmitted
               ? 'Your profile is under review'
-              : completion >= 80
+              : isProfileComplete
                 ? 'Your profile is ready — submit for verification to start receiving bookings'
                 : 'Complete your profile to get more bookings'}
         </CardDescription>
@@ -191,10 +244,10 @@ export function ProfileCompletionBanner() {
           </div>
         )}
 
-        {!documentsSubmitted && completion < 80 && (
+        {!documentsSubmitted && !isProfileComplete && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
             <p className="text-sm text-yellow-800">
-              Please complete at least 80% of your profile before submitting for verification.
+              Please complete all required profile fields before submitting for verification.
             </p>
           </div>
         )}
@@ -206,7 +259,7 @@ export function ProfileCompletionBanner() {
             <span className="text-sm font-semibold">{completion}%</span>
           </div>
           
-          <Progress value={completion} className="h-2" />
+          <Progress value={completion} className="h-2.5" />
 
           {missingFields.length > 0 && (
             <div className="text-sm text-muted-foreground">
@@ -230,7 +283,7 @@ export function ProfileCompletionBanner() {
 
           <Button 
             onClick={handleSubmitVerification}
-            disabled={isVerifying || documentsSubmitted || completion < 80 || !hasPaymentDetails}
+            disabled={isVerifying || documentsSubmitted || !isProfileComplete || !hasPaymentDetails}
             className="flex-1"
           >
             {isVerifying ? (

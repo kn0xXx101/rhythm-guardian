@@ -188,8 +188,12 @@ export function UsersManagement() {
     try {
       if (dangerAction === 'delete_user') {
         if (!selectedUser) throw new Error('No user selected');
-        await adminService.deleteUser(selectedUser.id);
-        toast({ title: 'User deleted', description: `${selectedUser.name} has been deleted.` });
+        const removedUserId = selectedUser.id;
+        const removedUserName = selectedUser.name;
+        await adminService.deleteUser(removedUserId);
+        // Optimistically remove from the current list so UI reflects the successful action immediately.
+        setUsers((prev) => prev.filter((u) => u.id !== removedUserId));
+        toast({ title: 'User deleted', description: `${removedUserName} has been deleted.` });
         setDangerDialogOpen(false);
         setSelectedUser(null);
         await fetchUsers();
@@ -198,6 +202,8 @@ export function UsersManagement() {
 
       if (dangerAction === 'purge_users') {
         const result = await adminService.deleteAllUsers();
+        // Immediate UI consistency while refresh completes.
+        setUsers([]);
         toast({
           title: 'Users cleared',
           description: `Deleted ${result.deleted ?? 0} user(s).`,

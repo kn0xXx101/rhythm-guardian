@@ -11,6 +11,7 @@ import { BookingConfirmationService } from '@/services/booking-confirmation';
 import { useRealtime } from '@/hooks/use-realtime';
 import { supabase } from '@/lib/supabase';
 import { notificationsService } from '@/services/notificationsService';
+import { notifyAdmins } from '@/services/admin-notify';
 
 export type BookingStatus = 'pending' | 'accepted' | 'upcoming' | 'completed' | 'cancelled' | 'expired' | 'rejected';
 export type PaymentStatus = 'unpaid' | 'paid_to_admin' | 'service_completed' | 'released' | 'refunded' | 'refund_pending' | 'paid';
@@ -304,13 +305,25 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             priority: 'high',
             data: { bookingId: id, payoutReleased: role === 'musician' },
           });
+
+          await notifyAdmins(
+            'booking',
+            'Booking: both parties confirmed service',
+            `${booking.client.name} (hirer) and ${booking.musician.name} (musician) both confirmed completion for booking ${id.slice(0, 8)}…`,
+            '/admin/bookings'
+          );
         } else {
-          // Just notify about the confirmation
+          const partialTitle =
+            role === 'hirer' ? 'Hirer confirmed the service' : 'Musician confirmed rendering';
+          const partialMessage =
+            role === 'hirer'
+              ? `${actorName} confirmed the service was completed. Please confirm on your side to finish the booking.`
+              : `${actorName} confirmed the service was rendered. Please confirm on your side to finish the booking.`;
           await notificationsService.createNotification({
             user_id: targetUserId,
             type: 'booking',
-            title: 'Service marked as rendered',
-            message: `${actorName} marked the service as rendered. Please confirm to complete the booking.`,
+            title: partialTitle,
+            message: partialMessage,
             link: `/${recipientRole}/bookings`,
             is_read: false,
             priority: 'normal',

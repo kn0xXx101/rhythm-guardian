@@ -48,8 +48,8 @@ export class NotificationService {
     try {
       const notif = new Notification(notification.title, {
         body: notification.body,
-        icon: notification.icon || '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: notification.icon || '/favicon.svg',
+        badge: '/favicon.svg',
         tag: `chat-${notification.contactId}`, // Prevents duplicate notifications
         requireInteraction: false,
         silent: false,
@@ -105,8 +105,8 @@ export class NotificationService {
     try {
       const notif = new Notification(title, {
         body,
-        icon: options?.icon || '/favicon.ico',
-        badge: '/favicon.ico',
+        icon: options?.icon || '/favicon.svg',
+        badge: '/favicon.svg',
         tag: options?.tag,
         requireInteraction: false,
         silent: false,
@@ -138,7 +138,7 @@ export class NotificationService {
 
     try {
       const notif = new Notification(`${contactName} is typing...`, {
-        icon: '/favicon.ico',
+        icon: '/favicon.svg',
         tag: `typing-${contactId}`,
         requireInteraction: false,
         silent: true, // Silent for typing indicators
@@ -184,7 +184,7 @@ export class NotificationService {
       id: `notif-${messageId}`,
       title: `New message from ${senderName}`,
       body: truncatedMessage,
-      icon: senderImage || '/favicon.ico',
+      icon: senderImage || '/favicon.svg',
       contactId,
       messageId,
       timestamp: new Date().toISOString(),

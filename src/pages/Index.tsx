@@ -363,7 +363,7 @@ const Index = () => {
           <div className="space-y-4">
             <h1
               ref={heroTextRef}
-              className="text-fluid-3xl font-bold tracking-tight fixed-height-text"
+              className="text-2xl sm:text-fluid-3xl font-bold tracking-tight leading-tight fixed-height-text max-w-full text-balance"
             >
               Where{' '}
               <span className="text-primary">

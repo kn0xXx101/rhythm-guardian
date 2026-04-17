@@ -85,8 +85,8 @@ self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Rhythm Guardian',
     body: 'You have a new notification',
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg',
     tag: 'default',
     requireInteraction: false,
     data: {},
@@ -108,8 +108,8 @@ self.addEventListener('push', (event) => {
 
   const promiseChain = self.registration.showNotification(notificationData.title, {
     body: notificationData.body,
-    icon: notificationData.icon || '/favicon.ico',
-    badge: notificationData.badge || '/favicon.ico',
+    icon: notificationData.icon || '/favicon.svg',
+    badge: notificationData.badge || '/favicon.svg',
     tag: notificationData.tag,
     requireInteraction: notificationData.requireInteraction,
     data: notificationData.data,

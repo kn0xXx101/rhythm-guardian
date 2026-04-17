@@ -37,6 +37,90 @@ interface Musician {
 	available_days?: string[] | null;
 }
 
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+
+const parseHmToMinutes = (hm: string): number | null => {
+	if (!hm || !hm.includes(':')) return null;
+	const [hStr, mStr] = hm.split(':');
+	const h = Number(hStr);
+	const m = Number(mStr);
+	if (Number.isNaN(h) || Number.isNaN(m)) return null;
+	return h * 60 + m;
+};
+
+const isRangeWithin = (windowStart: number, windowEnd: number, targetStart: number, targetEnd: number) => {
+	// Normal same-day window.
+	if (windowEnd >= windowStart) {
+		return targetStart >= windowStart && targetEnd <= windowEnd;
+	}
+	// Overnight window, e.g. 18:00 -> 02:00
+	const targetStartAdj = targetStart < windowStart ? targetStart + 24 * 60 : targetStart;
+	const targetEndAdj = targetEnd < windowStart ? targetEnd + 24 * 60 : targetEnd;
+	const windowEndAdj = windowEnd + 24 * 60;
+	return targetStartAdj >= windowStart && targetEndAdj <= windowEndAdj;
+};
+
+const isBookingWithinMusicianAvailability = (
+	musician: Musician,
+	eventDate: string,
+	startTime: string,
+	endTime: string
+): { ok: boolean; reason?: string } => {
+	const availability = musician.available_days || [];
+	if (!eventDate || !startTime || !endTime || availability.length === 0) {
+		// If we can't evaluate, don't block bookings unexpectedly.
+		return { ok: true };
+	}
+
+	const event = new Date(eventDate);
+	if (Number.isNaN(event.getTime())) return { ok: true };
+	const dayName = DAY_NAMES[event.getDay()];
+	const isWeekendDay = dayName === 'Saturday' || dayName === 'Sunday';
+
+	const hasAllWeek = availability.includes('all_week');
+	const hasWeekdays = availability.includes('weekdays');
+	const hasWeekends = availability.includes('weekends');
+	const hasSpecificDay = availability.includes(dayName);
+
+	const dayAllowed =
+		hasAllWeek ||
+		hasSpecificDay ||
+		(!isWeekendDay && hasWeekdays) ||
+		(isWeekendDay && hasWeekends);
+	if (!dayAllowed) {
+		return { ok: false, reason: `${musician.full_name || 'This musician'} is not available on ${dayName}.` };
+	}
+
+	const wdStart = availability.find((d) => d.startsWith('wd_start:'))?.split(':').slice(1).join(':') || '00:00';
+	const wdEnd = availability.find((d) => d.startsWith('wd_end:'))?.split(':').slice(1).join(':') || '23:59';
+	const weStart = availability.find((d) => d.startsWith('we_start:'))?.split(':').slice(1).join(':') || '00:00';
+	const weEnd = availability.find((d) => d.startsWith('we_end:'))?.split(':').slice(1).join(':') || '23:59';
+
+	const windowStartText = isWeekendDay ? weStart : wdStart;
+	const windowEndText = isWeekendDay ? weEnd : wdEnd;
+
+	const windowStart = parseHmToMinutes(windowStartText);
+	const windowEnd = parseHmToMinutes(windowEndText);
+	const targetStart = parseHmToMinutes(startTime);
+	const targetEnd = parseHmToMinutes(endTime);
+	if (
+		windowStart === null ||
+		windowEnd === null ||
+		targetStart === null ||
+		targetEnd === null
+	) {
+		return { ok: true };
+	}
+
+	if (!isRangeWithin(windowStart, windowEnd, targetStart, targetEnd)) {
+		return {
+			ok: false,
+			reason: `${musician.full_name || 'This musician'} is available on ${dayName} from ${windowStartText} to ${windowEndText}.`,
+		};
+	}
+	return { ok: true };
+};
+
 const EVENT_TYPES = [
 	'Performance',
 	'Wedding',
@@ -455,6 +539,21 @@ const InstrumentalistSearch = () => {
 			const musicianId = musician.id || musician.user_id;
 			if (!musicianId) {
 				throw new Error('Missing musician id for booking');
+			}
+
+			const availabilityCheck = isBookingWithinMusicianAvailability(
+				musician,
+				details.eventDate,
+				details.startTime,
+				details.endTime
+			);
+			if (!availabilityCheck.ok) {
+				toast({
+					variant: 'destructive',
+					title: 'Selected time is unavailable',
+					description: availabilityCheck.reason || 'Please choose a time within the musician availability window.',
+				});
+				return;
 			}
 
 			// Create booking in database

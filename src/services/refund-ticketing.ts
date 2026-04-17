@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { bookingService } from '@/services/booking';
+import { notifyAdmins } from '@/services/admin-notify';
 
 export const refundTicketingService = {
   /**
@@ -20,31 +21,75 @@ export const refundTicketingService = {
       }
       originalMessage += `\nUser Reason:\n"${params.reason}"\n\nPlease investigate if services were rendered before manually releasing funds or processing the refund.`;
 
-      // Use the existing RPC for creating support tickets
-      const { error: ticketError } = await supabase.rpc('create_support_ticket' as any, {
+      // Prefer RPC, but fall back to direct insert if function is unavailable on the current project.
+      const { data: ticketId, error: ticketError } = await supabase.rpc('create_support_ticket' as any, {
         p_user_id: params.userId,
         p_subject: subject,
-        p_original_message: originalMessage,
-        p_priority: 'high'
+        p_message: originalMessage,
+        p_category: 'billing',
+        p_priority: 'high',
       });
 
-      if (ticketError) throw ticketError;
+      if (ticketError) {
+        console.warn('create_support_ticket RPC failed, using fallback insert:', ticketError);
+        const { error: insertError } = await supabase.from('support_tickets').insert({
+          user_id: params.userId,
+          status: 'open',
+          priority: 'high',
+          category: 'billing',
+          subject,
+          original_message: originalMessage,
+          user_role: 'hirer',
+          session_status: 'waiting_admin',
+          last_activity_at: new Date().toISOString(),
+        } as any);
+        if (insertError) throw insertError;
+      } else {
+        // Best-effort admin notifications if RPC returned a ticket id
+        if (ticketId) {
+          await supabase.rpc('notify_admins_about_ticket', { p_ticket_id: ticketId } as any).catch(() => {});
+        }
+      }
 
-      // Update the booking payment status to indicate a refund is pending/investigating
-      // This ensures the user sees that their request is being handled
-      await bookingService.updateBooking(params.bookingId, { 
-        paymentStatus: 'refund_pending' as any
-      });
+      // Some deployed DBs still enforce a strict payment_status constraint
+      // without `refund_pending`. We keep ticket creation successful even if
+      // this status update is rejected.
+      try {
+        await bookingService.updateBooking(params.bookingId, {
+          paymentStatus: 'refund_pending' as any,
+        });
+      } catch (statusError) {
+        console.warn('Refund status update skipped due to DB constraint:', statusError);
+      }
 
       return {
         success: true
       };
     } catch (error: any) {
       console.error('Error creating refund ticket:', error);
-      return {
-        success: false,
-        error: error.message || 'Failed to submit refund request ticket',
-      };
+      // Last fallback: still mark booking for manual review and notify admins directly.
+      try {
+        try {
+          await bookingService.updateBooking(params.bookingId, { paymentStatus: 'refund_pending' as any });
+        } catch (statusError) {
+          console.warn('Refund status update skipped due to DB constraint:', statusError);
+        }
+        await notifyAdmins(
+          'booking',
+          'Manual refund review required',
+          `Refund request received for booking ${params.bookingId.slice(0, 8)}… but ticket creation failed. Please review manually.`,
+          '/admin/bookings'
+        );
+        return { success: true };
+      } catch (fallbackError: any) {
+        return {
+          success: false,
+          error:
+            fallbackError?.message ||
+            error?.message ||
+            'Failed to submit refund request ticket',
+        };
+      }
     }
   }
 };

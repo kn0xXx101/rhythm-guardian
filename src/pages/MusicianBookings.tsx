@@ -241,6 +241,7 @@ const MusicianBookings = () => {
               </div>
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
+                const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
                 const calendarLink = buildCalendarLink(booking);
                 const showCalendar =
                   calendarLink &&
@@ -397,6 +398,7 @@ const MusicianBookings = () => {
                         {(booking.status === 'upcoming' || (booking.status === 'accepted' && (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid'))) && (
                           <>
                             {!booking.serviceConfirmedByMusician ? (
+                              eventEnded ? (
                               <Button
                                 variant="outline"
                                 className="w-full text-green-700 border-green-700 hover:bg-green-50"
@@ -404,6 +406,11 @@ const MusicianBookings = () => {
                               >
                                 Confirm Rendering
                               </Button>
+                              ) : (
+                                <div className="text-center text-xs text-muted-foreground py-2 px-2 rounded-md border border-dashed border-muted-foreground/30">
+                                  Confirm Rendering unlocks after the scheduled end time for this booking.
+                                </div>
+                              )
                             ) : (
                               <div className="text-center py-2 px-3 bg-green-50 rounded-md border border-green-200">
                                 <span className="text-xs font-medium text-green-700 flex items-center justify-center gap-1">

@@ -409,18 +409,17 @@
     transition: all 0.15s ease-out;
   }
 
-  /* Fixed Height Text */
+  /* Fixed height hero line only on md+ — avoids clipping on phones and narrow tablets */
   .fixed-height-text {
-    /* Default for large screens where we want consistent hero height */
-    height: 80px;
-    overflow: hidden;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
   }
 
-  /* On phones, never clip headlines */
-  @media (max-width: 639px) {
+  @media (min-width: 768px) {
     .fixed-height-text {
-      height: auto;
-      overflow: visible;
+      height: 80px;
+      overflow: hidden;
     }
   }
 

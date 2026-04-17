@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { HirerOverview } from '@/components/dashboard/HirerOverview';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { CardSkeleton } from '@/components/ui/card-skeleton';
+import { ProfileCompletionBanner } from '@/components/profile/ProfileCompletionBanner';
 
 interface RecentBooking {
   id: string;
@@ -123,6 +124,8 @@ const HirerDashboard = () => {
           icon: Search
         }}
       />
+
+      <ProfileCompletionBanner />
 
       {loading ? (
         <div className="space-y-6">

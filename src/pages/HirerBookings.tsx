@@ -35,6 +35,7 @@ const HirerBookings = () => {
   const [selectedRefundBooking, setSelectedRefundBooking] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
   const [isRefunding, setIsRefunding] = useState(false);
+  const [refundRequestedBookingIds, setRefundRequestedBookingIds] = useState<Set<string>>(new Set());
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
   const {
     bookings,
@@ -81,6 +82,33 @@ const HirerBookings = () => {
     };
 
     fetchReviewedBookings();
+  }, [user?.id, bookings]);
+
+  useEffect(() => {
+    const loadExistingRefundRequests = async () => {
+      if (!user?.id || !bookings?.length) return;
+      try {
+        const { data: tickets } = await supabase
+          .from('support_tickets')
+          .select('subject, original_message')
+          .eq('user_id', user.id)
+          .ilike('subject', 'Refund Request Investigation - Booking #%');
+
+        if (!tickets || tickets.length === 0) return;
+        const matched = new Set<string>();
+        for (const b of bookings) {
+          const shortId = b.id.slice(0, 8);
+          const found = tickets.some((t: any) =>
+            (t.subject || '').includes(shortId) || (t.original_message || '').includes(b.id)
+          );
+          if (found) matched.add(b.id);
+        }
+        setRefundRequestedBookingIds(matched);
+      } catch (error) {
+        console.warn('Unable to preload refund tickets:', error);
+      }
+    };
+    void loadExistingRefundRequests();
   }, [user?.id, bookings]);
 
   const getMapLink = (location?: string) => {
@@ -229,6 +257,11 @@ const HirerBookings = () => {
       });
 
       if (result.success) {
+        setRefundRequestedBookingIds((prev) => {
+          const next = new Set(prev);
+          next.add(selectedRefundBooking.id);
+          return next;
+        });
         toast({
           title: 'Refund Request Submitted',
           description: 'A support ticket has been opened for your request. Our team will investigate shortly.',
@@ -243,7 +276,10 @@ const HirerBookings = () => {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to submit refund request. Please contact support.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Failed to submit refund request. Please contact support.',
       });
     } finally {
       setIsRefunding(false);
@@ -317,6 +353,7 @@ const HirerBookings = () => {
               </div>
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
+                const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
                 const calendarLink = buildCalendarLink(booking);
                 const cardTone =
                   booking.status === 'expired'
@@ -489,7 +526,8 @@ const HirerBookings = () => {
                         
                         {/* Show manual refund button only if automatic refund didn't trigger */}
                         {(booking.status === 'expired' || booking.status === 'cancelled' || booking.status === 'rejected') && 
-                         (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'service_completed' || booking.paymentStatus === 'paid') && (
+                         (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'service_completed' || booking.paymentStatus === 'paid') &&
+                         !refundRequestedBookingIds.has(booking.id) && (
                           <Button 
                             variant="outline" 
                             className="w-full text-orange-700 border-orange-700 hover:bg-orange-50"
@@ -514,6 +552,7 @@ const HirerBookings = () => {
                         {(booking.status === 'upcoming' || (booking.status === 'accepted' && (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid'))) && (
                           <>
                             {!booking.serviceConfirmedByHirer ? (
+                              eventEnded ? (
                               <Button
                                 variant="outline"
                                 className="w-full text-green-700 border-green-700 hover:bg-green-50"
@@ -521,6 +560,11 @@ const HirerBookings = () => {
                               >
                                 Complete Service
                               </Button>
+                              ) : (
+                                <div className="text-center text-xs text-muted-foreground py-2 px-2 rounded-md border border-dashed border-muted-foreground/30">
+                                  Complete Service unlocks after the scheduled end time for this booking.
+                                </div>
+                              )
                             ) : (
                               <div className="text-center py-2 px-3 bg-green-50 rounded-md border border-green-200">
                                 <span className="text-xs font-medium text-green-700 flex items-center justify-center gap-1">
