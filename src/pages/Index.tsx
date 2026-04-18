@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,168 +31,6 @@ import { formatGHSWithSymbol } from '@/lib/currency';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { cn } from '@/lib/utils';
 
-interface TextScrambleQueueItem {
-  from: string;
-  to: string;
-  start: number;
-  end: number;
-  char?: string;
-}
-
-interface TextScrambleSegment {
-  type: 'text' | 'html';
-  content: string;
-}
-
-/**
- * Scramble animation for rich-text hero lines. Maps only the first `plainTargetLength`
- * glyphs of `output` into HTML segments so phrase length changes cannot drop words.
- */
-class TextScramble {
-  el: HTMLElement;
-  chars: string;
-  queue: TextScrambleQueueItem[];
-  frame: number;
-  frameRequest: number;
-  resolve: (() => void) | null;
-  htmlStructure: TextScrambleSegment[];
-  targetHTML: string;
-  plainTargetLength: number;
-
-  constructor(el: HTMLElement) {
-    this.el = el;
-    this.chars = '!<>-_\\/*&^%$#@[]{}—=+?';
-    this.queue = [];
-    this.frame = 0;
-    this.frameRequest = 0;
-    this.resolve = null;
-    this.htmlStructure = [];
-    this.targetHTML = '';
-    this.plainTargetLength = 0;
-  }
-
-  cancel() {
-    cancelAnimationFrame(this.frameRequest);
-    this.frameRequest = 0;
-    if (this.resolve) {
-      this.resolve();
-      this.resolve = null;
-    }
-    this.queue = [];
-  }
-
-  parseHTML(html: string): TextScrambleSegment[] {
-    const segments: TextScrambleSegment[] = [];
-    const regex = /(<[^>]+>)|([^<]+)/g;
-    regex.lastIndex = 0;
-    let match;
-
-    while ((match = regex.exec(html)) !== null) {
-      if (match[1]) {
-        segments.push({ type: 'html', content: match[1] });
-      } else if (match[2] != null && match[2].length > 0) {
-        segments.push({ type: 'text', content: match[2] });
-      }
-    }
-
-    return segments;
-  }
-
-  reconstructHTML(segments: TextScrambleSegment[], scrambledText: string): string {
-    let textIndex = 0;
-    let result = '';
-
-    for (const segment of segments) {
-      if (segment.type === 'html') {
-        result += segment.content;
-      } else {
-        const textLength = segment.content.length;
-        result += scrambledText.slice(textIndex, textIndex + textLength);
-        textIndex += textLength;
-      }
-    }
-
-    return result;
-  }
-
-  setText(newText: string) {
-    const oldText = this.el.textContent ?? '';
-    this.targetHTML = newText;
-
-    this.htmlStructure = this.parseHTML(newText);
-    /** Plain characters in segment order — always matches reconstructHTML text slots. */
-    const newPlain = this.htmlStructure
-      .filter((s): s is TextScrambleSegment & { type: 'text' } => s.type === 'text')
-      .map((s) => s.content)
-      .join('');
-    this.plainTargetLength = newPlain.length;
-
-    const length = Math.max(oldText.length, newPlain.length);
-    const promise = new Promise<void>((resolve) => {
-      this.resolve = resolve;
-    });
-    this.queue = [];
-
-    for (let i = 0; i < length; i++) {
-      const from = oldText[i] || '';
-      const to = newPlain[i] || '';
-      const start = Math.floor(Math.random() * 40);
-      const end = start + Math.floor(Math.random() * 40);
-      this.queue.push({ from, to, start, end });
-    }
-
-    cancelAnimationFrame(this.frameRequest);
-    this.frame = 0;
-    this.update();
-    return promise;
-  }
-
-  update() {
-    let output = '';
-    let complete = 0;
-
-    for (let i = 0, n = this.queue.length; i < n; i++) {
-      const item = this.queue[i]!;
-      const { from, to, start, end } = item;
-      let { char } = item;
-
-      if (this.frame >= end) {
-        complete++;
-        output += to;
-      } else if (this.frame >= start) {
-        if (!char || Math.random() < 0.28) {
-          char = this.randomChar();
-          item.char = char;
-        }
-        output += char;
-      } else {
-        output += from;
-      }
-    }
-
-    const len = this.plainTargetLength;
-    const plainForHtml =
-      output.length >= len ? output.slice(0, len) : output + ' '.repeat(Math.max(0, len - output.length));
-
-    const finalHTML = this.reconstructHTML(this.htmlStructure, plainForHtml);
-    this.el.innerHTML = finalHTML;
-
-    if (complete === this.queue.length) {
-      if (this.resolve) this.resolve();
-    } else {
-      this.frameRequest = requestAnimationFrame(() => this.update());
-      this.frame++;
-    }
-  }
-
-  randomChar() {
-    return this.chars[Math.floor(Math.random() * this.chars.length)];
-  }
-}
-
-/** lg+ — crossfade only (no innerHTML scramble) = stable desktop, no layout glitches */
-const DESKTOP_HERO_BREAKPOINT_PX = 1024;
-
 const HERO_HEADLINE_CLASS =
   'fixed-height-text max-w-full text-2xl font-bold leading-tight tracking-tight break-words text-pretty [overflow-wrap:anywhere] sm:text-3xl md:text-4xl lg:text-fluid-3xl lg:text-balance';
 
@@ -214,7 +52,8 @@ const HERO_PHRASES: React.ReactNode[] = [
   </>,
 ];
 
-function HeroDesktopCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion: boolean }) {
+/** Rotating hero lines via opacity crossfade — same behavior on all viewports (no scramble). */
+function HeroCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion: boolean }) {
   const [phraseIx, setPhraseIx] = useState(0);
 
   useEffect(() => {
@@ -254,10 +93,6 @@ function HeroDesktopCrossfadeHeadline({ prefersReducedMotion }: { prefersReduced
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
   const { theme, toggleTheme, settings } = useTheme();
-  const heroHeadingRef = useRef<HTMLHeadingElement>(null);
-  const [desktopWideHero, setDesktopWideHero] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${DESKTOP_HERO_BREAKPOINT_PX}px)`).matches : false
-  );
   const [currentSlide, setCurrentSlide] = useState(0);
   const [api, setApi] = useState<any>();
   const prefersReducedMotion = useReducedMotion();
@@ -342,57 +177,8 @@ const Index = () => {
   };
 
   useEffect(() => {
-    const mq = window.matchMedia(`(min-width: ${DESKTOP_HERO_BREAKPOINT_PX}px)`);
-    const sync = () => setDesktopWideHero(mq.matches);
-    sync();
-    mq.addEventListener('change', sync);
-    return () => mq.removeEventListener('change', sync);
-  }, []);
-
-  useEffect(() => {
     setIsVisible(true);
-
-    /** Desktop uses React crossfade only — scramble would glitch (innerHTML / RAF). */
-    if (!heroHeadingRef.current || prefersReducedMotion || desktopWideHero) {
-      return;
-    }
-
-    const el = heroHeadingRef.current;
-    const textScramble = new TextScramble(el);
-    const phrases = [
-      'Where <span class="text-primary">Music</span> Meets Opportunity',
-      'Connect with <span class="text-primary">Musicians</span>',
-      'Find Your <span class="text-primary">Perfect</span> Sound',
-      'Book <span class="text-primary">Talent</span> Instantly',
-      'Where <span class="text-primary">Music</span> Meets Opportunity',
-    ];
-
-    let cancelled = false;
-    let counter = 0;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    const scheduleNext = () => {
-      if (cancelled) return;
-      timeoutId = window.setTimeout(runPhrase, 3200);
-    };
-
-    const runPhrase = () => {
-      if (cancelled) return;
-      const nextPhrase = phrases[counter] ?? '';
-      counter = (counter + 1) % phrases.length;
-      textScramble.setText(nextPhrase).then(() => {
-        if (!cancelled) scheduleNext();
-      });
-    };
-
-    runPhrase();
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) window.clearTimeout(timeoutId);
-      textScramble.cancel();
-    };
-  }, [prefersReducedMotion, desktopWideHero]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/90 to-primary/20 overflow-x-hidden">
@@ -469,16 +255,10 @@ const Index = () => {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           )}
         >
-          {/* Hero headline — one h1; scramble when motion OK; spacing kept tight — no reserve min-heights */}
+          {/* Hero headline — one h1; crossfade rotation (same on mobile + desktop) */}
           <div className="space-y-3">
             <div className="max-w-full">
-              {desktopWideHero ? (
-                <HeroDesktopCrossfadeHeadline prefersReducedMotion={prefersReducedMotion} />
-              ) : (
-                <h1 ref={heroHeadingRef} className={HERO_HEADLINE_CLASS}>
-                  {HERO_PHRASES[0]}
-                </h1>
-              )}
+              <HeroCrossfadeHeadline prefersReducedMotion={prefersReducedMotion} />
             </div>
             <p className="text-fluid-base text-muted-foreground">
               Rhythm Guardian connects talented musicians with those seeking musical services for
