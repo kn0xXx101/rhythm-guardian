@@ -318,13 +318,15 @@ const HirerBookings = () => {
       <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6 w-full flex-wrap h-auto gap-1 justify-start">
-          <TabsTrigger value="all">All Bookings</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="expired">Expired</TabsTrigger>
-        </TabsList>
+        <div className="mb-6 -mx-4 overflow-x-auto overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex h-auto min-h-10 w-max flex-nowrap gap-1 justify-start sm:w-full sm:flex-wrap">
+            <TabsTrigger value="all">All Bookings</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            <TabsTrigger value="expired">Expired</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value={activeTab}>
           <div className="space-y-4">

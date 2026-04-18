@@ -47,13 +47,19 @@ const MusicianDashboard = () => {
               Payments are held securely until your service is completed. After both parties confirm completion,
               your earnings (minus platform commission and payment processing fees) are automatically released to your account.
             </p>
-            <div className="flex items-center gap-4 text-xs">
-              <span>Platform Commission: <strong>{(adminPercentage * 100).toFixed(1)}%</strong></span>
-              <span>Payment Processing: <strong>1.5% + GHS 0.50</strong></span>
+            <div className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-2">
+                <span className="shrink-0">
+                  Platform Commission: <strong>{(adminPercentage * 100).toFixed(1)}%</strong>
+                </span>
+                <span className="min-w-0">
+                  Payment Processing: <strong>1.5% + GHS 0.50</strong>
+                </span>
+              </div>
               <FeeBreakdown
                 bookingAmount={100}
                 platformCommissionRate={adminPercentage * 100}
-                className="ml-auto"
+                className="w-full shrink-0 justify-center sm:ml-auto sm:w-auto sm:justify-start"
               />
             </div>
           </div>
