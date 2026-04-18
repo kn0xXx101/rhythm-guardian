@@ -409,18 +409,11 @@
     transition: all 0.15s ease-out;
   }
 
-  /* Fixed height hero line only on md+ — avoids clipping on phones and narrow tablets */
+  /* Hero headline helper — natural height only (never fixed px / overflow:hidden; that clipped wraps). */
   .fixed-height-text {
     height: auto;
     min-height: 0;
     overflow: visible;
-  }
-
-  @media (min-width: 768px) {
-    .fixed-height-text {
-      height: 80px;
-      overflow: hidden;
-    }
   }
 
   /* Animation Delays */

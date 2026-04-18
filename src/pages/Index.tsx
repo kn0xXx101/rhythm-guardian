@@ -120,13 +120,14 @@ class TextScramble {
     this.targetHTML = newText;
 
     this.htmlStructure = this.parseHTML(newText);
+    /** Plain characters in segment order — always matches reconstructHTML text slots. */
+    const newPlain = this.htmlStructure
+      .filter((s): s is TextScrambleSegment & { type: 'text' } => s.type === 'text')
+      .map((s) => s.content)
+      .join('');
+    this.plainTargetLength = newPlain.length;
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = newText;
-    const newTextContent = tempDiv.textContent || tempDiv.innerText || '';
-    this.plainTargetLength = newTextContent.length;
-
-    const length = Math.max(oldText.length, newTextContent.length);
+    const length = Math.max(oldText.length, newPlain.length);
     const promise = new Promise<void>((resolve) => {
       this.resolve = resolve;
     });
@@ -134,7 +135,7 @@ class TextScramble {
 
     for (let i = 0; i < length; i++) {
       const from = oldText[i] || '';
-      const to = newTextContent[i] || '';
+      const to = newPlain[i] || '';
       const start = Math.floor(Math.random() * 40);
       const end = start + Math.floor(Math.random() * 40);
       this.queue.push({ from, to, start, end });
@@ -189,12 +190,73 @@ class TextScramble {
   }
 }
 
+/** lg+ — crossfade only (no innerHTML scramble) = stable desktop, no layout glitches */
+const DESKTOP_HERO_BREAKPOINT_PX = 1024;
+
+const HERO_HEADLINE_CLASS =
+  'fixed-height-text max-w-full text-2xl font-bold leading-tight tracking-tight break-words text-pretty [overflow-wrap:anywhere] sm:text-3xl md:text-4xl lg:text-fluid-3xl lg:text-balance';
+
+const HERO_PHRASES: React.ReactNode[] = [
+  <>
+    Where <span className="text-primary">Music</span> Meets Opportunity
+  </>,
+  <>
+    Connect with <span className="text-primary">Musicians</span>
+  </>,
+  <>
+    Find Your <span className="text-primary">Perfect</span> Sound
+  </>,
+  <>
+    Book <span className="text-primary">Talent</span> Instantly
+  </>,
+  <>
+    Where <span className="text-primary">Music</span> Meets Opportunity
+  </>,
+];
+
+function HeroDesktopCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion: boolean }) {
+  const [phraseIx, setPhraseIx] = useState(0);
+
+  useEffect(() => {
+    if (prefersReducedMotion) return;
+    const id = window.setInterval(() => {
+      setPhraseIx((i) => (i + 1) % HERO_PHRASES.length);
+    }, 3200);
+    return () => window.clearInterval(id);
+  }, [prefersReducedMotion]);
+
+  const active = prefersReducedMotion ? 0 : phraseIx;
+
+  return (
+    <h1
+      className={cn(
+        HERO_HEADLINE_CLASS,
+        'grid [&>*]:col-start-1 [&>*]:row-start-1 [&>*]:min-w-0 place-items-start'
+      )}
+      aria-live={prefersReducedMotion ? undefined : 'polite'}
+    >
+      {HERO_PHRASES.map((phrase, i) => (
+        <span
+          key={i}
+          className={cn(
+            'max-w-full transition-opacity duration-500 ease-out motion-reduce:transition-none',
+            i === active ? 'relative z-[1] opacity-100' : 'z-0 opacity-0 pointer-events-none'
+          )}
+          aria-hidden={i !== active}
+        >
+          {phrase}
+        </span>
+      ))}
+    </h1>
+  );
+}
+
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
   const { theme, toggleTheme, settings } = useTheme();
-  const heroDesktopRef = useRef<HTMLHeadingElement>(null);
-  const [allowHeroScramble, setAllowHeroScramble] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  const heroHeadingRef = useRef<HTMLHeadingElement>(null);
+  const [desktopWideHero, setDesktopWideHero] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(`(min-width: ${DESKTOP_HERO_BREAKPOINT_PX}px)`).matches : false
   );
   const [currentSlide, setCurrentSlide] = useState(0);
   const [api, setApi] = useState<any>();
@@ -280,8 +342,8 @@ const Index = () => {
   };
 
   useEffect(() => {
-    const mq = window.matchMedia('(min-width: 1024px)');
-    const sync = () => setAllowHeroScramble(mq.matches);
+    const mq = window.matchMedia(`(min-width: ${DESKTOP_HERO_BREAKPOINT_PX}px)`);
+    const sync = () => setDesktopWideHero(mq.matches);
     sync();
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
@@ -290,11 +352,12 @@ const Index = () => {
   useEffect(() => {
     setIsVisible(true);
 
-    if (!heroDesktopRef.current || prefersReducedMotion || !allowHeroScramble) {
+    /** Desktop uses React crossfade only — scramble would glitch (innerHTML / RAF). */
+    if (!heroHeadingRef.current || prefersReducedMotion || desktopWideHero) {
       return;
     }
 
-    const el = heroDesktopRef.current;
+    const el = heroHeadingRef.current;
     const textScramble = new TextScramble(el);
     const phrases = [
       'Where <span class="text-primary">Music</span> Meets Opportunity',
@@ -329,7 +392,7 @@ const Index = () => {
       if (timeoutId) window.clearTimeout(timeoutId);
       textScramble.cancel();
     };
-  }, [prefersReducedMotion, allowHeroScramble]);
+  }, [prefersReducedMotion, desktopWideHero]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/90 to-primary/20 overflow-x-hidden">
@@ -406,26 +469,16 @@ const Index = () => {
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
           )}
         >
-          {/* Left Column — static headline on small screens; scramble only lg+ desktop */}
-          <div className="space-y-4">
-            <h1 className="max-w-full text-2xl font-bold leading-snug tracking-tight break-words text-pretty [overflow-wrap:anywhere] lg:hidden sm:text-3xl">
-              Where <span className="text-primary">Music</span> Meets{' '}
-              <span className="text-primary">Opportunity</span>
-            </h1>
-
-            <div
-              className={cn(
-                'hidden max-w-full lg:block',
-                allowHeroScramble && !prefersReducedMotion && 'min-h-[6rem] xl:min-h-[7rem]'
+          {/* Hero headline — one h1; scramble when motion OK; spacing kept tight — no reserve min-heights */}
+          <div className="space-y-3">
+            <div className="max-w-full">
+              {desktopWideHero ? (
+                <HeroDesktopCrossfadeHeadline prefersReducedMotion={prefersReducedMotion} />
+              ) : (
+                <h1 ref={heroHeadingRef} className={HERO_HEADLINE_CLASS}>
+                  {HERO_PHRASES[0]}
+                </h1>
               )}
-            >
-              <h1
-                ref={heroDesktopRef}
-                className="fixed-height-text max-w-full text-fluid-3xl font-bold leading-tight tracking-tight text-balance break-words [overflow-wrap:anywhere]"
-              >
-                Where <span className="text-primary">Music</span> Meets{' '}
-                <span className="text-primary">Opportunity</span>
-              </h1>
             </div>
             <p className="text-fluid-base text-muted-foreground">
               Rhythm Guardian connects talented musicians with those seeking musical services for
