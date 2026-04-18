@@ -68,18 +68,17 @@ function HeroCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion:
 
   return (
     <h1
-      className={cn(
-        HERO_HEADLINE_CLASS,
-        'grid [&>*]:col-start-1 [&>*]:row-start-1 [&>*]:min-w-0 place-items-start'
-      )}
+      className={cn(HERO_HEADLINE_CLASS, 'relative isolate')}
       aria-live={prefersReducedMotion ? undefined : 'polite'}
     >
       {HERO_PHRASES.map((phrase, i) => (
         <span
           key={i}
           className={cn(
-            'max-w-full transition-opacity duration-500 ease-out motion-reduce:transition-none',
-            i === active ? 'relative z-[1] opacity-100' : 'z-0 opacity-0 pointer-events-none'
+            'block max-w-full transition-opacity duration-500 ease-out motion-reduce:transition-none',
+            i === active
+              ? 'relative z-[1] opacity-100'
+              : 'pointer-events-none absolute inset-x-0 top-0 z-0 opacity-0'
           )}
           aria-hidden={i !== active}
         >
@@ -256,7 +255,7 @@ const Index = () => {
           )}
         >
           {/* Hero headline — one h1; crossfade rotation (same on mobile + desktop) */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="max-w-full">
               <HeroCrossfadeHeadline prefersReducedMotion={prefersReducedMotion} />
             </div>
