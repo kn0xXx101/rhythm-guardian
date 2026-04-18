@@ -29,11 +29,173 @@ import { userService } from '@/services/user';
 import type { UserProfile } from '@/services/user';
 import { formatGHSWithSymbol } from '@/lib/currency';
 import { OptimizedImage } from '@/components/ui/optimized-image';
+import { cn } from '@/lib/utils';
+
+interface TextScrambleQueueItem {
+  from: string;
+  to: string;
+  start: number;
+  end: number;
+  char?: string;
+}
+
+interface TextScrambleSegment {
+  type: 'text' | 'html';
+  content: string;
+}
+
+/**
+ * Scramble animation for rich-text hero lines. Maps only the first `plainTargetLength`
+ * glyphs of `output` into HTML segments so phrase length changes cannot drop words.
+ */
+class TextScramble {
+  el: HTMLElement;
+  chars: string;
+  queue: TextScrambleQueueItem[];
+  frame: number;
+  frameRequest: number;
+  resolve: (() => void) | null;
+  htmlStructure: TextScrambleSegment[];
+  targetHTML: string;
+  plainTargetLength: number;
+
+  constructor(el: HTMLElement) {
+    this.el = el;
+    this.chars = '!<>-_\\/*&^%$#@[]{}—=+?';
+    this.queue = [];
+    this.frame = 0;
+    this.frameRequest = 0;
+    this.resolve = null;
+    this.htmlStructure = [];
+    this.targetHTML = '';
+    this.plainTargetLength = 0;
+  }
+
+  cancel() {
+    cancelAnimationFrame(this.frameRequest);
+    this.frameRequest = 0;
+    if (this.resolve) {
+      this.resolve();
+      this.resolve = null;
+    }
+    this.queue = [];
+  }
+
+  parseHTML(html: string): TextScrambleSegment[] {
+    const segments: TextScrambleSegment[] = [];
+    const regex = /(<[^>]+>)|([^<]+)/g;
+    regex.lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(html)) !== null) {
+      if (match[1]) {
+        segments.push({ type: 'html', content: match[1] });
+      } else if (match[2] != null && match[2].length > 0) {
+        segments.push({ type: 'text', content: match[2] });
+      }
+    }
+
+    return segments;
+  }
+
+  reconstructHTML(segments: TextScrambleSegment[], scrambledText: string): string {
+    let textIndex = 0;
+    let result = '';
+
+    for (const segment of segments) {
+      if (segment.type === 'html') {
+        result += segment.content;
+      } else {
+        const textLength = segment.content.length;
+        result += scrambledText.slice(textIndex, textIndex + textLength);
+        textIndex += textLength;
+      }
+    }
+
+    return result;
+  }
+
+  setText(newText: string) {
+    const oldText = this.el.textContent ?? '';
+    this.targetHTML = newText;
+
+    this.htmlStructure = this.parseHTML(newText);
+
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = newText;
+    const newTextContent = tempDiv.textContent || tempDiv.innerText || '';
+    this.plainTargetLength = newTextContent.length;
+
+    const length = Math.max(oldText.length, newTextContent.length);
+    const promise = new Promise<void>((resolve) => {
+      this.resolve = resolve;
+    });
+    this.queue = [];
+
+    for (let i = 0; i < length; i++) {
+      const from = oldText[i] || '';
+      const to = newTextContent[i] || '';
+      const start = Math.floor(Math.random() * 40);
+      const end = start + Math.floor(Math.random() * 40);
+      this.queue.push({ from, to, start, end });
+    }
+
+    cancelAnimationFrame(this.frameRequest);
+    this.frame = 0;
+    this.update();
+    return promise;
+  }
+
+  update() {
+    let output = '';
+    let complete = 0;
+
+    for (let i = 0, n = this.queue.length; i < n; i++) {
+      const item = this.queue[i]!;
+      const { from, to, start, end } = item;
+      let { char } = item;
+
+      if (this.frame >= end) {
+        complete++;
+        output += to;
+      } else if (this.frame >= start) {
+        if (!char || Math.random() < 0.28) {
+          char = this.randomChar();
+          item.char = char;
+        }
+        output += char;
+      } else {
+        output += from;
+      }
+    }
+
+    const len = this.plainTargetLength;
+    const plainForHtml =
+      output.length >= len ? output.slice(0, len) : output + ' '.repeat(Math.max(0, len - output.length));
+
+    const finalHTML = this.reconstructHTML(this.htmlStructure, plainForHtml);
+    this.el.innerHTML = finalHTML;
+
+    if (complete === this.queue.length) {
+      if (this.resolve) this.resolve();
+    } else {
+      this.frameRequest = requestAnimationFrame(() => this.update());
+      this.frame++;
+    }
+  }
+
+  randomChar() {
+    return this.chars[Math.floor(Math.random() * this.chars.length)];
+  }
+}
 
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
   const { theme, toggleTheme, settings } = useTheme();
-  const heroTextRef = useRef<HTMLHeadingElement>(null);
+  const heroDesktopRef = useRef<HTMLHeadingElement>(null);
+  const [allowHeroScramble, setAllowHeroScramble] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  );
   const [currentSlide, setCurrentSlide] = useState(0);
   const [api, setApi] = useState<any>();
   const prefersReducedMotion = useReducedMotion();
@@ -118,177 +280,56 @@ const Index = () => {
   };
 
   useEffect(() => {
-    // Trigger animations after component mounts
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const sync = () => setAllowHeroScramble(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
     setIsVisible(true);
 
-    // Text scramble effect for hero heading - skip if user prefers reduced motion
-    if (heroTextRef.current && !prefersReducedMotion) {
-      const textScramble = new TextScramble(heroTextRef.current);
-      const phrases = [
-        'Where <span class="text-primary">Music</span> Meets Opportunity',
-        'Connect with <span class="text-primary">Musicians</span>',
-        'Find Your <span class="text-primary">Perfect</span> Sound',
-        'Book <span class="text-primary">Talent</span> Instantly',
-        'Where <span class="text-primary">Music</span> Meets Opportunity',
-      ];
-
-      let counter = 0;
-      const next = () => {
-        const nextPhrase = phrases[counter] ?? '';
-        textScramble.setText(nextPhrase).then(() => {
-          setTimeout(next, 3000);
-        });
-        counter = (counter + 1) % phrases.length;
-      };
-
-      next();
-    }
-  }, [prefersReducedMotion]);
-
-  // Text scramble class for animated text effects
-  interface TextScrambleQueueItem {
-    from: string;
-    to: string;
-    start: number;
-    end: number;
-    char?: string;
-  }
-
-  interface TextScrambleSegment {
-    type: 'text' | 'html';
-    content: string;
-  }
-
-  class TextScramble {
-    el: HTMLElement;
-    chars: string;
-    queue: TextScrambleQueueItem[];
-    frame: number;
-    frameRequest: number;
-    resolve: (() => void) | null;
-    htmlStructure: TextScrambleSegment[];
-    targetHTML: string;
-
-    constructor(el: HTMLElement) {
-      this.el = el;
-      this.chars = '!<>-_\\/*&^%$#@[]{}—=+?';
-      this.queue = [];
-      this.frame = 0;
-      this.frameRequest = 0;
-      this.resolve = null;
-      this.htmlStructure = [];
-      this.targetHTML = '';
+    if (!heroDesktopRef.current || prefersReducedMotion || !allowHeroScramble) {
+      return;
     }
 
-    // Extract text and HTML structure from HTML string
-    parseHTML(html: string): TextScrambleSegment[] {
-      const segments: TextScrambleSegment[] = [];
-      const regex = /(<[^>]+>)|([^<]+)/g;
-      let match;
+    const el = heroDesktopRef.current;
+    const textScramble = new TextScramble(el);
+    const phrases = [
+      'Where <span class="text-primary">Music</span> Meets Opportunity',
+      'Connect with <span class="text-primary">Musicians</span>',
+      'Find Your <span class="text-primary">Perfect</span> Sound',
+      'Book <span class="text-primary">Talent</span> Instantly',
+      'Where <span class="text-primary">Music</span> Meets Opportunity',
+    ];
 
-      while ((match = regex.exec(html)) !== null) {
-        if (match[1]) {
-          // HTML tag
-          segments.push({ type: 'html', content: match[1] });
-        } else if (match[2]) {
-          // Text content
-          segments.push({ type: 'text', content: match[2] });
-        }
-      }
+    let cancelled = false;
+    let counter = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      return segments;
-    }
+    const scheduleNext = () => {
+      if (cancelled) return;
+      timeoutId = window.setTimeout(runPhrase, 3200);
+    };
 
-    // Reconstruct HTML from segments with scrambled text
-    reconstructHTML(segments: TextScrambleSegment[], scrambledText: string): string {
-      let textIndex = 0;
-      let result = '';
-
-      for (const segment of segments) {
-        if (segment.type === 'html') {
-          result += segment.content;
-        } else {
-          const textLength = segment.content.length;
-          const scrambledPortion = scrambledText.substring(textIndex, textIndex + textLength);
-          result += scrambledPortion;
-          textIndex += textLength;
-        }
-      }
-
-      return result;
-    }
-
-    setText(newText: string) {
-      const oldText = this.el.innerText;
-      this.targetHTML = newText;
-
-      // Parse HTML structure from new text
-      this.htmlStructure = this.parseHTML(newText);
-
-      // Extract only text content (no HTML) for scrambling
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = newText;
-      const newTextContent = tempDiv.textContent || tempDiv.innerText || '';
-
-      const length = Math.max(oldText.length, newTextContent.length);
-      const promise = new Promise<void>((resolve) => {
-        this.resolve = resolve;
+    const runPhrase = () => {
+      if (cancelled) return;
+      const nextPhrase = phrases[counter] ?? '';
+      counter = (counter + 1) % phrases.length;
+      textScramble.setText(nextPhrase).then(() => {
+        if (!cancelled) scheduleNext();
       });
-      this.queue = [];
+    };
 
-      for (let i = 0; i < length; i++) {
-        const from = oldText[i] || '';
-        const to = newTextContent[i] || '';
-        const start = Math.floor(Math.random() * 40);
-        const end = start + Math.floor(Math.random() * 40);
-        this.queue.push({ from, to, start, end });
-      }
+    runPhrase();
 
-      cancelAnimationFrame(this.frameRequest);
-      this.frame = 0;
-      this.update();
-      return promise;
-    }
-
-    update() {
-      let output = '';
-      let complete = 0;
-
-      for (let i = 0, n = this.queue.length; i < n; i++) {
-        const item = this.queue[i]!;
-        const { from, to, start, end } = item;
-        let { char } = item;
-
-        if (this.frame >= end) {
-          complete++;
-          output += to;
-        } else if (this.frame >= start) {
-          if (!char || Math.random() < 0.28) {
-            char = this.randomChar();
-            item.char = char;
-          }
-          output += char;
-        } else {
-          output += from;
-        }
-      }
-
-      // Reconstruct HTML with scrambled text
-      const finalHTML = this.reconstructHTML(this.htmlStructure, output);
-      this.el.innerHTML = finalHTML;
-
-      if (complete === this.queue.length) {
-        if (this.resolve) this.resolve();
-      } else {
-        this.frameRequest = requestAnimationFrame(() => this.update());
-        this.frame++;
-      }
-    }
-
-    randomChar() {
-      return this.chars[Math.floor(Math.random() * this.chars.length)];
-    }
-  }
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      textScramble.cancel();
+    };
+  }, [prefersReducedMotion, allowHeroScramble]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background/90 to-primary/20 overflow-x-hidden">
@@ -357,23 +398,35 @@ const Index = () => {
       {/* Enhanced Hero Section with Animations */}
       <main id="main-content" className="container mx-auto px-4 py-10 sm:py-12">
         <div
-          className={`grid grid-cols-1 md:grid-cols-2 gap-8 items-center ${prefersReducedMotion ? '' : 'transition-all duration-1000'} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}
+          className={cn(
+            'grid grid-cols-1 items-center gap-8 md:grid-cols-2',
+            prefersReducedMotion
+              ? ''
+              : 'transition-[opacity,transform] duration-1000 motion-reduce:transition-none',
+            isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'
+          )}
         >
-          {/* Left Column - Text Content with Animated Text */}
+          {/* Left Column — static headline on small screens; scramble only lg+ desktop */}
           <div className="space-y-4">
-            <h1
-              ref={heroTextRef}
-              className="text-2xl sm:text-fluid-3xl font-bold tracking-tight leading-tight fixed-height-text max-w-full text-balance"
-            >
-              Where{' '}
-              <span className="text-primary">
-                Music
-              </span>{' '}
-              Meets{' '}
-              <span className="text-primary">
-                Opportunity
-              </span>
+            <h1 className="max-w-full text-2xl font-bold leading-snug tracking-tight break-words text-pretty [overflow-wrap:anywhere] lg:hidden sm:text-3xl">
+              Where <span className="text-primary">Music</span> Meets{' '}
+              <span className="text-primary">Opportunity</span>
             </h1>
+
+            <div
+              className={cn(
+                'hidden max-w-full lg:block',
+                allowHeroScramble && !prefersReducedMotion && 'min-h-[6rem] xl:min-h-[7rem]'
+              )}
+            >
+              <h1
+                ref={heroDesktopRef}
+                className="fixed-height-text max-w-full text-fluid-3xl font-bold leading-tight tracking-tight text-balance break-words [overflow-wrap:anywhere]"
+              >
+                Where <span className="text-primary">Music</span> Meets{' '}
+                <span className="text-primary">Opportunity</span>
+              </h1>
+            </div>
             <p className="text-fluid-base text-muted-foreground">
               Rhythm Guardian connects talented musicians with those seeking musical services for
               events, recordings, and performances.
@@ -419,8 +472,8 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Right Column - Enhanced Visual Element with Animations */}
-          <div className="relative md:block">
+          {/* Right column: logo orbit visual — desktop/tablet only (hidden on mobile) */}
+          <div className="relative hidden md:block">
             <div
               className={`aspect-square max-w-[260px] md:max-w-md mx-auto rounded-full flex items-center justify-center ${prefersReducedMotion ? '' : 'animate-float'} group`}
               style={{
@@ -797,25 +850,8 @@ const Index = () => {
 
       </main>
 
-      {/* Mobile sticky CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-40 md:hidden">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-        <div className="relative pointer-events-auto border-t bg-background/85 backdrop-blur-md">
-          <div className="container mx-auto px-3 py-3 flex gap-2">
-            <Link to="/signup?type=hirer" className="flex-1">
-              <Button className="w-full touch-manipulation">Hire a Musician</Button>
-            </Link>
-            <Link to="/signup?type=musician" className="flex-1">
-              <Button variant="outline" className="w-full touch-manipulation">
-                Join as Musician
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Call to Action */}
-      <div className="container mx-auto px-4 py-16 pb-28 md:pb-16">
+      <div className="container mx-auto px-4 py-16">
         <div className="bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl p-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">

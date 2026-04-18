@@ -39,7 +39,6 @@ import {
   SunMoon,
   Moon,
   Sun,
-  ChevronRight,
   Home,
   Music,
   Calendar,
