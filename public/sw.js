@@ -1,86 +1,30 @@
 /**
- * Service Worker for offline support
- * This is a basic service worker that can be enhanced based on specific needs
+ * Service worker — push notifications only.
+ *
+ * Previous versions cached / + index.html and used cache-first for all fetches. That caused
+ * intermittent "'text/html' is not a valid JavaScript MIME type" after deploys: stale chunk
+ * URLs could resolve to cached HTML or SPA index.html.
+ *
+ * We do not intercept /assets/* or module scripts; the browser always loads hashed bundles from the network.
  */
 
-const CACHE_NAME = 'rhythm-guardian-v2';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  // Add other static assets as needed
-];
+const CACHE_NAME = 'rhythm-guardian-v4';
 
-// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch((error) => {
-        console.log('Failed to cache some assets:', error);
-      });
-    })
-  );
-  self.skipWaiting();
+  event.waitUntil(self.skipWaiting());
 });
 
-// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-    })
+    caches.keys().then((names) =>
+      Promise.all(names.filter((n) => n !== CACHE_NAME).map((n) => caches.delete(n)))
+    )
   );
   return self.clients.claim();
 });
 
-// Fetch event - serve from cache when offline
-self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
-  if (event.request.method !== 'GET') {
-    return;
-  }
+// Do not register a fetch handler for documents/assets — avoids stale shell and HTML-as-JS responses.
 
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      return fetch(event.request)
-        .then((response) => {
-          // Don't cache if not a valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-
-          // Clone the response
-          const responseToCache = response.clone();
-
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
-          return response;
-        })
-        .catch(() => {
-          // Return offline fallback if available
-          if (event.request.destination === 'document') {
-            return caches.match('/index.html');
-          }
-        });
-    })
-  );
-});
-
-// Push event - handle push notifications
 self.addEventListener('push', (event) => {
   let notificationData = {
     title: 'Rhythm Guardian',
@@ -92,7 +36,6 @@ self.addEventListener('push', (event) => {
     data: {},
   };
 
-  // Parse push data if available
   if (event.data) {
     try {
       const data = event.data.json();
@@ -101,7 +44,6 @@ self.addEventListener('push', (event) => {
         ...data,
       };
     } catch (e) {
-      // If not JSON, treat as text
       notificationData.body = event.data.text();
     }
   }
@@ -118,7 +60,6 @@ self.addEventListener('push', (event) => {
   event.waitUntil(promiseChain);
 });
 
-// Notification click event - handle user clicking on a notification
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
@@ -131,7 +72,6 @@ self.addEventListener('notificationclick', (event) => {
       includeUncontrolled: true,
     })
     .then((windowClients) => {
-      // Check if there's already a window/tab open with the target URL
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
         if (client.url === urlToOpen && 'focus' in client) {
@@ -139,7 +79,6 @@ self.addEventListener('notificationclick', (event) => {
         }
       }
 
-      // If no existing window, open a new one
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
@@ -148,9 +87,6 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(promiseChain);
 });
 
-// Notification close event - handle when user dismisses a notification
 self.addEventListener('notificationclose', (event) => {
-  // Optional: Log analytics or perform cleanup
   console.log('Notification closed:', event.notification.tag);
 });
-

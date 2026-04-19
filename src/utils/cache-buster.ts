@@ -44,29 +44,40 @@ export const forceReload = (): void => {
 };
 
 /**
- * Check if new version is available
+ * Compare live /version.json (emitted each build) with stored id. On mismatch, persist the new
+ * id and reload so the shell picks up fresh chunk references — works even when HTML was cached.
  */
 export const checkForUpdates = async (): Promise<boolean> => {
   try {
-    const response = await fetch('/version.json?' + Date.now(), {
+    const response = await fetch(`/version.json?t=${Date.now()}`, {
       cache: 'no-store',
+      headers: { Accept: 'application/json' },
     });
-    
-    if (response.ok) {
-      const data = await response.json();
-      const currentVersion = localStorage.getItem('app_version');
-      
-      if (currentVersion && currentVersion !== data.version) {
-        return true; // New version available
-      }
-      
-      localStorage.setItem('app_version', data.version);
+
+    if (!response.ok) return false;
+
+    const data = (await response.json()) as { version?: string };
+    const remote = data.version != null ? String(data.version) : '';
+    if (!remote) return false;
+
+    const stored = localStorage.getItem('app_version');
+
+    if (!stored) {
+      localStorage.setItem('app_version', remote);
+      return false;
     }
+
+    if (stored !== remote) {
+      localStorage.setItem('app_version', remote);
+      window.location.reload();
+      return true;
+    }
+
+    return false;
   } catch (error) {
     console.error('Error checking for updates:', error);
+    return false;
   }
-  
-  return false;
 };
 
 /**
@@ -148,24 +159,31 @@ export const disableCaching = (): void => {
 /**
  * Initialize cache busting on app load
  */
+const DEPLOY_POLL_MS = 45 * 1000;
+
 export const initCacheBusting = (): void => {
   // Disable caching in development
   disableCaching();
 
-  // Check for updates periodically (every 5 minutes)
   if (import.meta.env.PROD) {
-    setInterval(async () => {
-      const hasUpdate = await checkForUpdates();
-      if (hasUpdate) {
-        // Notify user about update
-        const shouldUpdate = confirm(
-          'A new version is available. Would you like to reload to get the latest updates?'
-        );
-        if (shouldUpdate) {
-          forceReload();
-        }
+    const poll = () => {
+      void checkForUpdates();
+    };
+
+    poll();
+    setInterval(poll, DEPLOY_POLL_MS);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        poll();
       }
-    }, 5 * 60 * 1000); // 5 minutes
+    });
+
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        poll();
+      }
+    });
   }
 
   // Add keyboard shortcut for force reload (Ctrl+Shift+R or Cmd+Shift+R)
