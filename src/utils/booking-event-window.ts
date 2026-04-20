@@ -21,3 +21,33 @@ export function isBookingEventWindowPast(
   if (endMs == null) return false;
   return endMs < Date.now();
 }
+
+/**
+ * True when the scheduled event has ended, but we are still within the grace period during which
+ * both parties should confirm service completion. Use this to show "Confirm Rendering / Complete Service"
+ * instead of "Refund" immediately after end time.
+ */
+export function isWithinPostServiceConfirmationWindow(
+  eventDateIso: string | undefined | null,
+  durationHours?: number | null,
+  graceHours: number = 48
+): boolean {
+  const endMs = getBookingEventEndMs(eventDateIso, durationHours);
+  if (endMs == null) return false;
+  const now = Date.now();
+  if (now < endMs) return false;
+  const graceMs = Math.max(0, graceHours) * 60 * 60 * 1000;
+  return now <= endMs + graceMs;
+}
+
+/** True when the grace window has passed (refund/cancellation escalation can apply). */
+export function isPostServiceConfirmationWindowExpired(
+  eventDateIso: string | undefined | null,
+  durationHours?: number | null,
+  graceHours: number = 48
+): boolean {
+  const endMs = getBookingEventEndMs(eventDateIso, durationHours);
+  if (endMs == null) return false;
+  const graceMs = Math.max(0, graceHours) * 60 * 60 * 1000;
+  return Date.now() > endMs + graceMs;
+}

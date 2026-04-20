@@ -14,7 +14,11 @@ import { useNavigate } from 'react-router-dom';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { refundTicketingService } from '@/services/refund-ticketing';
 import { supabase } from '@/lib/supabase';
-import { isBookingEventWindowPast } from '@/utils/booking-event-window';
+import {
+  isBookingEventWindowPast,
+  isPostServiceConfirmationWindowExpired,
+  isWithinPostServiceConfirmationWindow,
+} from '@/utils/booking-event-window';
 import {
   Dialog,
   DialogContent,
@@ -356,6 +360,22 @@ const HirerBookings = () => {
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
                 const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
+                const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
+                  booking.date,
+                  booking.durationHours
+                );
+                const confirmWindowExpired = isPostServiceConfirmationWindowExpired(
+                  booking.date,
+                  booking.durationHours
+                );
+                const isFunded =
+                  booking.paymentStatus === 'paid_to_admin' ||
+                  booking.paymentStatus === 'paid' ||
+                  booking.paymentStatus === 'service_completed';
+                const canConfirmService =
+                  booking.status === 'upcoming' ||
+                  (booking.status === 'accepted' && isFunded) ||
+                  (booking.status === 'expired' && isFunded && withinConfirmWindow);
                 const calendarLink = buildCalendarLink(booking);
                 const cardTone =
                   booking.status === 'expired'
@@ -526,10 +546,18 @@ const HirerBookings = () => {
                           </div>
                         )}
                         
-                        {/* Show manual refund button only if automatic refund didn't trigger */}
-                        {(booking.status === 'expired' || booking.status === 'cancelled' || booking.status === 'rejected') && 
-                         (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'service_completed' || booking.paymentStatus === 'paid') &&
-                         !refundRequestedBookingIds.has(booking.id) && (
+                        {/* Manual refund request should NOT appear immediately after end-time.
+                            Only allow refund escalation after the post-service confirmation window expires. */}
+                        {(booking.status === 'expired' ||
+                          booking.status === 'cancelled' ||
+                          booking.status === 'rejected') &&
+                          (booking.paymentStatus === 'paid_to_admin' ||
+                            booking.paymentStatus === 'service_completed' ||
+                            booking.paymentStatus === 'paid') &&
+                          confirmWindowExpired &&
+                          !booking.serviceConfirmedByHirer &&
+                          !booking.serviceConfirmedByMusician &&
+                          !refundRequestedBookingIds.has(booking.id) && (
                           <Button 
                             variant="outline" 
                             className="w-full text-orange-700 border-orange-700 hover:bg-orange-50"
@@ -551,7 +579,7 @@ const HirerBookings = () => {
                           </Button>
                         )}
 
-                        {(booking.status === 'upcoming' || (booking.status === 'accepted' && (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid'))) && (
+                        {canConfirmService && (
                           <>
                             {!booking.serviceConfirmedByHirer ? (
                               eventEnded ? (

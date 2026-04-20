@@ -12,7 +12,10 @@ import { OptimizedImage } from '@/components/ui/optimized-image';
 import { ReviewDialog } from '@/components/booking/ReviewDialog';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { supabase } from '@/lib/supabase';
-import { isBookingEventWindowPast } from '@/utils/booking-event-window';
+import {
+  isBookingEventWindowPast,
+  isWithinPostServiceConfirmationWindow,
+} from '@/utils/booking-event-window';
 
 const MusicianBookings = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -244,6 +247,16 @@ const MusicianBookings = () => {
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
                 const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
+                const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
+                  booking.date,
+                  booking.durationHours
+                );
+                const isFunded =
+                  booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid';
+                const canConfirmRendering =
+                  booking.status === 'upcoming' ||
+                  (booking.status === 'accepted' && isFunded) ||
+                  (booking.status === 'expired' && isFunded && withinConfirmWindow);
                 const calendarLink = buildCalendarLink(booking);
                 const showCalendar =
                   calendarLink &&
@@ -397,7 +410,7 @@ const MusicianBookings = () => {
                             </Button>
                           </>
                         )}
-                        {(booking.status === 'upcoming' || (booking.status === 'accepted' && (booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid'))) && (
+                        {canConfirmRendering && (
                           <>
                             {!booking.serviceConfirmedByMusician ? (
                               eventEnded ? (
