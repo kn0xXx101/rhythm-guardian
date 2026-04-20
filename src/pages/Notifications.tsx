@@ -49,8 +49,12 @@ export default function Notifications() {
     loadNotifications();
 
     // Subscribe to real-time updates
+    const channelSuffix =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const channel = supabase
-      .channel(`notifications:${user.id}`)
+      .channel(`notifications:${user.id}:${channelSuffix}`)
       .on(
         'postgres_changes',
         {
@@ -66,7 +70,12 @@ export default function Notifications() {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      try {
+        channel.unsubscribe();
+        supabase.removeChannel(channel);
+      } catch {
+        // ignore cleanup errors
+      }
     };
   }, [user, navigate]);
 
@@ -260,7 +269,7 @@ export default function Notifications() {
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -280,7 +289,7 @@ export default function Notifications() {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {unreadCount > 0 && (
             <Button variant="outline" size="sm" onClick={markAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-2" />
@@ -298,17 +307,19 @@ export default function Notifications() {
 
       {/* Filters */}
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="all">
-            All ({notifications.length})
-          </TabsTrigger>
-          <TabsTrigger value="unread">
-            Unread ({unreadCount})
-          </TabsTrigger>
-          <TabsTrigger value="read">
-            Read ({notifications.length - unreadCount})
-          </TabsTrigger>
-        </TabsList>
+        <div className="-mx-2 overflow-x-auto px-2 pb-1 [-webkit-overflow-scrolling:touch]">
+          <TabsList className="w-max min-h-10 flex-nowrap">
+            <TabsTrigger value="all">
+              All ({notifications.length})
+            </TabsTrigger>
+            <TabsTrigger value="unread">
+              Unread ({unreadCount})
+            </TabsTrigger>
+            <TabsTrigger value="read">
+              Read ({notifications.length - unreadCount})
+            </TabsTrigger>
+          </TabsList>
+        </div>
       </Tabs>
 
       {/* Notifications List */}

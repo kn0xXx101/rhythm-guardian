@@ -505,7 +505,8 @@ const MusicianProfile: React.FC = () => {
               <Separator className="opacity-50" />
 
               <Tabs defaultValue="basic">
-                <TabsList className="mb-6 flex-wrap h-auto gap-1">
+                <div className="-mx-2 overflow-x-auto px-2 pb-1 [-webkit-overflow-scrolling:touch]">
+                  <TabsList className="mb-6 inline-flex h-auto min-h-10 w-max flex-nowrap gap-1 sm:w-full sm:flex-wrap">
                   <TabsTrigger value="basic">Basic Info</TabsTrigger>
                   <TabsTrigger value="instruments">Instruments & Skills</TabsTrigger>
                   <TabsTrigger value="samples">Portfolio</TabsTrigger>
@@ -513,7 +514,8 @@ const MusicianProfile: React.FC = () => {
                   <TabsTrigger value="payment">Payment Details</TabsTrigger>
                   <TabsTrigger value="verification">Verification</TabsTrigger>
                   <TabsTrigger value="reviews">Reviews</TabsTrigger>
-                </TabsList>
+                  </TabsList>
+                </div>
 
                 {/* ── Basic Info ── */}
                 <TabsContent value="basic">

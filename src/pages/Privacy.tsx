@@ -12,7 +12,7 @@ const sections = [
       },
       {
         heading: 'Usage Data',
-        body: 'When you use Rhythm Guardian, we collect booking details, messages sent through the platform, reviews and ratings, search queries, and basic technical data such as device type, IP address, browser information, and usage logs used for security and analytics.',
+        body: 'When you use Rhythm Guardian, we collect booking details, messages sent through the platform, reviews and ratings, search queries, in-app and push notifications (where enabled), reminder preferences, and basic technical data such as device type, IP address, browser information, and usage logs used for security and analytics.',
       },
       {
         heading: 'Payment Information',
@@ -21,6 +21,10 @@ const sections = [
       {
         heading: 'Communications',
         body: 'We collect messages sent through our platform messaging system, support tickets, and any other communications you have with us or other users through the platform.',
+      },
+      {
+        heading: 'Onboarding and product tours',
+        body: 'We may store whether you have completed optional orientation or feature tours (for example a first-time dashboard walkthrough) in your account or in your browser’s local storage so we do not repeatedly show the same introduction. You can skip or dismiss these flows at any time.',
       },
     ],
   },
@@ -33,7 +37,7 @@ const sections = [
       'Match hirers with suitable musicians and manage bookings.',
       'Process payments securely through escrow and release funds after service confirmation.',
       'Enable messaging, notifications, and other communication features.',
-      'Send booking confirmations, payment receipts, and service reminders.',
+      'Send booking confirmations, payment receipts, service reminders, and post-service confirmation prompts where applicable.',
       'Monitor platform safety, prevent fraud, and enforce our Terms of Service.',
       'Resolve disputes between hirers and musicians.',
       'Improve the platform using aggregated, anonymised analytics.',
@@ -92,10 +96,10 @@ const sections = [
   },
   {
     number: '06',
-    title: 'Cookies and Tracking',
+    title: 'Cookies, Local Storage, and Tracking',
     content: [
-      'We use cookies and similar technologies to maintain your session, remember your preferences, and analyse platform usage. You can control cookies through your browser settings, but disabling them may affect platform functionality.',
-      'We use analytics tools to understand how users interact with the platform. This data is aggregated and anonymised and helps us improve the user experience.',
+      'We use cookies and similar technologies to maintain your session, remember your preferences (such as theme), and analyse platform usage. The app may also use browser local storage for limited purposes — for example to remember that you completed an orientation tour, or to detect new application versions after we deploy updates. You can control cookies through your browser settings; clearing site data may reset some preferences.',
+      'We use analytics tools to understand how users interact with the platform. This data is aggregated and anonymised where possible and helps us improve the user experience.',
     ],
   },
   {
@@ -125,12 +129,12 @@ export default function Privacy() {
             <span className="mx-2 opacity-40">/</span>
             Privacy Policy
           </p>
-          <h1 className="text-4xl font-bold tracking-tight mb-4">Privacy Policy</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Privacy Policy</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
             This policy explains how Rhythm Guardian collects, uses, and protects your information
             when you use our platform to hire musicians or offer musical services.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 20 April 2026</p>
         </div>
       </div>
 

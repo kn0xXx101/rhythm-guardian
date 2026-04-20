@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,12 +17,28 @@ import { Eye, EyeOff, User } from 'lucide-react';
 
 const Login = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verifiedToastShown = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const { login } = useAuth();
+
+  useEffect(() => {
+    if (verifiedToastShown.current) return;
+    if (searchParams.get('verified') !== '1') return;
+    verifiedToastShown.current = true;
+    toast({
+      variant: 'info',
+      title: 'Email verified',
+      description: 'Sign in with your email and password to continue.',
+    });
+    const next = new URLSearchParams(searchParams);
+    next.delete('verified');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

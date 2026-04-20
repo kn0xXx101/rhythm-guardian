@@ -23,6 +23,14 @@ const MessagesRedirect = () => {
   if (user.role === 'musician') return <Navigate to={`/musician/chat${search || ''}`} replace />;
   return <Navigate to={`/hirer/chat${search || ''}`} replace />;
 };
+
+const ReferralsRedirect = () => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role === 'musician') return <Navigate to="/musician/referrals" replace />;
+  if (user.role === 'hirer') return <Navigate to="/hirer/referrals" replace />;
+  return <Navigate to="/" replace />;
+};
 import { ChatProvider } from '@/contexts/ChatContext';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
@@ -87,6 +95,7 @@ const UserSettings = lazy(() => import('./pages/user/UserSettings'));
 const Reviews = lazy(() => import('./pages/Reviews'));
 const Favorites = lazy(() => import('./pages/Favorites'));
 const ReferralsPage = lazy(() => import('./pages/ReferralsPage'));
+const AuthEmailConfirmed = lazy(() => import('./pages/AuthEmailConfirmed'));
 const Privacy = lazy(() => import('./pages/Privacy'));
 const Terms = lazy(() => import('./pages/Terms'));
 const Notifications = lazy(() => import('./pages/Notifications'));
@@ -165,6 +174,14 @@ const AppContent = () => {
                     element={
                       <Suspense fallback={<RouteLoading />}>
                         <SignUp />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/auth/email-confirmed"
+                    element={
+                      <Suspense fallback={<RouteLoading />}>
+                        <AuthEmailConfirmed />
                       </Suspense>
                     }
                   />
@@ -251,9 +268,7 @@ const AppContent = () => {
                     path="/referrals"
                     element={
                       <ProtectedRoute>
-                        <Suspense fallback={<RouteLoading />}>
-                          <ReferralsPage />
-                        </Suspense>
+                        <ReferralsRedirect />
                       </ProtectedRoute>
                     }
                   />
@@ -464,6 +479,14 @@ const AppContent = () => {
                         </Suspense>
                       }
                     />
+                    <Route
+                      path="referrals"
+                      element={
+                        <Suspense fallback={<RouteLoading />}>
+                          <ReferralsPage />
+                        </Suspense>
+                      }
+                    />
                   </Route>
 
                   {/* Musician routes */}
@@ -518,6 +541,14 @@ const AppContent = () => {
                       element={
                         <Suspense fallback={<RouteLoading />}>
                           <UserSettings />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="referrals"
+                      element={
+                        <Suspense fallback={<RouteLoading />}>
+                          <ReferralsPage />
                         </Suspense>
                       }
                     />

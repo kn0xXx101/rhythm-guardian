@@ -3,77 +3,70 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to Rhythm Guardian</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Confirm your email — Rhythm Guardian</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
 </head>
-<body style="margin:0;padding:0;background-color:#faf9f7;font-family:Georgia,'Times New Roman',serif;">
+<body style="margin:0;padding:0;background-color:#FAF8FF;-webkit-font-smoothing:antialiased;font-family:Poppins,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 
-  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#faf9f7;padding:48px 16px;">
+  <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;mso-hide:all;">Confirm your Rhythm Guardian account to start booking or getting booked.</span>
+
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#FAF8FF;padding:32px 16px;">
     <tr>
       <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:540px;">
+        <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;">
 
-          <!-- Wordmark -->
+          <!-- Brand -->
           <tr>
-            <td align="center" style="padding-bottom:36px;">
-              <p style="margin:0;font-size:13px;letter-spacing:3px;text-transform:uppercase;color:#9c8b7a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Rhythm Guardian</p>
+            <td align="center" style="padding:0 0 20px 0;">
+              <a href="{{ .SiteURL }}" style="text-decoration:none;">
+                <span style="font-size:22px;font-weight:700;letter-spacing:-0.02em;color:#1E1528;">Rhythm Guardian</span>
+              </a>
+              <div style="font-size:12px;color:#6B6578;margin-top:6px;">Book musicians · Get booked · Secure payments</div>
             </td>
           </tr>
 
           <!-- Card -->
           <tr>
-            <td style="background-color:#ffffff;border-radius:4px;border:1px solid #e8e2da;overflow:hidden;">
-
-              <!-- Top accent line -->
-              <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-                <tr><td style="height:3px;background:linear-gradient(90deg,#c4956a,#e8b89a,#c4956a);"></td></tr>
-              </table>
-
-              <!-- Body -->
+            <td style="border-radius:12px;overflow:hidden;border:1px solid #E9E4EF;background:#FFFFFF;box-shadow:0 4px 24px rgba(30,21,40,0.08);">
               <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
                 <tr>
-                  <td style="padding:48px 48px 40px;">
-
-                    <p style="margin:0 0 32px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#c4956a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">Welcome</p>
-
-                    <h1 style="margin:0 0 20px;font-size:28px;font-weight:400;color:#2c2420;line-height:1.3;letter-spacing:-0.5px;">
-                      Confirm your email address
-                    </h1>
-
-                    <p style="margin:0 0 16px;font-size:16px;color:#6b5c52;line-height:1.75;">
-                      Thank you for joining Rhythm Guardian — a place where music meets opportunity.
+                  <td style="height:4px;background:#7C3AED;background:linear-gradient(135deg,#7C3AED 0%,#8B5CF6 55%,#A78BFA 100%);"></td>
+                </tr>
+                <tr>
+                  <td style="padding:32px 28px 28px 28px;">
+                    <p style="margin:0 0 8px 0;font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:#6B6578;">Account</p>
+                    <h1 style="margin:0 0 16px 0;font-size:24px;font-weight:700;line-height:1.25;color:#1E1528;letter-spacing:-0.02em;">Confirm your email</h1>
+                    <p style="margin:0 0 16px 0;font-size:15px;line-height:1.65;color:#6B6578;">
+                      Thanks for joining Rhythm Guardian. Confirm your address to finish sign up and use your dashboard.
+                    </p>
+                    <p style="margin:0 0 24px 0;font-size:15px;line-height:1.65;color:#1E1528;">
+                      After you confirm, you can sign in with your email and password.
                     </p>
 
-                    <p style="margin:0 0 36px;font-size:16px;color:#6b5c52;line-height:1.75;">
-                      Please confirm your email address to complete your registration and start connecting with talented musicians.
-                    </p>
-
-                    <!-- CTA -->
-                    <table cellpadding="0" cellspacing="0" role="presentation">
+                    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:8px 0 0 0;">
                       <tr>
-                        <td style="border-radius:3px;background-color:#2c2420;">
-                          <a href="{{ .ConfirmationURL }}"
-                             style="display:inline-block;padding:14px 32px;color:#faf9f7;font-size:14px;font-weight:500;text-decoration:none;letter-spacing:0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                            Confirm Email Address
-                          </a>
+                        <td align="center" style="border-radius:8px;background-color:#7C3AED;box-shadow:0 2px 8px rgba(124,58,237,0.25);">
+                          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none;">Confirm email address</a>
                         </td>
                       </tr>
                     </table>
 
-                    <!-- Divider -->
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:40px;">
-                      <tr><td style="border-top:1px solid #e8e2da;padding-top:28px;">
-                        <p style="margin:0 0 8px;font-size:12px;color:#b0a49a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                          Or copy this link into your browser:
-                        </p>
-                        <p style="margin:0;">
-                          <a href="{{ .ConfirmationURL }}" style="font-size:11px;color:#c4956a;word-break:break-all;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">{{ .ConfirmationURL }}</a>
-                        </p>
-                        <p style="margin:20px 0 0;font-size:12px;color:#c8bdb6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                          If you didn't create an account, you can safely ignore this email.
-                        </p>
-                      </td></tr>
+                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:28px;">
+                      <tr>
+                        <td style="border-top:1px solid #E9E4EF;padding-top:24px;">
+                          <p style="margin:0 0 8px 0;font-size:12px;color:#6B6578;">Or paste this link into your browser:</p>
+                          <p style="margin:0;word-break:break-all;">
+                            <a href="{{ .ConfirmationURL }}" style="font-size:11px;color:#7C3AED;text-decoration:none;font-weight:500;">{{ .ConfirmationURL }}</a>
+                          </p>
+                          <p style="margin:20px 0 0 0;font-size:13px;line-height:1.55;color:#6B6578;">
+                            If you didn’t create an account, you can ignore this message.
+                          </p>
+                        </td>
+                      </tr>
                     </table>
-
                   </td>
                 </tr>
               </table>
@@ -82,10 +75,16 @@
 
           <!-- Footer -->
           <tr>
-            <td style="padding:28px 0 0;text-align:center;">
-              <p style="margin:0;font-size:11px;color:#c8bdb6;letter-spacing:1px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-                © 2026 RHYTHM GUARDIAN &nbsp;·&nbsp; Connecting musicians with the world
+            <td style="padding:28px 8px 0 8px;text-align:center;">
+              <p style="margin:0 0 12px 0;font-size:12px;color:#6B6578;line-height:1.5;">© 2026 Rhythm Guardian</p>
+              <p style="margin:0 0 16px 0;font-size:12px;">
+                <a href="{{ .SiteURL }}/terms" style="color:#7C3AED;text-decoration:none;font-weight:500;">Terms</a>
+                <span style="color:#E9E4EF;">&nbsp;·&nbsp;</span>
+                <a href="{{ .SiteURL }}/privacy" style="color:#7C3AED;text-decoration:none;font-weight:500;">Privacy</a>
+                <span style="color:#E9E4EF;">&nbsp;·&nbsp;</span>
+                <a href="{{ .SiteURL }}" style="color:#7C3AED;text-decoration:none;font-weight:500;">Open app</a>
               </p>
+              <p style="margin:0;font-size:11px;color:#6B6578;">Automated message — please do not reply.</p>
             </td>
           </tr>
 
@@ -93,6 +92,5 @@
       </td>
     </tr>
   </table>
-
 </body>
 </html>

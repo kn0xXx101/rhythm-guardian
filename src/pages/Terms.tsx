@@ -30,7 +30,7 @@ const sections = [
       },
       {
         heading: 'Platform Fees',
-        body: 'Rhythm Guardian charges a platform commission and payment processing fees (Paystack: 1.5% + ₵0.50) on each booking. These fees are clearly displayed before you confirm a booking and are deducted from the total amount before payout to musicians.',
+        body: 'Rhythm Guardian charges a platform commission and payment processing fees (for example Paystack: 1.5% + ₵0.50) on each booking. Fees and totals are shown before you confirm payment. The commission rate that applies to a booking is recorded with that booking; later changes to platform-wide rates do not retroactively change fees already set for past bookings.',
       },
       {
         heading: 'Payment Processing',
@@ -48,7 +48,7 @@ const sections = [
     subsections: [
       {
         heading: 'Confirmation Process',
-        body: 'After a service is rendered, the musician marks it as complete. The hirer must then confirm completion. Once both parties confirm, payment is automatically released from escrow to the musician.',
+        body: 'After the scheduled end time of the service, each party confirms in the app: the hirer confirms that the service was completed as agreed, and the musician confirms that they rendered the service. Notifications may be sent when one party confirms so the other can respond. Once both parties have confirmed, funds held for the booking are released according to the payout rules shown in the product.',
       },
       {
         heading: 'Dispute Resolution',
@@ -79,8 +79,8 @@ const sections = [
     number: '06',
     title: 'Musician Verification and Requirements',
     content: [
-      'Musicians must complete their profile with accurate information about their skills, experience, instruments, and availability. Musicians may be required to submit verification documents before receiving bookings or payouts.',
-      'Musicians must provide valid payment details (bank account or mobile money) to receive payouts. Payouts are typically processed within 24–48 hours after service confirmation.',
+      'Musicians must complete their profile with accurate information about their skills, experience, instruments, and availability. Verification documents may be required; a “verified” status is granted only after documents are submitted and reviewed by Rhythm Guardian. Search visibility may require mandatory profile fields to be completed so hirers see accurate, bookable listings.',
+      'Musicians must provide valid payment details (bank account or mobile money) to receive payouts. Payouts are typically processed within 24–48 hours after both parties have confirmed service completion where applicable.',
       'Musicians are responsible for maintaining professional conduct, arriving on time, and delivering the agreed-upon service. Repeated cancellations or poor reviews may result in account restrictions.',
     ],
   },
@@ -113,12 +113,12 @@ export default function Terms() {
             <span className="mx-2 opacity-40">/</span>
             Terms of Service
           </p>
-          <h1 className="text-4xl font-bold tracking-tight mb-4">Terms of Service</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Terms of Service</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
             These terms govern your use of Rhythm Guardian as a hirer, musician, or administrator.
             Please read them carefully before using the platform.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 20 April 2026</p>
         </div>
       </div>
 

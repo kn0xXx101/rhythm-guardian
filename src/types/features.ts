@@ -174,8 +174,8 @@ export interface Referral {
   referred_email: string;
   referred_user_id?: string;
   referral_code: string;
-  status: 'pending' | 'completed' | 'rewarded';
-  reward_amount: number;
+  status: 'pending' | 'completed' | 'expired';
+  reward_amount?: number;
   created_at: string;
   completed_at?: string;
 }

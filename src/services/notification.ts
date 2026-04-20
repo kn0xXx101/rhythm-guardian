@@ -5,6 +5,10 @@ import { supabase } from '@/lib/supabase';
 
 let sharedAudio: HTMLAudioElement | null = null;
 let soundUnlocked = false;
+const makeChannelSuffix = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 function getAudio(): HTMLAudioElement | null {
   if (typeof window === 'undefined') return null;
@@ -145,8 +149,9 @@ export const subscribeToNewMessages = (
   userId: string,
   onNewMessage: (notification: any) => void
 ) => {
+  const suffix = makeChannelSuffix();
   const channel = supabase
-    .channel(`new-messages:${userId}`)
+    .channel(`new-messages:${userId}:${suffix}`)
     .on(
       'postgres_changes',
       {
@@ -197,8 +202,9 @@ export const subscribeToNotifications = (
   userId: string,
   onNewNotification: (notification: any) => void
 ) => {
+  const suffix = makeChannelSuffix();
   const channel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(`notifications:${userId}:${suffix}`)
     .on(
       'postgres_changes',
       {

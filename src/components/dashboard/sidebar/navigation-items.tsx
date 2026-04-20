@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Calendar, MessageCircle, User, Home } from 'lucide-react';
+import { Search, Calendar, MessageCircle, User, Home, Gift } from 'lucide-react';
 
 export interface NavigationItem {
   name: string;
@@ -54,6 +54,12 @@ export const hirerNavigationSections: NavigationSection[] = [
         icon: <MessageCircle className="animated-icon" />,
         keywords: ['messages', 'chat', 'conversations'],
       },
+      {
+        name: 'Referrals',
+        path: '/hirer/referrals',
+        icon: <Gift className="animated-icon" />,
+        keywords: ['referrals', 'invite', 'rewards', 'points'],
+      },
     ],
   },
 ];
@@ -91,6 +97,12 @@ export const musicianNavigationSections: NavigationSection[] = [
         path: '/musician/chat',
         icon: <MessageCircle className="animated-icon" />,
         keywords: ['messages', 'chat', 'conversations'],
+      },
+      {
+        name: 'Referrals',
+        path: '/musician/referrals',
+        icon: <Gift className="animated-icon" />,
+        keywords: ['referrals', 'invite', 'rewards', 'points'],
       },
     ],
   },

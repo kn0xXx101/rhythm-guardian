@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { ElementType } from 'react';
 import { useNavigate, useLocation, Link, useInRouterContext } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Settings } from '@/types/settings';
 import type { Database } from '@/types/supabase';
 import { supabase } from '@/lib/supabase';
+import { PENDING_REFERRAL_STORAGE_KEY } from '@/services/referrals';
 import {
   Eye,
   EyeOff,
@@ -99,7 +100,20 @@ const SignUpBase = ({
 
   const searchParams = new URLSearchParams(locationSearch);
   const typeParam = searchParams.get('type');
+  const referralFromUrl = searchParams.get('ref');
   const defaultUserType = typeParam === 'musician' ? 'musician' : 'hirer';
+  const storedRefOnce = useRef(false);
+
+  useEffect(() => {
+    const ref = new URLSearchParams(locationSearch).get('ref');
+    if (!ref || storedRefOnce.current) return;
+    storedRefOnce.current = true;
+    try {
+      sessionStorage.setItem(PENDING_REFERRAL_STORAGE_KEY, ref);
+    } catch {
+      // ignore private mode
+    }
+  }, [locationSearch]);
 
   const [userType, setUserType] = useState<'hirer' | 'musician'>(
     defaultUserType as 'hirer' | 'musician'
@@ -254,6 +268,15 @@ const SignUpBase = ({
         </CardHeader>
 
         <CardContent className="space-y-6">
+          {referralFromUrl && (
+            <Alert className="border-primary/30 bg-primary/5">
+              <Info className="h-4 w-4 text-primary" />
+              <AlertDescription>
+                You opened an invitation link. Complete sign up — when you verify your email, your
+                referrer may earn rewards.
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Alerts */}
           {(userManagementSettings?.requireMusicianVerification ||
             !userManagementSettings?.autoApproveHirers) && (

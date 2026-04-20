@@ -314,10 +314,10 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <div className="flex items-center justify-between px-4 py-2">
+      <DropdownMenuContent align="end" className="w-[min(95vw,22rem)] sm:w-80">
+        <div className="flex items-start justify-between gap-2 px-3 sm:px-4 py-2">
           <h3 className="font-semibold">Notifications</h3>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {unreadCount > 0 && (
               <Button 
                 variant="ghost" 
@@ -347,7 +347,7 @@ export function NotificationBell() {
             No notifications yet
           </div>
         ) : (
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[70vh] sm:max-h-96 overflow-y-auto">
             {notifications.map((notification) => (
               <DropdownMenuItem
                 key={notification.id}

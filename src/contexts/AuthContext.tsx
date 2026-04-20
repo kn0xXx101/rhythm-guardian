@@ -893,11 +893,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       if (!authUser) throw new Error('No user returned from sign in');
 
-      const isAdminFromMetadata =
-        authUser.app_metadata?.role === 'admin' ||
-        authUser.user_metadata?.role === 'admin' ||
-        authUser.email?.toLowerCase() === 'admin@rhythmguardian.com';
-
       // 2FA completely disabled — proceed with login directly.
       await continueLogin(authUser, session);
     } catch (error: any) {
@@ -1040,7 +1035,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             full_name: fullName,
             email_verified: false,
           },
-          emailRedirectTo: `${window.location.origin}/login`,
+          emailRedirectTo: `${window.location.origin}/auth/email-confirmed`,
         },
       });
 
