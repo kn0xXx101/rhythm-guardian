@@ -5,6 +5,7 @@ import './index.css';
 import { initPerformanceMonitoring } from './lib/performance';
 import { analytics } from './lib/analytics';
 import { initCacheBusting } from './utils/cache-buster';
+import { unlockNotificationSoundOnce } from './services/notification';
 
 const STALE_CHUNK_RELOAD_KEY = 'rg_stale_chunk_reload_attempted';
 
@@ -56,6 +57,13 @@ try {
   console.log('[main.tsx] Cache busting initialized');
 } catch (error) {
   console.error('[main.tsx] Error initializing cache busting:', error);
+}
+
+// Best-effort unlock for notification sounds (mobile browsers require a user gesture).
+if (typeof window !== 'undefined') {
+  const unlock = () => unlockNotificationSoundOnce();
+  window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+  window.addEventListener('keydown', unlock, { once: true, passive: true });
 }
 
 // Initialize performance monitoring

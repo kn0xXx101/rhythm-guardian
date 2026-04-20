@@ -566,6 +566,23 @@ const HirerBookings = () => {
                             <RefreshCcw className="h-4 w-4 mr-2" /> Request Refund
                           </Button>
                         )}
+
+                        {/* After a refund request is submitted, keep an explicit state instead of removing the action. */}
+                        {(booking.status === 'expired' ||
+                          booking.status === 'cancelled' ||
+                          booking.status === 'rejected') &&
+                          (booking.paymentStatus === 'paid_to_admin' ||
+                            booking.paymentStatus === 'service_completed' ||
+                            booking.paymentStatus === 'paid' ||
+                            booking.paymentStatus === 'refund_pending') &&
+                          refundRequestedBookingIds.has(booking.id) && (
+                          <div className="text-center py-2 px-3 rounded-md border bg-orange-50 border-orange-200 text-orange-700">
+                            <span className="text-xs font-medium flex items-center justify-center gap-1">
+                              <RefreshCcw className="h-3 w-3" />
+                              Refund Requested (Under Review)
+                            </span>
+                          </div>
+                        )}
                         
                         {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') &&
                           booking.status !== 'expired' &&

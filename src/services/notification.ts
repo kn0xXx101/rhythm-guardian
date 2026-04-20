@@ -3,14 +3,59 @@
 
 import { supabase } from '@/lib/supabase';
 
+let sharedAudio: HTMLAudioElement | null = null;
+let soundUnlocked = false;
+
+function getAudio(): HTMLAudioElement | null {
+  if (typeof window === 'undefined') return null;
+  if (sharedAudio) return sharedAudio;
+  try {
+    const a = new Audio('/notification.mp3');
+    a.preload = 'auto';
+    a.volume = 0.5;
+    sharedAudio = a;
+    return a;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mobile browsers (esp. iOS) often block audio until a user gesture occurs.
+ * Call this once on first interaction to "unlock" sound playback.
+ */
+export function unlockNotificationSoundOnce(): void {
+  if (soundUnlocked) return;
+  const a = getAudio();
+  if (!a) return;
+  soundUnlocked = true;
+  const prevVol = a.volume;
+  a.volume = 0;
+  const p = a.play();
+  if (p && typeof (p as any).catch === 'function') {
+    (p as Promise<void>)
+      .then(() => {
+        a.pause();
+        a.currentTime = 0;
+        a.volume = prevVol;
+      })
+      .catch(() => {
+        // If the unlock play failed, keep unlocked=false so we can retry on a later gesture.
+        soundUnlocked = false;
+        a.volume = prevVol;
+      });
+  }
+}
+
 // Notification sound
 const playNotificationSound = () => {
+  const a = getAudio();
+  if (!a) return;
   try {
-    const audio = new Audio('/notification.mp3');
-    audio.volume = 0.5;
-    audio.play().catch(err => console.log('Could not play notification sound:', err));
-  } catch (error) {
-    console.log('Notification sound not available');
+    a.currentTime = 0;
+    a.play().catch((err) => console.log('Could not play notification sound:', err));
+  } catch {
+    // ignore
   }
 };
 
@@ -192,4 +237,5 @@ export default {
   subscribeToNewMessages,
   subscribeToNotifications,
   playNotificationSound,
+  unlockNotificationSoundOnce,
 };

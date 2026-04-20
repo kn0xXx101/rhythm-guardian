@@ -63,13 +63,27 @@ export function MusicianOverview() {
       setError(null);
 
       try {
-        // Fetch bookings for this musician with payout status
-        const { data: bookings, error: bookingsError } = await supabase
-          .from('bookings')
-          .select('status, total_amount, payment_status, payout_released')
-          .eq('musician_id', user.id);
-
-        if (bookingsError) throw bookingsError;
+        // Fetch bookings for this musician with payout status.
+        // Prefer using stored per-booking platform fees when available so changing the platform
+        // commission rate only affects subsequent bookings (not historical earnings).
+        let bookings: any[] = [];
+        {
+          const { data, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('status, total_amount, payment_status, payout_released, platform_fee')
+            .eq('musician_id', user.id);
+          if (bookingsError) {
+            // Fallback for schemas that don't have platform_fee on bookings.
+            const { data: fallback, error: fallbackError } = await supabase
+              .from('bookings')
+              .select('status, total_amount, payment_status, payout_released')
+              .eq('musician_id', user.id);
+            if (fallbackError) throw fallbackError;
+            bookings = fallback || [];
+          } else {
+            bookings = data || [];
+          }
+        }
 
         // Fetch profile data
         const { data: profile, error: profileError } = await supabase
@@ -94,7 +108,10 @@ export function MusicianOverview() {
           const totalAmount = parseFloat(booking.total_amount?.toString() || '0');
           
           // Calculate what musician actually receives after all fees
-          const platformFee = totalAmount * adminPercentage;
+          const platformFee =
+            typeof booking.platform_fee === 'number' && Number.isFinite(booking.platform_fee)
+              ? booking.platform_fee
+              : totalAmount * adminPercentage;
           const paystackFee = (totalAmount * 0.015) + 0.50; // 1.5% + ₵0.50
           const musicianReceives = Math.max(0, totalAmount - platformFee - paystackFee);
           

@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { notificationsService } from "@/services/notificationsService";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Musician {
 	id?: string;
@@ -35,6 +36,10 @@ interface Musician {
 	bio?: string | null;
 	total_bookings?: number | null;
 	available_days?: string[] | null;
+	documents_submitted?: boolean | null;
+	documents_verified?: boolean | null;
+	profile_complete?: boolean | null;
+	profile_completion_percentage?: number | string | null;
 }
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
@@ -121,6 +126,56 @@ const isBookingWithinMusicianAvailability = (
 	return { ok: true };
 };
 
+function getAvailabilitySummary(availability: string[] | null | undefined) {
+	const a = availability || [];
+	const wdStart = a.find((d) => d.startsWith('wd_start:'))?.split(':').slice(1).join(':') || '00:00';
+	const wdEnd = a.find((d) => d.startsWith('wd_end:'))?.split(':').slice(1).join(':') || '23:59';
+	const weStart = a.find((d) => d.startsWith('we_start:'))?.split(':').slice(1).join(':') || '00:00';
+	const weEnd = a.find((d) => d.startsWith('we_end:'))?.split(':').slice(1).join(':') || '23:59';
+	const flags = {
+		allWeek: a.includes('all_week'),
+		weekdays: a.includes('weekdays'),
+		weekends: a.includes('weekends'),
+	};
+	const specificDays = a.filter((d) => DAY_NAMES.includes(d as any));
+
+	const lines: string[] = [];
+	if (flags.allWeek) {
+		lines.push(`All week • Weekdays ${wdStart}–${wdEnd} • Weekends ${weStart}–${weEnd}`);
+	} else {
+		if (flags.weekdays) lines.push(`Weekdays • ${wdStart}–${wdEnd}`);
+		if (flags.weekends) lines.push(`Weekends • ${weStart}–${weEnd}`);
+		if (!flags.weekdays && !flags.weekends && specificDays.length > 0) {
+			lines.push(`Specific days • ${specificDays.join(', ')}`);
+		}
+	}
+
+	return { lines, wdStart, wdEnd, weStart, weEnd, specificDays, flags };
+}
+
+function isMusicianSearchEligible(m: any): boolean {
+	const instruments = Array.isArray(m.instruments) ? m.instruments.filter(Boolean) : [];
+	const hasPricing = Number.isFinite(Number(m.base_price)) || Number.isFinite(Number(m.hourly_rate));
+	const hasBasics =
+		typeof m.full_name === 'string' &&
+		m.full_name.trim().length >= 2 &&
+		typeof m.location === 'string' &&
+		m.location.trim().length >= 2 &&
+		instruments.length > 0 &&
+		hasPricing;
+
+	if (m.profile_complete === true) return hasBasics;
+	if (m.profile_complete === false) return false;
+
+	const pct =
+		m.profile_completion_percentage != null ? Number(m.profile_completion_percentage) : undefined;
+	if (Number.isFinite(pct as number)) {
+		return hasBasics && (pct as number) >= 80;
+	}
+
+	return hasBasics;
+}
+
 const EVENT_TYPES = [
 	'Performance',
 	'Wedding',
@@ -189,6 +244,11 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 	
 	const duration = calculateDuration();
 	const totalBudget = isFixedPricing ? effectiveRate : effectiveRate * duration;
+	const availabilitySummary = getAvailabilitySummary(musician?.available_days);
+	const availabilityCheck =
+		musician && eventDate && startTime && endTime
+			? isBookingWithinMusicianAvailability(musician, eventDate, startTime, endTime)
+			: { ok: true as const };
 
 	const handleConfirm = () => {
 		if (!eventDate || !startTime || !endTime || !location) {
@@ -216,6 +276,20 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 					</DialogDescription>
 				</DialogHeader>
 				<div className="grid gap-4 py-4 overflow-y-auto">
+					{/* Musician availability hint (helps hirers choose valid time windows) */}
+					{(musician?.available_days?.length || 0) > 0 && (
+						<div className="rounded-lg border bg-muted/30 p-3">
+							<div className="text-sm font-medium mb-1">Availability</div>
+							<div className="text-xs text-muted-foreground space-y-1">
+								{availabilitySummary.lines.map((line) => (
+									<div key={line}>{line}</div>
+								))}
+								{availabilitySummary.lines.length === 0 && (
+									<div>Availability provided, but could not be summarized.</div>
+								)}
+							</div>
+						</div>
+					)}
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<Label htmlFor="event-type">Event Type</Label>
@@ -261,6 +335,11 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 							/>
 						</div>
 					</div>
+					{!availabilityCheck.ok && availabilityCheck.reason && (
+						<Alert variant="destructive">
+							<AlertDescription>{availabilityCheck.reason}</AlertDescription>
+						</Alert>
+					)}
 					<div className="space-y-2">
 						<Label htmlFor="location">Location</Label>
 						<Input
@@ -305,7 +384,10 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 				</div>
 				<DialogFooter>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-					<Button onClick={handleConfirm} disabled={!eventDate || !location || duration <= 0}>
+					<Button
+						onClick={handleConfirm}
+						disabled={!eventDate || !location || duration <= 0 || !availabilityCheck.ok}
+					>
 						Confirm & Proceed to Payment
 					</Button>
 				</DialogFooter>
@@ -389,15 +471,6 @@ const InstrumentalistSearch = () => {
 						(musician as any).pricing_model ||
 						(basePrice !== undefined ? 'fixed' : hourlyRate !== undefined ? 'hourly' : undefined);
 
-					// Debug rating values
-					console.log('Musician rating debug:', {
-						name: musician.full_name,
-						rawRating: musician.rating,
-						ratingType: typeof musician.rating,
-						parsedRating: musician.rating ? parseFloat(String(musician.rating)) : null,
-						condition: musician.rating && Number(musician.rating) > 0
-					});
-
 					return {
 						...musician,
 						id: musician.user_id,
@@ -410,9 +483,10 @@ const InstrumentalistSearch = () => {
 						total_reviews: musician.total_reviews || 0,
 					};
 				});
+				const eligible = normalizedData.filter(isMusicianSearchEligible);
 
-				setMusicians(normalizedData);
-				setFilteredMusicians(normalizedData);
+				setMusicians(eligible);
+				setFilteredMusicians(eligible);
 			} catch (error) {
 				console.error('Error fetching musicians:', error);
 				toast({
@@ -846,7 +920,7 @@ const InstrumentalistSearch = () => {
 								)}
 								
 								{/* Verified Badge - only shown when admin has verified the musician's documents */}
-								{(musician as any).documents_verified && (
+								{(musician as any).documents_submitted && (musician as any).documents_verified && (
 									<TooltipProvider>
 										<Tooltip>
 											<TooltipTrigger asChild>
