@@ -167,7 +167,7 @@ export class AIAssistantService {
     // Default response if no match found
     return {
       response:
-        'I understand your question. Let me help you with that. However, for more specific or complex issues, would you like me to connect you with an administrator? Just say "connect to admin" and I\'ll set that up for you.\n\nIn the meantime, you can also:\n- Browse the help section\n- Check your dashboard for common actions\n- Review our FAQ',
+        'I understand your question. Let me help you with that. For more specific or complex issues, I can connect you with an administrator whenever you want. Just say "connect to admin".\n\nIn the meantime, you can also:\n- Tell me your exact goal and I will guide you step-by-step\n- Check your dashboard for common actions\n- Ask me to explain any booking, profile, payment, or support flow',
       shouldEscalate: false,
     };
   }

@@ -26,7 +26,7 @@ const ChatLayout = ({ title, actions, contactsList, chatArea }: ChatLayoutProps)
         variant="glass"
         className="mt-2 sm:mt-3 flex min-h-0 flex-1 flex-col overflow-hidden isolate h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-10.75rem)] md:h-[calc(100dvh-11.25rem)]"
       >
-        <div className="grid h-full min-h-0 overflow-hidden grid-cols-1 md:grid-cols-3">
+        <div className="grid h-full min-h-0 overflow-hidden grid-cols-1 grid-rows-[auto_minmax(0,1fr)] md:grid-cols-3 md:grid-rows-1">
           {/* Contacts list */}
           <div className="flex min-h-0 flex-col overflow-hidden border-b md:border-b-0 md:border-r">
             {contactsList}
