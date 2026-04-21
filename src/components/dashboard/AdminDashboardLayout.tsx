@@ -12,6 +12,7 @@ const AdminDashboardLayout = () => {
   const location = useLocation();
   const { toast } = useToast();
   const hasShownWelcome = useRef(false);
+  const isConversationRoute = /\/(chat|communications)(\/|$)/.test(location.pathname);
 
   // Admin defaults to dark mode if no theme preference has been saved
   useEffect(() => {
@@ -58,7 +59,10 @@ const AdminDashboardLayout = () => {
         <TopNav userType="admin" />
         <main
           id="main-content"
-          className="container flex flex-1 flex-col min-h-0 py-6 lg:py-10 px-4"
+          className={cn(
+            'container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden',
+            isConversationRoute ? 'py-2 lg:py-3 px-2 sm:px-3' : 'py-6 lg:py-10 px-4'
+          )}
         >
           <Outlet />
         </main>

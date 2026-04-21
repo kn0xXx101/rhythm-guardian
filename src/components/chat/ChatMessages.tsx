@@ -198,7 +198,7 @@ const ChatMessages = memo(() => {
   return (
     <div
       ref={setMessagesScrollRef}
-      className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y p-3 sm:p-4 min-h-0 max-h-full [scrollbar-gutter:stable]"
+      className="flex-1 h-0 overflow-y-auto overscroll-y-contain touch-pan-y p-3 sm:p-4 min-h-0 max-h-full [scrollbar-gutter:stable] [contain:layout_paint_size]"
     >
       {!activeContactId ? (
         <div className="flex items-center justify-center h-full text-muted-foreground">

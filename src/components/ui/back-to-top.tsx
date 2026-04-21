@@ -35,14 +35,15 @@ export function BackToTop() {
       onClick={scrollToTop}
       size="icon"
       className={cn(
-        'fixed bottom-8 right-8 z-50 h-12 w-12 rounded-full shadow-lg transition-all duration-300',
-        'bg-primary hover:bg-primary/90 text-primary-foreground',
-        'hover:scale-110 active:scale-95',
+        'fixed inset-x-auto left-auto !right-3 sm:!right-5 md:!right-8 bottom-[max(0.9rem,env(safe-area-inset-bottom))] sm:bottom-6 md:bottom-8 z-[90] h-11 w-11 sm:h-12 sm:w-12 rounded-full transition-all duration-300',
+        'bg-gradient-to-br from-primary to-secondary text-white border border-primary/30',
+        'shadow-[0_10px_28px_-8px_hsl(var(--primary)/0.55)] hover:shadow-[0_14px_32px_-8px_hsl(var(--primary)/0.65)]',
+        'hover:scale-105 active:scale-95',
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
       )}
       aria-label="Back to top"
     >
-      <ArrowUp className="h-5 w-5" />
+      <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5" />
     </Button>
   );
 }

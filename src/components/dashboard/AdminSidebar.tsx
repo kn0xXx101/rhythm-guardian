@@ -110,7 +110,7 @@ const AdminSidebar = () => {
             variant="ghost"
             size="icon"
             onClick={toggleCollapse}
-            className="h-9 w-9 bg-sidebar/90 backdrop-blur-md border border-sidebar-border hover:bg-sidebar-accent text-sidebar-foreground hover:text-white shadow-md hover:shadow-lg active:scale-95 pointer-events-auto"
+            className="h-9 w-9 bg-sidebar/90 backdrop-blur-md border border-sidebar-border hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground shadow-md hover:shadow-lg active:scale-95 pointer-events-auto"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (
@@ -147,8 +147,8 @@ const AdminSidebar = () => {
                 className={cn(
                   'flex items-center px-4 py-2.5 text-sm rounded-md hover:bg-sidebar-accent/50 group transition-all duration-200',
                   isActive(item.path, item.exact)
-                    ? 'bg-sidebar-accent text-white font-medium shadow-sm'
-                    : 'text-sidebar-foreground hover:text-white',
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm'
+                    : 'text-sidebar-foreground hover:text-sidebar-accent-foreground',
                   isCollapsed && !isMobile && 'justify-center px-2'
                 )}
                 title={isCollapsed && !isMobile ? item.name : undefined}

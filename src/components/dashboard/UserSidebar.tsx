@@ -83,7 +83,7 @@ const UserSidebar = ({ userType }: { userType: 'hirer' | 'musician' }) => {
             variant="ghost"
             size="icon"
             onClick={toggleCollapse}
-            className="h-9 w-9 bg-sidebar/90 backdrop-blur-md border border-sidebar-border hover:bg-sidebar-accent text-sidebar-foreground hover:text-white shadow-md hover:shadow-lg active:scale-95 pointer-events-auto"
+            className="h-9 w-9 bg-sidebar/90 backdrop-blur-md border border-sidebar-border hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground shadow-md hover:shadow-lg active:scale-95 pointer-events-auto"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? (

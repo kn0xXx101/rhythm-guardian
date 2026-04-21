@@ -24,16 +24,16 @@ const ChatLayout = ({ title, actions, contactsList, chatArea }: ChatLayoutProps)
 
       <Card
         variant="glass"
-        className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden max-h-[calc(100dvh-8.5rem)] sm:max-h-[calc(100dvh-10rem)] md:max-h-[calc(100dvh-11rem)]"
+        className="mt-2 sm:mt-3 flex min-h-0 flex-1 flex-col overflow-hidden isolate h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-10.75rem)] md:h-[calc(100dvh-11.25rem)]"
       >
-        <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-3">
+        <div className="grid h-full min-h-0 overflow-hidden grid-cols-1 md:grid-cols-3">
           {/* Contacts list */}
           <div className="flex min-h-0 flex-col overflow-hidden border-b md:border-b-0 md:border-r">
             {contactsList}
           </div>
 
           {/* Chat area */}
-          <div className="col-span-2 flex min-h-[50dvh] flex-col overflow-hidden md:min-h-0">
+          <div className="col-span-2 flex min-h-0 flex-col overflow-hidden overscroll-none">
             {chatArea}
           </div>
         </div>

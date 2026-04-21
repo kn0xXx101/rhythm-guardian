@@ -27,13 +27,13 @@ const SidebarFooter = ({ isCollapsed = false }: SidebarFooterProps) => {
       variant="ghost"
       onClick={toggleTheme}
       className={cn(
-        'flex w-full items-center text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent group transition-all duration-200',
+        'flex w-full items-center text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group transition-all duration-200',
         isCollapsed ? 'justify-center px-2' : 'justify-start px-4'
       )}
     >
       <SunMoon
         className={cn(
-          'text-sidebar-foreground group-hover:text-white transition-colors animated-icon flex-shrink-0',
+          'text-sidebar-foreground group-hover:text-sidebar-accent-foreground transition-colors animated-icon flex-shrink-0',
           isCollapsed ? 'mr-0' : 'mr-3'
         )}
       />
@@ -53,13 +53,13 @@ const SidebarFooter = ({ isCollapsed = false }: SidebarFooterProps) => {
       variant="ghost"
       onClick={handleLogout}
       className={cn(
-        'flex w-full items-center text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent group transition-all duration-200',
+        'flex w-full items-center text-sm text-sidebar-foreground rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group transition-all duration-200',
         isCollapsed ? 'justify-center px-2' : 'justify-start px-4'
       )}
     >
       <LogOut
         className={cn(
-          'text-sidebar-foreground group-hover:text-white transition-colors animated-icon flex-shrink-0',
+          'text-sidebar-foreground group-hover:text-destructive transition-colors animated-icon flex-shrink-0',
           isCollapsed ? 'mr-0' : 'mr-3'
         )}
       />
@@ -85,7 +85,7 @@ const SidebarFooter = ({ isCollapsed = false }: SidebarFooterProps) => {
               <TooltipTrigger asChild>{themeButton}</TooltipTrigger>
               <TooltipContent
                 side="right"
-                className="bg-sidebar-accent text-white border-sidebar-border"
+                className="bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border"
               >
                 {theme === 'light' ? 'Dark Mode' : theme === 'dark' ? 'Light Mode' : 'System Mode'}
               </TooltipContent>
@@ -94,7 +94,7 @@ const SidebarFooter = ({ isCollapsed = false }: SidebarFooterProps) => {
               <TooltipTrigger asChild>{logoutButton}</TooltipTrigger>
               <TooltipContent
                 side="right"
-                className="bg-sidebar-accent text-white border-sidebar-border"
+                className="bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border"
               >
                 Logout
               </TooltipContent>

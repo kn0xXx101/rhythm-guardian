@@ -58,21 +58,23 @@ const SidebarNavigation = ({
         className={cn(
           'flex items-center px-4 py-2 text-sm rounded-md group transition-all duration-200 relative',
           active
-            ? 'bg-sidebar-accent text-white font-medium shadow-md ring-1 ring-white/20'
-            : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-white hover:shadow-sm ring-1 ring-sidebar-border/50',
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-md ring-1 ring-sidebar-border/60'
+            : 'text-sidebar-foreground hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground hover:shadow-sm ring-1 ring-sidebar-border/50',
           isCollapsed && 'justify-center px-2'
         )}
       >
         {/* Active indicator - left border */}
         {active && (
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-r-full" />
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full" />
         )}
 
         <span
           className={cn(
             'flex-shrink-0 transition-all duration-200',
             isCollapsed ? 'mr-0' : 'mr-3',
-            active ? 'text-white scale-105' : 'text-sidebar-foreground group-hover:text-white group-hover:scale-105'
+            active
+              ? 'text-sidebar-accent-foreground scale-105'
+              : 'text-sidebar-foreground group-hover:text-sidebar-accent-foreground group-hover:scale-105'
           )}
         >
           {item.icon}
@@ -96,7 +98,7 @@ const SidebarNavigation = ({
           <TooltipTrigger asChild>{navLink}</TooltipTrigger>
           <TooltipContent
             side="right"
-            className="bg-sidebar-accent text-white border-sidebar-border"
+            className="bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border"
           >
             {item.name}
             {active && <span className="ml-2 text-xs opacity-75">(Active)</span>}

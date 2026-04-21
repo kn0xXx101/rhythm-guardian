@@ -83,13 +83,13 @@
     --gradient-card: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
     --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
 
-    --sidebar-background: 250 20% 15%;
-    --sidebar-foreground: 250 10% 95%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 250 10% 20%;
     --sidebar-primary: 262 83% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 250 12% 25%;
-    --sidebar-accent-foreground: 250 10% 95%;
-    --sidebar-border: 250 12% 25%;
+    --sidebar-accent: 250 14% 95%;
+    --sidebar-accent-foreground: 250 10% 20%;
+    --sidebar-border: 250 12% 88%;
     --sidebar-ring: 262 83% 58%;
   }
 
@@ -181,6 +181,14 @@
   body {
     transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
       color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Hide browser-native password reveal/clear controls to prevent a duplicate eye icon */
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   /* Respect prefers-reduced-motion for accessibility */

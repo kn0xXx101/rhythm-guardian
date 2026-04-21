@@ -77,6 +77,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
     : isCollapsed
       ? 'ml-16' // Collapsed: 4rem
       : 'ml-64'; // Expanded: 16rem
+  const isConversationRoute = /\/(chat|communications)(\/|$)/.test(location.pathname);
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,7 +107,10 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
         <TopNav userType={userType} />
         <main
           id="main-content"
-          className="container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden py-6 lg:py-10 px-3 sm:px-4"
+          className={cn(
+            'container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden',
+            isConversationRoute ? 'py-2 lg:py-3 px-2 sm:px-3' : 'py-6 lg:py-10 px-3 sm:px-4'
+          )}
         >
           <Outlet />
         </main>
