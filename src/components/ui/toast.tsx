@@ -34,7 +34,7 @@ const toastVariants = cva(
           'border-green-500 bg-green-50 dark:bg-green-950 dark:border-green-900 text-green-900 dark:text-green-50',
         warning:
           'border-yellow-500 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-900 text-yellow-900 dark:text-yellow-50',
-        info: 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-900 text-blue-900 dark:text-blue-50',
+        info: 'border-primary/30 bg-card text-card-foreground',
       },
     },
     defaultVariants: {

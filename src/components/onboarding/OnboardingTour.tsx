@@ -165,11 +165,11 @@ export function OnboardingTour({ tourName, steps, onReady, onComplete }: Onboard
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-background/95 p-0 sm:items-center sm:p-4"
       role="presentation"
     >
       <Card
-        className="w-full max-w-md rounded-b-none border-b-0 shadow-2xl sm:rounded-xl sm:border sm:border-b max-h-[min(88dvh,100%)] flex flex-col sm:max-h-[85vh]"
+        className="w-full max-w-md rounded-b-none border-b-0 bg-card text-card-foreground shadow-2xl sm:rounded-xl sm:border sm:border-b max-h-[min(88dvh,100%)] flex flex-col sm:max-h-[85vh]"
         role="dialog"
         aria-modal="true"
         aria-labelledby="onboarding-tour-title"

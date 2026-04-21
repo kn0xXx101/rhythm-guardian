@@ -33,7 +33,7 @@ const ChatLayout = ({ title, actions, contactsList, chatArea }: ChatLayoutProps)
           </div>
 
           {/* Chat area */}
-          <div className="col-span-2 flex min-h-0 flex-col overflow-hidden overscroll-none">
+          <div className="md:col-span-2 flex min-h-0 flex-col overflow-hidden overscroll-none">
             {chatArea}
           </div>
         </div>

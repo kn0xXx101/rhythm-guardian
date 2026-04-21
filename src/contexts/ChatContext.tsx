@@ -341,7 +341,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 id: 'ai-welcome',
                 senderId: AI_ASSISTANT_ID,
                 receiverId: user.id,
-                text: "👋 **Welcome to Rhythm Guardian Support!**\n\nI'm your AI Assistant, here to help you navigate the platform and resolve any issues. You can ask me about:\n\n• **Booking**: How to find and hire musicians\n• **Profiles**: Setting up your musician or hirer account\n• **Payments**: Transaction fees and secure processing\n• **Support**: Check your ticket status or talk to a human admin\n\nHow can I help you today?",
+                text: "👋 **Welcome to Rhythm Guardian Support!**\n\nI can guide you through the platform step-by-step for bookings, profile setup, communication, payments, and account actions.\n\nIf you want human support at any point, just say **connect to admin** and I will escalate immediately.\n\nHow can I help you today?",
                 timestamp: new Date().toISOString(),
                 isSender: false,
                 status: 'sent',
@@ -737,8 +737,27 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
+    let userRole: 'hirer' | 'musician' | 'admin' | null = null;
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (profile?.role === 'hirer' || profile?.role === 'musician' || profile?.role === 'admin') {
+        userRole = profile.role;
+      }
+    } catch (error) {
+      console.warn('Unable to resolve user role for AI Assistant context', error);
+    }
+
     // Process with AI assistant
-    const aiResponse = await aiAssistantService.processMessage(text, conversationHistory, userId);
+    const aiResponse = await aiAssistantService.processMessage(
+      text,
+      conversationHistory,
+      userId,
+      userRole
+    );
 
     // Handle special actions from AI
     if (aiResponse.action === 'list_tickets' || aiResponse.action === 'check_status') {

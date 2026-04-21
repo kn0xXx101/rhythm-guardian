@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Send, Shield, ShieldOff, Loader2, X, Reply, AlertCircle, Ticket, HelpCircle, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useChat } from '@/contexts/ChatContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import type { Message } from '@/types/chat';
@@ -30,9 +31,24 @@ const MessageInput = () => {
     contacts,
     messagingEnabled,
   } = useChat();
+  const { userRole } = useAuth();
   const { toast } = useToast();
 
   const isAIAssistant = activeContactId === AI_ASSISTANT_ID;
+  const aiQuickActions =
+    userRole === 'musician'
+      ? [
+          { label: 'Ticket Status', icon: Ticket, text: 'Check my support tickets status', color: 'text-blue-500' },
+          { label: 'Talk to Admin', icon: UserPlus, text: 'Connect to admin', color: 'text-orange-500' },
+          { label: 'Booking Requests', icon: HelpCircle, text: 'How do I manage booking requests?', color: 'text-green-500' },
+          { label: 'Payout Setup', icon: Shield, text: 'How do I set up payout details and get paid?', color: 'text-purple-500' },
+        ]
+      : [
+          { label: 'Ticket Status', icon: Ticket, text: 'Check my support tickets status', color: 'text-blue-500' },
+          { label: 'Talk to Admin', icon: UserPlus, text: 'Connect to admin', color: 'text-orange-500' },
+          { label: 'How to Book', icon: HelpCircle, text: 'Help with booking', color: 'text-green-500' },
+          { label: 'Payments', icon: Shield, text: 'Payments, fees, and refunds', color: 'text-purple-500' },
+        ];
 
   const handleQuickAction = async (text: string) => {
     if (!activeContactId || isSending || !messagingEnabled) return;
@@ -191,50 +207,20 @@ const MessageInput = () => {
       {/* Quick Actions for AI Assistant */}
       {isAIAssistant && messagingEnabled && !editingMessage && !replyingTo && (
         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-1 scrollbar-hide">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full flex items-center gap-1.5 text-xs bg-muted/30 border-muted hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
-            onClick={() => handleQuickAction('Check my support tickets status')}
-            disabled={isSending}
-          >
-            <Ticket className="h-3.5 w-3.5 text-blue-500" />
-            Ticket Status
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full flex items-center gap-1.5 text-xs bg-muted/30 border-muted hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
-            onClick={() => handleQuickAction('Connect to admin')}
-            disabled={isSending}
-          >
-            <UserPlus className="h-3.5 w-3.5 text-orange-500" />
-            Talk to Admin
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full flex items-center gap-1.5 text-xs bg-muted/30 border-muted hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
-            onClick={() => handleQuickAction('Help with booking')}
-            disabled={isSending}
-          >
-            <HelpCircle className="h-3.5 w-3.5 text-green-500" />
-            How to Book
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full flex items-center gap-1.5 text-xs bg-muted/30 border-muted hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
-            onClick={() => handleQuickAction('Payments & fees')}
-            disabled={isSending}
-          >
-            <Shield className="h-3.5 w-3.5 text-purple-500" />
-            Payments
-          </Button>
+          {aiQuickActions.map((action) => (
+            <Button
+              key={action.label}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full flex items-center gap-1.5 text-xs bg-muted/30 border-muted hover:bg-primary/10 hover:border-primary/30 transition-all duration-200"
+              onClick={() => handleQuickAction(action.text)}
+              disabled={isSending}
+            >
+              <action.icon className={`h-3.5 w-3.5 ${action.color}`} />
+              {action.label}
+            </Button>
+          ))}
         </div>
       )}
 

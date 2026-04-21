@@ -97,7 +97,8 @@ export class AIAssistantService {
   async processMessage(
     userMessage: string,
     conversationHistory: string[] = [],
-    userId?: string
+    userId?: string,
+    userRole?: 'hirer' | 'musician' | 'admin' | null
   ): Promise<AIAssistantResponse> {
     const normalizedMessage = userMessage.toLowerCase().trim();
 
@@ -142,7 +143,7 @@ export class AIAssistantService {
 
     // Try using OpenAI first if configured
     try {
-      const openAIResponse = await this.tryOpenAI(userMessage, conversationHistory);
+      const openAIResponse = await this.tryOpenAI(userMessage, conversationHistory, userRole);
       if (openAIResponse) {
         return {
           response: openAIResponse,
@@ -174,7 +175,11 @@ export class AIAssistantService {
   /**
    * Try to generate a response using OpenAI
    */
-  private async tryOpenAI(userMessage: string, history: string[]): Promise<string | null> {
+  private async tryOpenAI(
+    userMessage: string,
+    history: string[],
+    userRole?: 'hirer' | 'musician' | 'admin' | null
+  ): Promise<string | null> {
     if (!openAIService.isConfigured()) {
       return null;
     }
@@ -191,10 +196,21 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
 - Bookings and payments use secure flows (e.g. Paystack); amounts and escrow-style holds depend on booking state—describe generally, not exact fees unless the user quoted them.
 - Musicians can have verification/badges after documents are reviewed; profiles and availability matter for bookings.
 - Users can ask to "connect to admin" or "talk to admin" for human support; that creates a support ticket when the app escalates.
+- Default behavior: guide users through the platform end-to-end in clear steps. Only escalate when they explicitly request admin or when safety/account issues require human handling.
+- If role is musician, prioritize profile quality, booking response workflow, payout setup, earnings, and account verification.
+- If role is hirer, prioritize discovery, shortlisting, booking flow, communication, payments, and post-booking follow-up.
+- Do not offer refunds/cancellation policy details unless the user asks. Never suggest refund flows proactively to musicians.
 - Be concise, friendly, and professional. Use short paragraphs or bullet lists when helpful.
 - Never invent policy, legal advice, or exact prices. Never ask for passwords or card numbers.`,
       },
     ];
+
+    if (userRole) {
+      messages.push({
+        role: 'system',
+        content: `Current user role is "${userRole}". Tailor guidance to this role and avoid irrelevant workflows.`,
+      });
+    }
 
     // Add recent history (last 4 messages to keep context window small)
     const recentHistory = history.slice(-4);
