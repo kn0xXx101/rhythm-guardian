@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordRevealInput } from '@/components/ui/password-reveal-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -24,8 +25,6 @@ import type { Database } from '@/types/supabase';
 import { supabase } from '@/lib/supabase';
 import { PENDING_REFERRAL_STORAGE_KEY } from '@/services/referrals';
 import {
-  Eye,
-  EyeOff,
   User,
   Mail,
   Lock,
@@ -366,25 +365,21 @@ const SignUpBase = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="hirer-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="hirer-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      className={`pl-9 pr-9 ${form.formState.errors.password ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      {...form.register('password')}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
+                  <PasswordRevealInput
+                    id="hirer-password"
+                    placeholder="••••••••"
+                    showPassword={showPassword}
+                    onToggleShow={() => setShowPassword((v) => !v)}
+                    leftAdornment={
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    }
+                    className={
+                      form.formState.errors.password
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : undefined
+                    }
+                    {...form.register('password')}
+                  />
                   {form.formState.errors.password && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.password.message}
@@ -394,29 +389,21 @@ const SignUpBase = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="hirer-confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="hirer-confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      className={`pl-9 pr-9 ${form.formState.errors.confirmPassword ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      {...form.register('confirmPassword')}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+                  <PasswordRevealInput
+                    id="hirer-confirmPassword"
+                    placeholder="••••••••"
+                    showPassword={showConfirmPassword}
+                    onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                    leftAdornment={
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    }
+                    className={
+                      form.formState.errors.confirmPassword
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : undefined
+                    }
+                    {...form.register('confirmPassword')}
+                  />
                   {form.formState.errors.confirmPassword && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.confirmPassword.message}
@@ -483,25 +470,21 @@ const SignUpBase = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="musician-password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="musician-password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      className={`pl-9 pr-9 ${form.formState.errors.password ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      {...form.register('password')}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                  </div>
+                  <PasswordRevealInput
+                    id="musician-password"
+                    placeholder="••••••••"
+                    showPassword={showPassword}
+                    onToggleShow={() => setShowPassword((v) => !v)}
+                    leftAdornment={
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    }
+                    className={
+                      form.formState.errors.password
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : undefined
+                    }
+                    {...form.register('password')}
+                  />
                   {form.formState.errors.password && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.password.message}
@@ -511,29 +494,21 @@ const SignUpBase = ({
 
                 <div className="space-y-2">
                   <Label htmlFor="musician-confirmPassword">Confirm Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="musician-confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      className={`pl-9 pr-9 ${form.formState.errors.confirmPassword ? 'border-destructive focus-visible:ring-destructive' : ''}`}
-                      {...form.register('confirmPassword')}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+                  <PasswordRevealInput
+                    id="musician-confirmPassword"
+                    placeholder="••••••••"
+                    showPassword={showConfirmPassword}
+                    onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                    leftAdornment={
+                      <Lock className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    }
+                    className={
+                      form.formState.errors.confirmPassword
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : undefined
+                    }
+                    {...form.register('confirmPassword')}
+                  />
                   {form.formState.errors.confirmPassword && (
                     <p className="text-sm text-destructive">
                       {form.formState.errors.confirmPassword.message}

@@ -404,11 +404,18 @@ const Index = () => {
 
         {/* Rest of the component remains unchanged */}
         <div className="mt-24 mb-16 relative">
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent rounded-3xl blur-3xl pointer-events-none"></div>
-          <h2 className="text-4xl font-bold text-center mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Platform Features</h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">Discover powerful tools designed to connect musicians and hirers seamlessly</p>
+          <div className="relative z-10 mx-auto max-w-3xl px-2">
+            {/* Solid theme colors only — never use bg-clip-text here; it can vanish with GPU compositing / overlays. */}
+            <h2 className="text-center text-4xl font-bold tracking-tight text-balance">
+              <span className="text-primary">Platform</span>{' '}
+              <span className="text-secondary">Features</span>
+            </h2>
+            <p className="mt-4 text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+              Discover powerful tools designed to connect musicians and hirers seamlessly
+            </p>
+          </div>
 
-          <div className="relative px-12 py-4">
+          <div className="relative z-10 px-12 py-4">
             <Carousel
               setApi={setApi}
               opts={{
@@ -505,19 +512,23 @@ const Index = () => {
                   </div>
                 </CarouselItem>
 
-                <CarouselItem className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                  <div className="h-full">
-                    <Card className="h-full border-primary/20 bg-background/80 backdrop-blur-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform-gpu">
-                      <CardContent className="p-6 flex flex-col items-center justify-center h-full">
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 mx-auto">
-                          <Star size={32} className="text-primary" />
-                        </div>
-                        <h3 className="text-xl font-medium mb-3 text-center">Reviews & Ratings</h3>
-                        <p className="text-muted-foreground text-center">
-                          Build your reputation with verified reviews from past collaborations.
-                        </p>
-                      </CardContent>
-                    </Card>
+                <CarouselItem className="pl-4 md:pl-6 md:basis-1/2 lg:basis-1/3">
+                  <div className="h-full group">
+                    <div className="relative h-full rounded-2xl overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-primary/5 to-transparent pointer-events-none" />
+                      <Card className="h-full border-0 bg-card/50 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-2">
+                        <CardContent className="p-8 flex flex-col items-center justify-center h-full relative">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/20 to-transparent rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 pointer-events-none" />
+                          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 relative z-10">
+                            <Star size={36} className="text-white" />
+                          </div>
+                          <h3 className="text-xl font-bold mb-3 text-center relative z-10">Reviews & Ratings</h3>
+                          <p className="text-muted-foreground text-center text-sm leading-relaxed relative z-10">
+                            Build your reputation with verified reviews from past collaborations.
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </CarouselItem>
               </CarouselContent>

@@ -9,10 +9,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordRevealInput } from '@/components/ui/password-reveal-input';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Key, AlertCircle } from 'lucide-react';
+import { Key, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -224,27 +224,14 @@ const ResetPassword = () => {
                   render={({ field }) => (
                     <FormItem>
                       <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <div className="relative">
-                        <FormControl>
-                          <Input
-                            id="confirmPassword"
-                            type={showConfirmPassword ? 'text' : 'password'}
-                            {...field}
-                          />
-                        </FormControl>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        >
-                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          <span className="sr-only">
-                            {showConfirmPassword ? 'Hide password' : 'Show password'}
-                          </span>
-                        </Button>
-                      </div>
+                      <FormControl>
+                        <PasswordRevealInput
+                          id="confirmPassword"
+                          showPassword={showConfirmPassword}
+                          onToggleShow={() => setShowConfirmPassword((v) => !v)}
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

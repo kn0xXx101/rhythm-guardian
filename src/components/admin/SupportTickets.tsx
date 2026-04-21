@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { ArrowLeft } from 'lucide-react';
 
 interface SupportTicket {
   id: string;
@@ -179,34 +180,49 @@ export function SupportTickets() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
-      {/* Tickets List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Support Tickets</CardTitle>
+    <div className="grid grid-cols-1 gap-4 px-3 py-4 sm:px-4 sm:py-6 lg:grid-cols-2 lg:gap-6 lg:p-6">
+      {/* Tickets list — full width on mobile until a ticket is open (master/detail) */}
+      <Card
+        className={`min-h-0 flex flex-col overflow-hidden ${
+          selectedTicket ? 'hidden lg:flex' : 'flex'
+        }`}
+      >
+        <CardHeader className="flex-shrink-0 pb-2 sm:pb-4">
+          <CardTitle className="text-lg sm:text-xl">Support Tickets</CardTitle>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Tap a ticket to read and reply. Replies are delivered to the user via the AI Assistant.
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex-1 min-h-0 space-y-3 overflow-y-auto sm:space-y-4">
           {tickets.map((ticket) => (
             <div
               key={ticket.id}
-              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  void selectTicket(ticket);
+                }
+              }}
+              className={`rounded-xl border p-3 sm:p-4 cursor-pointer transition-colors active:bg-muted/80 ${
                 selectedTicket?.id === ticket.id
                   ? 'border-primary bg-primary/5'
                   : 'hover:bg-muted/50'
               }`}
-              onClick={() => selectTicket(ticket)}
+              onClick={() => void selectTicket(ticket)}
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <Badge variant={ticket.status === 'open' ? 'destructive' : 'secondary'}>
                   {ticket.status}
                 </Badge>
                 <Badge variant="outline">{ticket.priority}</Badge>
               </div>
-              <h4 className="font-medium">{ticket.subject}</h4>
-              <p className="text-sm text-muted-foreground mt-1">
+              <h4 className="font-medium text-sm sm:text-base leading-snug">{ticket.subject}</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
                 From: {ticket.user_info?.full_name || 'Unknown User'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
                 {new Date(ticket.created_at).toLocaleString()}
               </p>
             </div>
@@ -214,67 +230,81 @@ export function SupportTickets() {
         </CardContent>
       </Card>
 
-      {/* Ticket Details */}
+      {/* Ticket thread — full screen on mobile when selected */}
       {selectedTicket && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ticket Details</CardTitle>
-            <div className="flex gap-2">
+        <Card className="flex min-h-0 flex-col overflow-hidden lg:max-h-[calc(100dvh-12rem)]">
+          <CardHeader className="flex-shrink-0 space-y-3 border-b pb-3 sm:pb-4">
+            <div className="flex flex-wrap items-start gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 lg:hidden"
+                onClick={() => setSelectedTicket(null)}
+              >
+                <ArrowLeft className="mr-1 h-4 w-4" aria-hidden />
+                All tickets
+              </Button>
+              <CardTitle className="flex-1 min-w-0 text-base sm:text-lg">Conversation</CardTitle>
+            </div>
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => resolveTicket(selectedTicket.id)}
+                className="w-full sm:w-auto"
               >
-                Mark Resolved
+                Mark resolved
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div>
-              <h4 className="font-medium">{selectedTicket.subject}</h4>
-              <p className="text-sm text-muted-foreground">
+              <h4 className="font-medium text-sm sm:text-base">{selectedTicket.subject}</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 User: {selectedTicket.user_info?.full_name} ({selectedTicket.user_info?.role})
               </p>
             </div>
-
-            {/* Messages */}
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">Original Request:</p>
-                <p className="text-sm mt-1">{selectedTicket.original_message}</p>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-3 pt-4 sm:p-6">
+            <div
+              className="min-h-[200px] flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border bg-muted/20 p-2 sm:min-h-[240px] sm:p-3"
+              style={{ maxHeight: 'min(65dvh, 28rem)' }}
+            >
+              <div className="rounded-lg bg-muted p-3">
+                <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
+                <p className="mt-1 text-sm leading-relaxed">{selectedTicket.original_message}</p>
               </div>
 
               {selectedTicket.messages?.map((message) => (
                 <div
                   key={message.id}
-                  className={`p-3 rounded-lg ${
+                  className={`rounded-xl p-3 text-sm ${
                     message.sender_type === 'admin'
-                      ? 'bg-primary/10 ml-4'
-                      : 'bg-muted mr-4'
+                      ? 'ml-0 border border-primary/20 bg-primary/10 sm:ml-6'
+                      : 'mr-0 border border-border bg-card sm:mr-6'
                   }`}
                 >
-                  <p className="text-xs text-muted-foreground mb-1">
-                    {message.sender_name} • {new Date(message.created_at).toLocaleString()}
+                  <p className="mb-1 text-[11px] text-muted-foreground sm:text-xs">
+                    {message.sender_name} · {new Date(message.created_at).toLocaleString()}
                   </p>
-                  <p className="text-sm">{message.content}</p>
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
                 </div>
               ))}
             </div>
 
-            {/* Response Form */}
-            <div className="space-y-3">
+            <div className="flex-shrink-0 space-y-2 border-t pt-3 sm:space-y-3 sm:pt-4">
               <Textarea
-                placeholder="Type your response to the user..."
+                placeholder="Type your reply… (user sees this in the AI Assistant chat)"
                 value={responseMessage}
                 onChange={(e) => setResponseMessage(e.target.value)}
                 rows={4}
+                className="min-h-[100px] resize-y sm:min-h-[120px]"
               />
               <Button
                 onClick={sendResponse}
                 disabled={!responseMessage.trim() || isSending}
                 className="w-full"
               >
-                {isSending ? 'Sending...' : 'Send Response via AI Assistant'}
+                {isSending ? 'Sending…' : 'Send via AI Assistant'}
               </Button>
             </div>
           </CardContent>

@@ -120,7 +120,7 @@ function rhythmEmailShell(opts: {
   </style>
 </head>
 <body style="margin:0;padding:0;background-color:${E.bgPage};-webkit-font-smoothing:antialiased;">
-  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">${escapeHtml(opts.preheader)}</span>
+  <span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;font-size:0;line-height:0;">${escapeHtml(opts.preheader)}</span>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${E.bgPage};">
     <tr>
       <td align="center" style="padding:32px 16px;">
