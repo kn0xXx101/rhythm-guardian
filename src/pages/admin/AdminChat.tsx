@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import type { Contact } from '@/types/chat';
+import { getDisplayAvatarUrl } from '@/lib/avatar';
 
 const AdminChat = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -87,7 +88,7 @@ const AdminChat = () => {
                 uniqueContacts.set(profile.user_id, {
                   id: profile.user_id,
                   name: profile.full_name || 'Unknown User',
-                  image: profile.avatar_url || '/placeholder.svg',
+                  image: getDisplayAvatarUrl(profile.full_name || 'Unknown User', profile.avatar_url),
                   lastMessage: '',
                   timestamp: '',
                   unread: false,

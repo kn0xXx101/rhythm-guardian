@@ -187,7 +187,7 @@ const MessageInput = () => {
   };
 
   return (
-    <div className="p-4 border-t bg-background flex-shrink-0">
+    <div className="p-3 sm:p-4 border-t bg-background flex-shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       {/* Quick Actions for AI Assistant */}
       {isAIAssistant && messagingEnabled && !editingMessage && !replyingTo && (
         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-1 scrollbar-hide">

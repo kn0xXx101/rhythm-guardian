@@ -1,6 +1,7 @@
 import { CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Inbox, MessageCircle } from 'lucide-react';
+import { getDisplayAvatarUrl } from '@/lib/avatar';
 
 export interface AdminContact {
   id: number | string;
@@ -62,12 +63,12 @@ const AdminContactsList = ({
         <div className="relative">
           <div className="w-12 h-12 rounded-full overflow-hidden">
             <img
-              src={contact.image || '/placeholder.svg'}
+              src={getDisplayAvatarUrl(contact.name, contact.image)}
               alt={contact.name}
               className="w-full h-full object-cover"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = '/placeholder.svg';
+                target.src = getDisplayAvatarUrl(contact.name);
               }}
             />
           </div>

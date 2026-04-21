@@ -31,6 +31,11 @@ export interface UserProfile {
   createdAt: string;
   updatedAt: string;
   lastActiveAt?: string;
+  bankAccountNumber?: string;
+  bankCode?: string;
+  bankAccountName?: string;
+  mobileMoneyNumber?: string;
+  mobileMoneyProvider?: string;
 }
 
 class UserService {
@@ -230,6 +235,11 @@ class UserService {
       createdAt: profile.created_at || new Date().toISOString(),
       updatedAt: profile.updated_at || profile.created_at || new Date().toISOString(),
       lastActiveAt: profile.last_active_at || undefined,
+      bankAccountNumber: (profile as any).bank_account_number || undefined,
+      bankCode: (profile as any).bank_code || undefined,
+      bankAccountName: (profile as any).bank_account_name || undefined,
+      mobileMoneyNumber: (profile as any).mobile_money_number || undefined,
+      mobileMoneyProvider: (profile as any).mobile_money_provider || undefined,
     };
   }
 }

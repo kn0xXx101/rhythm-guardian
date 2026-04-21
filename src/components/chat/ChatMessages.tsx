@@ -198,7 +198,7 @@ const ChatMessages = memo(() => {
   return (
     <div
       ref={setMessagesScrollRef}
-      className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y p-4 min-h-0 max-h-full [scrollbar-gutter:stable]"
+      className="flex-1 overflow-y-auto overscroll-y-contain touch-pan-y p-3 sm:p-4 min-h-0 max-h-full [scrollbar-gutter:stable]"
     >
       {!activeContactId ? (
         <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -240,7 +240,7 @@ const ChatMessages = memo(() => {
               return (
                 <div className={`flex ${msg.isSender ? 'justify-end' : 'justify-start'}`}>
                   <div
-                    className={`max-w-[70%] rounded-xl p-3 relative transition-all duration-200 hover:shadow-md group ${
+                    className={`max-w-[85%] sm:max-w-[70%] rounded-xl p-3 relative transition-all duration-200 hover:shadow-md group ${
                       msg.isSender
                         ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                         : 'bg-muted hover:bg-muted/80'
@@ -371,7 +371,7 @@ const ChatMessages = memo(() => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const event = new CustomEvent('startReplyMessage', {
@@ -388,7 +388,7 @@ const ChatMessages = memo(() => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={() => handleEditMessage(msg.id)}
                                 disabled={editingMessageId === msg.id}
                                 title="Edit message"
@@ -400,7 +400,7 @@ const ChatMessages = memo(() => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-xs text-destructive/60 hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 text-xs text-destructive/60 hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={() => handleDeleteMessage(msg.id)}
                                 disabled={deletingMessageId === msg.id}
                                 title="Delete message"
@@ -418,7 +418,7 @@ const ChatMessages = memo(() => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 text-xs hover:scale-110 transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const event = new CustomEvent('startReplyMessage', {
@@ -435,7 +435,7 @@ const ChatMessages = memo(() => {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6 text-xs text-destructive/60 hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                                className="h-6 w-6 text-xs text-destructive/60 hover:text-destructive hover:bg-destructive/10 hover:scale-110 transition-all duration-200 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleReportMessage(msg.id);

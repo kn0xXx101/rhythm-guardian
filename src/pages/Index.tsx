@@ -30,6 +30,7 @@ import type { UserProfile } from '@/services/user';
 import { formatGHSWithSymbol } from '@/lib/currency';
 import { OptimizedImage } from '@/components/ui/optimized-image';
 import { cn } from '@/lib/utils';
+import { getDisplayAvatarUrl } from '@/lib/avatar';
 
 const HERO_HEADLINE_CLASS =
   'fixed-height-text max-w-full text-2xl font-bold leading-tight tracking-tight break-words text-pretty [overflow-wrap:anywhere] sm:text-3xl md:text-4xl lg:text-fluid-3xl lg:text-balance';
@@ -143,7 +144,14 @@ const Index = () => {
       setFeaturedError(false);
       try {
         const users = await userService.getUsers({ role: 'musician', status: 'active' });
-        const sorted = [...users].sort(
+        const withPayoutSetup = users.filter((u) => {
+          const hasBankPayout =
+            Boolean(u.bankAccountNumber) && Boolean(u.bankCode) && Boolean(u.bankAccountName);
+          const hasMobileMoneyPayout =
+            Boolean(u.mobileMoneyNumber) && Boolean(u.mobileMoneyProvider);
+          return hasBankPayout || hasMobileMoneyPayout;
+        });
+        const sorted = [...withPayoutSetup].sort(
           (a, b) => (b.rating ?? 0) - (a.rating ?? 0)
         );
         const selected = sorted.slice(0, 3);
@@ -654,13 +662,10 @@ const Index = () => {
                   >
                     <div className="h-48 overflow-hidden relative">
                       <OptimizedImage
-                        src={
-                          musician.avatarUrl ||
-                          '/placeholder.svg'
-                        }
+                        src={getDisplayAvatarUrl(musician.fullName, musician.avatarUrl)}
                         alt={musician.fullName}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        fallbackSrc="/placeholder.svg"
+                        fallbackSrc={getDisplayAvatarUrl(musician.fullName)}
                       />
                       <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-xs font-medium shadow-sm">
                         <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
