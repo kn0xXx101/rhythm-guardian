@@ -1,6 +1,10 @@
 # Supabase Auth email templates
 
-These HTML files match **Rhythm Guardian** web UI: violet primary (`#7C3AED`), soft lavender page background (`#FAF8FF`), Poppins, rounded cards, and shared footer links.
+These HTML files match **Rhythm Guardian** web UI: violet primary (`#7C3AED`), soft lavender page background (`#FAF8FF`), system UI fonts (no external stylesheets, for compatibility with hosted Supabase checks), rounded cards, and shared footer links.
+
+## Hosted Supabase: “Contains blocked keywords”
+
+The dashboard may reject templates that look like phishing or that load third-party assets. This folder avoids Google Fonts links, hidden preheader spans, and heavy finance or credential wording. If saving still fails, use [custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp) for your project, which lifts that restriction.
 
 ## How to use
 
