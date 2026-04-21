@@ -37,7 +37,7 @@ Deno.serve(async (req: Request) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify admin user
+    // Verify user session (admin OR booking participant)
     const supabaseAuth = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -57,22 +57,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if user is admin
+    // Fetch caller role (admin checks + audit)
     const { data: profile } = await supabaseClient
       .from("profiles")
       .select("role")
       .eq("user_id", user.id)
       .single();
-
-    if (!profile || profile.role !== "admin") {
-      return new Response(
-        JSON.stringify({ error: "Admin access required" }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    const isAdmin = profile?.role === "admin";
 
     const { bookingId } = await req.json();
 
@@ -101,6 +92,18 @@ Deno.serve(async (req: Request) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
+    }
+
+    // Authorization: allow admins OR booking participants (hirer/musician) to trigger payout
+    if (!isAdmin) {
+      const callerId = user.id;
+      const isParticipant = callerId === booking.hirer_id || callerId === booking.musician_id;
+      if (!isParticipant) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Validate booking is eligible for payout

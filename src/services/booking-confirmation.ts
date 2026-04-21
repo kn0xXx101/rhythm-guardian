@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { payoutService } from '@/services/payout';
 
 /**
  * Service confirmation utility with enhanced error handling
@@ -32,6 +33,17 @@ export class BookingConfirmationService {
         }
 
         console.log('Service confirmed successfully:', result.message);
+
+        // If both parties are now confirmed, try to trigger automatic payout.
+        // This will only succeed when the booking is eligible and the caller is authorized.
+        try {
+          const eligible = await payoutService.isEligibleForPayout(bookingId);
+          if (eligible) {
+            await payoutService.requestAutomaticPayout(bookingId);
+          }
+        } catch (payoutError) {
+          console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
+        }
       } catch (rpcError: any) {
         // If RPC fails, use fallback method
         if (rpcError.message.includes('function') && rpcError.message.includes('does not exist')) {
@@ -107,13 +119,6 @@ export class BookingConfirmationService {
     // If this confirmation completes the service, update status
     if (willBeFullyConfirmed) {
       updateData.status = 'completed';
-      
-      // Automatically release payout if payment has been received
-      if (currentBooking.payment_status === 'paid' && !currentBooking.payout_released) {
-        updateData.payout_released = true;
-        updateData.payout_released_at = new Date().toISOString();
-        console.log(`Auto-releasing payout for booking ${bookingId}`);
-      }
     }
 
     console.log('Update data:', updateData);
@@ -131,6 +136,17 @@ export class BookingConfirmationService {
     }
 
     console.log('Update successful:', updatedData);
+
+    // Try to trigger automatic payout after database update (non-blocking).
+    // The edge function will enforce eligibility and only mark payout released on success.
+    try {
+      const eligible = await payoutService.isEligibleForPayout(bookingId);
+      if (eligible) {
+        await payoutService.requestAutomaticPayout(bookingId);
+      }
+    } catch (payoutError) {
+      console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
+    }
   }
 
   /**

@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordRevealInput } from '@/components/ui/password-reveal-input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -21,7 +22,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../contexts/AuthContext';
 import type { Settings } from '@/types/settings';
-import type { Database } from '@/types/supabase';
 import { supabase } from '@/lib/supabase';
 import { PENDING_REFERRAL_STORAGE_KEY } from '@/services/referrals';
 import {
@@ -35,7 +35,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-type UserRole = Database['public']['Tables']['profiles']['Row']['role'];
+type UserRole = 'hirer' | 'musician' | 'admin';
 type UserManagementSettings = NonNullable<Settings['userManagement']>;
 
 const isUserManagementSettings = (value: unknown): value is UserManagementSettings => {
@@ -65,6 +65,9 @@ const signupSchema = z
         'Password must contain at least one uppercase letter, one number, and one special character'
       ),
     confirmPassword: z.string(),
+    acceptPolicies: z
+      .boolean()
+      .refine((v) => v === true, 'You must accept the Terms and Privacy Policy to continue.'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
@@ -157,6 +160,7 @@ const SignUpBase = ({
       email: '',
       password: '',
       confirmPassword: '',
+      acceptPolicies: false,
     },
   });
 
@@ -411,6 +415,35 @@ const SignUpBase = ({
                   )}
                 </div>
 
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3 rounded-xl border bg-muted/20 p-3">
+                    <Checkbox
+                      id="hirer-accept-policies"
+                      className="mt-0.5"
+                      checked={Boolean(form.watch('acceptPolicies'))}
+                      onCheckedChange={(v) => form.setValue('acceptPolicies', v === true, { shouldValidate: true })}
+                    />
+                    <div className="min-w-0">
+                      <Label htmlFor="hirer-accept-policies" className="cursor-pointer text-sm font-normal leading-relaxed text-muted-foreground">
+                        I agree to the{' '}
+                        <LinkComponent {...getLinkProps('/terms')} className="text-primary hover:underline">
+                          Terms of Service
+                        </LinkComponent>{' '}
+                        and{' '}
+                        <LinkComponent {...getLinkProps('/privacy')} className="text-primary hover:underline">
+                          Privacy Policy
+                        </LinkComponent>
+                        .
+                      </Label>
+                      {form.formState.errors.acceptPolicies && (
+                        <p className="mt-2 text-sm text-destructive">
+                          {String(form.formState.errors.acceptPolicies.message)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <div className="flex items-center gap-2">
@@ -514,6 +547,35 @@ const SignUpBase = ({
                       {form.formState.errors.confirmPassword.message}
                     </p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3 rounded-xl border bg-muted/20 p-3">
+                    <Checkbox
+                      id="musician-accept-policies"
+                      className="mt-0.5"
+                      checked={Boolean(form.watch('acceptPolicies'))}
+                      onCheckedChange={(v) => form.setValue('acceptPolicies', v === true, { shouldValidate: true })}
+                    />
+                    <div className="min-w-0">
+                      <Label htmlFor="musician-accept-policies" className="cursor-pointer text-sm font-normal leading-relaxed text-muted-foreground">
+                        I agree to the{' '}
+                        <LinkComponent {...getLinkProps('/terms')} className="text-primary hover:underline">
+                          Terms of Service
+                        </LinkComponent>{' '}
+                        and{' '}
+                        <LinkComponent {...getLinkProps('/privacy')} className="text-primary hover:underline">
+                          Privacy Policy
+                        </LinkComponent>
+                        .
+                      </Label>
+                      {form.formState.errors.acceptPolicies && (
+                        <p className="mt-2 text-sm text-destructive">
+                          {String(form.formState.errors.acceptPolicies.message)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {userManagementSettings?.requireMusicianVerification && (

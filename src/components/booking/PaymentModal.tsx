@@ -391,6 +391,13 @@ export function PaymentModal({
                   `${userEmail} paid ${formatGHSWithSymbol(totalToPay)} for a booking with ${booking.musician.name}.`,
                   '/admin/bookings'
                 );
+
+                await notifyAdmins(
+                  'booking',
+                  '✅ Booking confirmed (paid)',
+                  `A booking with ${booking.musician.name} is now confirmed and in progress.`,
+                  '/admin/bookings'
+                );
               } catch (adminNotifError) {
                 console.error('Failed to notify admins:', adminNotifError);
               }
