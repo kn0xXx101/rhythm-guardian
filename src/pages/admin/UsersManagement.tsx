@@ -53,6 +53,7 @@ interface User {
   documentsSubmitted: boolean;
   documentsVerified: boolean;
   completionPercentage: number;
+  isActive: boolean;
 }
 
 export function UsersManagement() {
@@ -239,6 +240,12 @@ export function UsersManagement() {
     );
   };
 
+  const getAvailabilityBadge = (isActive: boolean) => (
+    <Badge variant="outline" className={isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}>
+      {isActive ? 'Active' : 'Inactive'}
+    </Badge>
+  );
+
   const getRoleBadge = (role: string) => {
     return (
       <Badge variant={role === 'musician' ? 'outline' : 'secondary'}>
@@ -397,6 +404,7 @@ export function UsersManagement() {
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Availability</TableHead>
                     <TableHead>Verified</TableHead>
                     <TableHead>Profile</TableHead>
                     <TableHead>Join Date</TableHead>
@@ -410,6 +418,7 @@ export function UsersManagement() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{getRoleBadge(user.userType)}</TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
+                      <TableCell>{getAvailabilityBadge(user.isActive)}</TableCell>
                       <TableCell>
                         {user.verified ? (
                           <Badge variant="outline" className="bg-green-100 text-green-800">
@@ -534,6 +543,10 @@ export function UsersManagement() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Status</p>
                   {getStatusBadge(selectedUser.status)}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Availability</p>
+                  {getAvailabilityBadge(selectedUser.isActive)}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Join Date</p>

@@ -14,6 +14,7 @@ interface User {
   documentsSubmitted: boolean;
   documentsVerified: boolean;
   completionPercentage: number;
+  isActive: boolean;
 }
 
 class AdminService {
@@ -309,6 +310,7 @@ class AdminService {
             email,
             role,
             status,
+            is_active,
             email_verified,
             documents_submitted,
             documents_verified,
@@ -350,6 +352,7 @@ class AdminService {
           documentsSubmitted: profile.documents_submitted || false,
           documentsVerified: profile.documents_verified || false,
           completionPercentage: profile.profile_completion_percentage || 0,
+          isActive: profile.is_active ?? true,
         }));
 
         return users;

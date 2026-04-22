@@ -40,6 +40,7 @@ interface Musician {
 	documents_verified?: boolean | null;
 	profile_complete?: boolean | null;
 	profile_completion_percentage?: number | string | null;
+	is_active?: boolean | null;
 }
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
@@ -124,6 +125,58 @@ const isBookingWithinMusicianAvailability = (
 		};
 	}
 	return { ok: true };
+};
+
+const hasBookingTimeConflict = async (
+	musicianId: string,
+	eventDate: string,
+	startTime: string,
+	endTime: string
+): Promise<{ conflict: boolean; reason?: string }> => {
+	const requestStart = new Date(`${eventDate}T${startTime}`);
+	const requestEnd = new Date(`${eventDate}T${endTime}`);
+	if (!Number.isFinite(requestStart.getTime()) || !Number.isFinite(requestEnd.getTime())) {
+		return { conflict: false };
+	}
+
+	// Handle overnight bookings
+	if (requestEnd <= requestStart) {
+		requestEnd.setDate(requestEnd.getDate() + 1);
+	}
+
+	const dayStart = new Date(requestStart);
+	dayStart.setHours(0, 0, 0, 0);
+	const dayEnd = new Date(dayStart);
+	dayEnd.setDate(dayEnd.getDate() + 1);
+
+	const { data, error } = await supabase
+		.from('bookings')
+		.select('id,event_date,duration_hours,event_duration,status')
+		.eq('musician_id', musicianId)
+		.in('status', ['pending', 'accepted', 'upcoming', 'in_progress'])
+		.gte('event_date', dayStart.toISOString())
+		.lt('event_date', dayEnd.toISOString());
+
+	if (error) {
+		console.error('Failed to check booking conflict:', error);
+		return { conflict: false };
+	}
+
+	const conflicting = (data || []).some((booking: any) => {
+		const existingStart = new Date(booking.event_date);
+		if (!Number.isFinite(existingStart.getTime())) return false;
+		const durationHours = Number(booking.duration_hours ?? booking.event_duration ?? 0);
+		const safeDuration = Number.isFinite(durationHours) && durationHours > 0 ? durationHours : 1;
+		const existingEnd = new Date(existingStart.getTime() + safeDuration * 60 * 60 * 1000);
+		return requestStart < existingEnd && requestEnd > existingStart;
+	});
+
+	if (!conflicting) return { conflict: false };
+	return {
+		conflict: true,
+		reason:
+			'This musician is already occupied for the selected date/time. Please choose another time slot.',
+	};
 };
 
 function getAvailabilitySummary(availability: string[] | null | undefined) {
@@ -445,6 +498,7 @@ const InstrumentalistSearch = () => {
 					`)
 					.eq('role', 'musician')
 					.eq('status', 'active')
+					.eq('is_active', true)
 					.order('rating', { ascending: false, nullsFirst: false });
 
 				if (error) throw error;
@@ -626,6 +680,23 @@ const InstrumentalistSearch = () => {
 					variant: 'destructive',
 					title: 'Selected time is unavailable',
 					description: availabilityCheck.reason || 'Please choose a time within the musician availability window.',
+				});
+				return;
+			}
+
+			const conflictCheck = await hasBookingTimeConflict(
+				String(musicianId),
+				details.eventDate,
+				details.startTime,
+				details.endTime
+			);
+			if (conflictCheck.conflict) {
+				toast({
+					variant: 'destructive',
+					title: 'Musician unavailable',
+					description:
+						conflictCheck.reason ||
+						'This musician is already occupied for that date/time.',
 				});
 				return;
 			}

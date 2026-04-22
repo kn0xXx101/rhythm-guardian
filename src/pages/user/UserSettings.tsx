@@ -50,6 +50,7 @@ const UserSettings = () => {
   const [loginNotifications, setLoginNotifications] = useState(true);
   const [profilePublic, setProfilePublic] = useState(true);
   const [showActivityStatus, setShowActivityStatus] = useState(true);
+  const [accountActive, setAccountActive] = useState(true);
   const [notificationSound, setNotificationSound] = useState<'default' | 'chime' | 'bell' | 'soft'>('default');
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
@@ -102,12 +103,13 @@ const UserSettings = () => {
 
         const { data: profile } = (await supabase
           .from('profiles')
-          .select('paystack_subaccount, full_name')
+          .select('paystack_subaccount, full_name, is_active')
           .eq('user_id', user.id)
-          .single()) as { data: { paystack_subaccount?: string | null; full_name?: string | null } | null; error: unknown };
+          .single()) as { data: { paystack_subaccount?: string | null; full_name?: string | null; is_active?: boolean | null } | null; error: unknown };
 
         if (profile) {
           setHasSubaccount(!!profile.paystack_subaccount);
+          setAccountActive(profile.is_active ?? true);
           if (profile.full_name && !businessName) {
             setBusinessName(profile.full_name);
           }
@@ -149,6 +151,35 @@ const UserSettings = () => {
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to update settings. Please try again.',
+      });
+    }
+  };
+
+  const updateAccountActive = async (active: boolean) => {
+    if (!user?.id) return;
+    try {
+      setAccountActive(active);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: active, updated_at: new Date().toISOString() } as any)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      toast({
+        title: active ? 'Profile marked active' : 'Profile marked inactive',
+        description:
+          userRole === 'musician'
+            ? active
+              ? 'Your profile is visible to hirers again.'
+              : 'Your profile is hidden from hirer search while inactive.'
+            : 'Your account activity status has been updated.',
+      });
+    } catch (error) {
+      console.error('Error updating profile active status:', error);
+      setAccountActive((prev) => !prev);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update active status. Please try again.',
       });
     }
   };
@@ -372,6 +403,22 @@ const UserSettings = () => {
                   <Laptop className="h-4 w-4" />
                 )}
               </Button>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5 min-w-0">
+                <Label>{userRole === 'musician' ? 'Search availability' : 'Account availability'}</Label>
+                <p className="text-sm text-muted-foreground">
+                  {userRole === 'musician'
+                    ? 'Active musicians appear on hirer search. Inactive musicians are hidden.'
+                    : 'Set your current account activity status for platform visibility.'}
+                </p>
+              </div>
+              <Switch
+                checked={accountActive}
+                onCheckedChange={(checked) => void updateAccountActive(checked)}
+                disabled={isLoadingSettings}
+              />
             </div>
           </CardContent>
         </Card>
