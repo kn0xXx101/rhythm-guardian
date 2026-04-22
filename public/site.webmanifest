@@ -1,0 +1,19 @@
+{
+  "name": "Rhythm Guardian",
+  "short_name": "Rhythm Guardian",
+  "icons": [
+    {
+      "src": "/favicon-512-enhanced.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-enhanced-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1A4BA0",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}
