@@ -30,12 +30,40 @@ interface Notification {
   created_at: string;
 }
 
+const DEDUPE_WINDOW_MS = 90 * 1000;
+
+const notificationFingerprint = (n: Notification) =>
+  `${n.type}|${n.title.trim().toLowerCase()}|${n.content.trim().toLowerCase()}|${n.action_url ?? ''}`;
+
+const dedupeNotifications = (items: Notification[]) => {
+  const sorted = [...items].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+  const seenById = new Set<string>();
+  const seenByFingerprint = new Map<string, number>();
+
+  return sorted.filter((n) => {
+    if (seenById.has(n.id)) return false;
+    seenById.add(n.id);
+
+    const fingerprint = notificationFingerprint(n);
+    const createdAt = new Date(n.created_at).getTime();
+    const lastSeen = seenByFingerprint.get(fingerprint);
+
+    if (lastSeen !== undefined && Math.abs(lastSeen - createdAt) <= DEDUPE_WINDOW_MS) {
+      return false;
+    }
+
+    seenByFingerprint.set(fingerprint, createdAt);
+    return true;
+  });
+};
+
 export function NotificationBell() {
   const { user, userRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   // Prevent loadNotifications from overwriting state right after markAllAsRead
   const suppressReloadRef = useRef(false);
@@ -52,6 +80,7 @@ export function NotificationBell() {
     notificationService.requestNotificationPermission();
 
     loadNotifications();
+    void notificationService.loadNotificationTone(user.id);
 
     // Subscribe to notifications table directly (for database trigger notifications)
     const notificationChannel = supabase
@@ -80,8 +109,7 @@ export function NotificationBell() {
             action_url: n.action_url ?? null,
             created_at: n.created_at,
           };
-          setNotifications(prev => [newNotif, ...prev].slice(0, 10));
-          if (!newNotif.read) setUnreadCount(prev => prev + 1);
+          setNotifications((prev) => dedupeNotifications([newNotif, ...prev]).slice(0, 10));
 
           notificationService.playNotificationSound();
           notificationService.showBrowserNotification(n.title, n.content);
@@ -130,8 +158,7 @@ export function NotificationBell() {
         created_at: n.created_at
       }));
 
-      setNotifications(mappedNotifications);
-      setUnreadCount(mappedNotifications.filter(n => !n.read).length);
+      setNotifications(dedupeNotifications(mappedNotifications));
     } catch (error) {
       console.error('Error loading notifications:', error);
     }
@@ -147,7 +174,6 @@ export function NotificationBell() {
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
     } catch (error: any) {
       console.error('Error marking notification as read:', error);
     }
@@ -166,7 +192,6 @@ export function NotificationBell() {
       await notificationsService.markAllAsRead(user.id);
 
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
       
       toast({ title: 'All notifications marked as read' });
     } catch (error: any) {
@@ -275,6 +300,7 @@ export function NotificationBell() {
   };
 
   if (!user) return null;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Get icon for notification type
   const getNotificationIcon = (type: string) => {

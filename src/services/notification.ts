@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 
 let sharedAudio: HTMLAudioElement | null = null;
 let soundUnlocked = false;
+let currentTone: 'default' | 'chime' | 'bell' | 'soft' = 'default';
 const makeChannelSuffix = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
@@ -51,8 +52,64 @@ export function unlockNotificationSoundOnce(): void {
   }
 }
 
+const TONE_STORAGE_KEY = 'notification_sound';
+
+const getTone = (): 'default' | 'chime' | 'bell' | 'soft' => {
+  if (typeof window === 'undefined') return 'default';
+  const stored = window.localStorage.getItem(TONE_STORAGE_KEY);
+  if (stored === 'default' || stored === 'chime' || stored === 'bell' || stored === 'soft') {
+    return stored;
+  }
+  return 'default';
+};
+
+const saveTone = (tone: 'default' | 'chime' | 'bell' | 'soft') => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(TONE_STORAGE_KEY, tone);
+};
+
+const playToneWithOscillator = (tone: 'default' | 'chime' | 'bell' | 'soft') => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const notes =
+      tone === 'chime'
+        ? [660, 880]
+        : tone === 'bell'
+          ? [740, 988, 740]
+          : tone === 'soft'
+            ? [523]
+            : [800, 600];
+
+    const total = notes.length;
+    notes.forEach((freq, idx) => {
+      const start = audioContext.currentTime + idx * 0.08;
+      const osc = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      osc.type = tone === 'bell' ? 'triangle' : tone === 'soft' ? 'sine' : 'square';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(tone === 'soft' ? 0.12 : 0.24, start);
+      gain.gain.exponentialRampToValueAtTime(0.01, start + (idx === total - 1 ? 0.24 : 0.12));
+
+      osc.connect(gain);
+      gain.connect(audioContext.destination);
+      osc.start(start);
+      osc.stop(start + (idx === total - 1 ? 0.26 : 0.14));
+    });
+  } catch (error) {
+    console.error('Could not play oscillator tone:', error);
+  }
+};
+
 // Notification sound
 const playNotificationSound = () => {
+  const tone = currentTone || getTone();
+  if (tone !== 'default') {
+    playToneWithOscillator(tone);
+    return;
+  }
+
   const a = getAudio();
   if (!a) return;
   try {
@@ -61,6 +118,29 @@ const playNotificationSound = () => {
   } catch {
     // ignore
   }
+};
+
+export const setNotificationTone = (tone: 'default' | 'chime' | 'bell' | 'soft') => {
+  currentTone = tone;
+  saveTone(tone);
+};
+
+export const loadNotificationTone = async (userId: string): Promise<void> => {
+  try {
+    const { data } = await supabase
+      .from('user_settings')
+      .select('notification_sound')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const dbTone = (data as { notification_sound?: string } | null)?.notification_sound;
+    if (dbTone === 'default' || dbTone === 'chime' || dbTone === 'bell' || dbTone === 'soft') {
+      setNotificationTone(dbTone);
+      return;
+    }
+  } catch (error) {
+    console.warn('Failed to load notification tone, using local preference', error);
+  }
+  setNotificationTone(getTone());
 };
 
 // Request notification permission
@@ -244,4 +324,6 @@ export default {
   subscribeToNotifications,
   playNotificationSound,
   unlockNotificationSoundOnce,
+  setNotificationTone,
+  loadNotificationTone,
 };

@@ -668,20 +668,7 @@ const InstrumentalistSearch = () => {
 
 			if (insertError) throw insertError;
 
-			try {
-				await notificationsService.createNotification({
-					user_id: String(musicianId),
-					type: 'booking',
-					title: 'New booking request',
-					message: `${user.full_name || user.email || 'A hirer'} sent a booking request.`,
-					link: '/musician/bookings',
-					is_read: false,
-					priority: 'normal',
-					data: { bookingId: newBooking.id },
-				});
-			} catch (error) {
-				console.error('Failed to create notification:', error);
-			}
+			// Notification is created by DB booking triggers (prevents duplicate in-app rows).
 
 			setShowBookingDialog(false);
 			setSelectedMusicianForBooking(null);

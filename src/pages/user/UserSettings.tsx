@@ -12,6 +12,7 @@ import notificationService from '@/services/notification';
 import { supabase } from '@/lib/supabase';
 import { paystackService } from '@/services/paystack';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ type UserSettingsRow = {
   login_notifications?: boolean | null;
   profile_public?: boolean | null;
   show_activity_status?: boolean | null;
+  notification_sound?: 'default' | 'chime' | 'bell' | 'soft' | null;
 };
 
 const UserSettings = () => {
@@ -48,6 +50,7 @@ const UserSettings = () => {
   const [loginNotifications, setLoginNotifications] = useState(true);
   const [profilePublic, setProfilePublic] = useState(true);
   const [showActivityStatus, setShowActivityStatus] = useState(true);
+  const [notificationSound, setNotificationSound] = useState<'default' | 'chime' | 'bell' | 'soft'>('default');
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
@@ -90,6 +93,11 @@ const UserSettings = () => {
           setLoginNotifications(row.login_notifications ?? true);
           setProfilePublic(row.profile_public ?? true);
           setShowActivityStatus(row.show_activity_status ?? true);
+          const tone = row.notification_sound;
+          if (tone === 'default' || tone === 'chime' || tone === 'bell' || tone === 'soft') {
+            setNotificationSound(tone);
+            notificationService.setNotificationTone(tone);
+          }
         }
 
         const { data: profile } = (await supabase
@@ -141,6 +149,35 @@ const UserSettings = () => {
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to update settings. Please try again.',
+      });
+    }
+  };
+
+  const updateNotificationSound = async (tone: 'default' | 'chime' | 'bell' | 'soft') => {
+    if (!user?.id) return;
+    try {
+      setNotificationSound(tone);
+      notificationService.setNotificationTone(tone);
+      const { error } = await supabase.from('user_settings').upsert(
+        {
+          user_id: user.id,
+          notification_sound: tone,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      );
+      if (error) throw error;
+      toast({
+        title: 'Notification tone updated',
+        description: 'Your notification sound preference has been saved.',
+      });
+      notificationService.playNotificationSound();
+    } catch (error) {
+      console.error('Error updating notification sound:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update notification sound.',
       });
     }
   };
@@ -277,6 +314,30 @@ const UserSettings = () => {
                 }}
                 disabled={isLoadingSettings}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notification sound</Label>
+              <p className="text-sm text-muted-foreground">
+                Pick the sound you prefer for in-app and browser notification events.
+              </p>
+              <Select
+                value={notificationSound}
+                onValueChange={(v) =>
+                  void updateNotificationSound(v as 'default' | 'chime' | 'bell' | 'soft')
+                }
+                disabled={isLoadingSettings}
+              >
+                <SelectTrigger className="w-full sm:w-64">
+                  <SelectValue placeholder="Select notification sound" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  <SelectItem value="chime">Chime</SelectItem>
+                  <SelectItem value="bell">Bell</SelectItem>
+                  <SelectItem value="soft">Soft</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between gap-4">
