@@ -297,7 +297,7 @@ class AdminService {
     }
   }
 
-  async getUsers(filters?: { status?: string; role?: string; search?: string }): Promise<User[]> {
+  async getUsers(filters?: { status?: string; role?: string; search?: string; availability?: 'active' | 'inactive' }): Promise<User[]> {
     try {
 
       // Try direct database query first (fallback approach)
@@ -328,6 +328,9 @@ class AdminService {
         }
         if (filters?.role) {
           query = query.eq('role', filters.role as 'hirer' | 'musician' | 'admin');
+        }
+        if (filters?.availability) {
+          query = query.eq('is_active', filters.availability === 'active');
         }
         if (filters?.search) {
           query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
@@ -376,6 +379,7 @@ class AdminService {
         if (filters?.status) params.append('status', filters.status);
         if (filters?.role) params.append('role', filters.role);
         if (filters?.search) params.append('search', filters.search);
+        if (filters?.availability) params.append('availability', filters.availability);
 
         const url = `${supabaseUrl}/functions/v1/admin-users${params.toString() ? '?' + params.toString() : ''}`;
 

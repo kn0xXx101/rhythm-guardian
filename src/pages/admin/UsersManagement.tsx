@@ -62,6 +62,7 @@ export function UsersManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('pending'); // Default to pending users
   const [roleFilter, setRoleFilter] = useState('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<'view' | 'approve' | 'reject' | 'suspend' | 'unsuspend'>('view');
@@ -76,6 +77,7 @@ export function UsersManagement() {
       const filters = {
         status: statusFilter !== 'all' ? statusFilter : undefined,
         role: roleFilter !== 'all' ? roleFilter : undefined,
+        availability: availabilityFilter !== 'all' ? availabilityFilter : undefined,
         search: searchTerm || undefined,
       };
       
@@ -97,7 +99,7 @@ export function UsersManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, [statusFilter, roleFilter]);
+  }, [statusFilter, roleFilter, availabilityFilter]);
 
   // Debounced search
   useEffect(() => {
@@ -382,6 +384,16 @@ export function UsersManagement() {
                   <SelectItem value="all">All Roles</SelectItem>
                   <SelectItem value="musician">Musicians</SelectItem>
                   <SelectItem value="hirer">Hirers</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={availabilityFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setAvailabilityFilter(value)}>
+                <SelectTrigger className="w-full sm:w-[170px]">
+                  <SelectValue placeholder="Filter by availability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Availability</SelectItem>
+                  <SelectItem value="active">Availability Active</SelectItem>
+                  <SelectItem value="inactive">Availability Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>

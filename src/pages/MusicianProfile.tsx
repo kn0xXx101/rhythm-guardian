@@ -37,6 +37,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogTrigger,
@@ -90,6 +91,7 @@ const MusicianProfile: React.FC = () => {
   const { toast } = useToast();
   const [profileImage, setProfileImage] = useState('/placeholder.svg');
   const [isSaving, setIsSaving] = useState(false);
+  const [isProfileActive, setIsProfileActive] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -134,6 +136,7 @@ const MusicianProfile: React.FC = () => {
           mobileMoneyName: profile.mobile_money_name,
         },
       });
+      setIsProfileActive(profile.is_active ?? true);
     };
 
     // Primary path: if a previous page passed profile data via navigation state, use it.
@@ -168,7 +171,7 @@ const MusicianProfile: React.FC = () => {
         const { data, error } = await supabase
           .from('profiles')
           .select(
-            'user_id,role,full_name,email,phone,location,bio,avatar_url,instruments,genres,hourly_rate,available_days,pricing_model,base_price,experience_level,youtube_url,instagram_url,tiktok_url,soundcloud_url,bank_account_number,bank_account_name,bank_code,mobile_money_number,mobile_money_provider,mobile_money_name,created_at,updated_at,status,documents_submitted,documents_verified'
+            'user_id,role,full_name,email,phone,location,bio,avatar_url,instruments,genres,hourly_rate,available_days,pricing_model,base_price,experience_level,youtube_url,instagram_url,tiktok_url,soundcloud_url,bank_account_number,bank_account_name,bank_code,mobile_money_number,mobile_money_provider,mobile_money_name,created_at,updated_at,status,is_active,documents_submitted,documents_verified'
           )
           .eq('user_id', user.id)
           .single();
@@ -241,6 +244,7 @@ const MusicianProfile: React.FC = () => {
 
       // Prepare update object - only include fields that have values
       const updateData: any = {};
+      updateData.is_active = isProfileActive;
 
       if (fullName) updateData.full_name = fullName;
       if (phone) updateData.phone = phone;
@@ -370,6 +374,39 @@ const MusicianProfile: React.FC = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleProfileActivityToggle = async (checked: boolean) => {
+    if (!user?.id) return;
+
+    const previous = isProfileActive;
+    setIsProfileActive(checked);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: checked, updated_at: new Date().toISOString() })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setOriginalProfile((prev: any) => ({ ...(prev || {}), is_active: checked }));
+
+      toast({
+        title: checked ? 'Profile set to active' : 'Profile set to inactive',
+        description: checked
+          ? 'Your profile is now visible in hirer search.'
+          : 'Your profile is now hidden from hirer search.',
+      });
+    } catch (error) {
+      console.error('Error updating profile activity status:', error);
+      setIsProfileActive(previous);
+      toast({
+        variant: 'destructive',
+        title: 'Could not update status',
+        description: 'Please try again.',
+      });
     }
   };
 
@@ -953,6 +990,26 @@ const MusicianProfile: React.FC = () => {
             </CardHeader>
             
             <CardContent className="px-0 space-y-8">
+              <Card className="overflow-hidden border-muted/60 shadow-sm">
+                <CardHeader className="bg-muted/30 pb-4">
+                  <CardTitle className="text-lg">Search Visibility</CardTitle>
+                  <CardDescription>Control whether hirers can discover your profile.</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <Label>Active for bookings</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {isProfileActive
+                          ? 'You appear in hirer search and can receive bookings.'
+                          : 'You are hidden from hirer search until you reactivate.'}
+                      </p>
+                    </div>
+                    <Switch checked={isProfileActive} onCheckedChange={handleProfileActivityToggle} />
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Pricing Card */}
               <Card className="overflow-hidden border-muted/60 shadow-sm">
                 <CardHeader className="bg-muted/30 pb-4">
