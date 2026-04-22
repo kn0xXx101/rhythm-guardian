@@ -53,7 +53,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
     if (!hasBeenShown && !hasShownWelcome.current) {
       if (location.pathname === '/hirer' && userType === 'hirer') {
         toast({
-          variant: 'info',
+          variant: 'welcome',
           title: 'Welcome to your Hirer Dashboard',
           description: 'Find musicians, manage bookings, and stay in touch — all from here.',
         });
@@ -61,7 +61,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
         hasShownWelcome.current = true;
       } else if (location.pathname === '/musician' && userType === 'musician') {
         toast({
-          variant: 'info',
+          variant: 'welcome',
           title: 'Welcome to your Musician Dashboard',
           description: 'Keep your profile current, respond to bookings, and track your earnings.',
         });

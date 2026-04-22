@@ -35,6 +35,9 @@ const toastVariants = cva(
         warning:
           'border-yellow-500 bg-yellow-50 dark:bg-yellow-950 dark:border-yellow-900 text-yellow-900 dark:text-yellow-50',
         info: 'border-primary/30 bg-card text-card-foreground',
+        /** Dashboard welcome — glass, no solid fill */
+        welcome:
+          'border-border/50 bg-transparent text-foreground shadow-lg backdrop-blur-md supports-[backdrop-filter]:bg-background/10',
       },
     },
     defaultVariants: {

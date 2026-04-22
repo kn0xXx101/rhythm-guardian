@@ -31,6 +31,7 @@ const AdminDashboardLayout = () => {
 
     if (!hasBeenShown && !hasShownWelcome.current && location.pathname === '/admin') {
       toast({
+        variant: 'welcome',
         title: 'Welcome back, Admin',
         description: 'Rhythm Guardian console is ready to monitor your musical ecosystem.',
       });

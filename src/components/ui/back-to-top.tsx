@@ -1,9 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const CHAT_PATH = /\/(chat|communications)(\/|$)/;
+
 export function BackToTop() {
+  const { pathname } = useLocation();
+  const isConversationRoute = CHAT_PATH.test(pathname);
   const [isVisible, setIsVisible] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [canPortal, setCanPortal] = useState(false);
@@ -51,7 +56,11 @@ export function BackToTop() {
       onClick={scrollToTop}
       type="button"
       className={cn(
-        'fixed inset-x-auto left-auto !right-3 sm:!right-5 md:!right-8 bottom-[max(0.9rem,env(safe-area-inset-bottom))] sm:bottom-6 md:bottom-8 z-[90]',
+        'fixed inset-x-auto left-auto z-[90] !right-3 sm:!right-5 md:!right-8',
+        /* Mobile chat: lift above composer + send; md+ matches normal dock */
+        isConversationRoute
+          ? 'max-md:bottom-[max(7.25rem,env(safe-area-inset-bottom))] md:bottom-8'
+          : 'bottom-[max(0.9rem,env(safe-area-inset-bottom))] sm:bottom-6 md:bottom-8',
         'group flex h-12 w-12 items-center justify-center rounded-2xl border border-border/70 bg-background/90 text-foreground backdrop-blur-xl',
         'shadow-[0_12px_34px_-14px_hsl(var(--foreground)/0.55)]',
         'transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-14px_hsl(var(--primary)/0.45)]',

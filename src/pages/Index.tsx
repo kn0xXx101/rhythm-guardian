@@ -37,19 +37,19 @@ const HERO_HEADLINE_CLASS =
 
 const HERO_PHRASES: React.ReactNode[] = [
   <>
-    Where <span className="text-primary">Music</span> Meets Opportunity
+    Where <span className="text-primary mx-0.5 sm:mx-1">Music</span> Meets Opportunity
   </>,
   <>
-    Connect with <span className="text-primary">Musicians</span>
+    Connect with <span className="text-primary mx-0.5 sm:mx-1">Musicians</span>
   </>,
   <>
-    Find Your <span className="text-primary">Perfect</span> Sound
+    Find Your <span className="text-primary mx-0.5 sm:mx-1">Perfect</span> Sound
   </>,
   <>
-    Book <span className="text-primary">Talent</span> Instantly
+    Book <span className="text-primary mx-0.5 sm:mx-1">Talent</span> Instantly
   </>,
   <>
-    Where <span className="text-primary">Music</span> Meets Opportunity
+    Where <span className="text-primary mx-0.5 sm:mx-1">Music</span> Meets Opportunity
   </>,
 ];
 
@@ -69,14 +69,14 @@ function HeroCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion:
 
   return (
     <h1
-      className={cn(HERO_HEADLINE_CLASS, 'relative isolate')}
+      className={cn(HERO_HEADLINE_CLASS, 'relative isolate mb-1')}
       aria-live={prefersReducedMotion ? undefined : 'polite'}
     >
       {HERO_PHRASES.map((phrase, i) => (
         <span
           key={i}
           className={cn(
-            'block max-w-full transition-opacity duration-500 ease-out motion-reduce:transition-none',
+            'block max-w-full pb-0.5 transition-opacity duration-500 ease-out motion-reduce:transition-none',
             i === active
               ? 'relative z-[1] opacity-100'
               : 'pointer-events-none absolute inset-x-0 top-0 z-0 opacity-0'
@@ -263,11 +263,11 @@ const Index = () => {
           )}
         >
           {/* Hero headline — one h1; crossfade rotation (same on mobile + desktop) */}
-          <div className="space-y-2">
+          <div className="space-y-3 sm:space-y-4">
             <div className="max-w-full">
               <HeroCrossfadeHeadline prefersReducedMotion={prefersReducedMotion} />
             </div>
-            <p className="text-fluid-base text-muted-foreground">
+            <p className="text-fluid-base text-muted-foreground mt-0.5 sm:mt-1">
               Rhythm Guardian connects talented musicians with those seeking musical services for
               events, recordings, and performances.
             </p>

@@ -21,6 +21,8 @@ const getVariantIcon = (variant?: string) => {
       return <AlertTriangle className="h-5 w-5" />;
     case 'info':
       return <Info className="h-5 w-5" />;
+    case 'welcome':
+      return <Info className="h-5 w-5" />;
     default:
       return null;
   }
@@ -45,7 +47,8 @@ export function Toaster() {
                       variant === 'success' && 'text-green-600 dark:text-green-400',
                       variant === 'destructive' && 'text-red-600 dark:text-red-400',
                       variant === 'warning' && 'text-yellow-600 dark:text-yellow-400',
-                      variant === 'info' && 'text-primary'
+                      variant === 'info' && 'text-primary',
+                      variant === 'welcome' && 'text-primary'
                     )}
                   >
                     {icon}
