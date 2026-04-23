@@ -19,6 +19,7 @@ interface User {
 
 class AdminService {
   private async hardDeleteUserData(userId: string): Promise<void> {
+    const db = supabaseAdmin;
     const safe = async (fn: () => Promise<any>) => {
       try {
         await fn();
@@ -30,33 +31,34 @@ class AdminService {
       }
     };
 
-    await safe(() => supabase.from('bookings').delete().or(`hirer_id.eq.${userId},musician_id.eq.${userId}`));
-    await safe(() => supabase.from('notifications').delete().eq('user_id', userId));
-    await safe(() => supabase.from('messages').delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`));
-    await safe(() => supabase.from('conversations').delete().or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`));
-    await safe(() => supabase.from('reviews').delete().or(`reviewer_id.eq.${userId},reviewee_id.eq.${userId}`));
-    await safe(() => supabase.from('support_tickets').delete().or(`user_id.eq.${userId},assigned_admin_id.eq.${userId}`));
-    await safe(() => supabase.from('ticket_messages').delete().eq('sender_id', userId));
-    await safe(() => supabase.from('disputes').delete().or(`filed_by.eq.${userId},filed_against.eq.${userId},resolved_by.eq.${userId}`));
-    await safe(() => supabase.from('dispute_messages').delete().eq('sender_id', userId));
-    await safe(() => supabase.from('dispute_evidence').delete().eq('uploaded_by', userId));
-    await safe(() => supabase.from('referrals').delete().or(`referrer_id.eq.${userId},referred_user_id.eq.${userId}`));
-    await safe(() => supabase.from('fraud_reports').delete().or(`user_id.eq.${userId},resolved_by.eq.${userId}`));
-    await safe(() => supabase.from('content_flags').delete().eq('actor_user_id', userId));
-    await safe(() => supabase.from('user_settings').delete().eq('user_id', userId));
-    await safe(() => supabase.from('musician_availability').delete().eq('musician_user_id', userId));
-    await safe(() => supabase.from('availability_patterns').delete().eq('musician_user_id', userId));
-    await safe(() => supabase.from('musician_packages').delete().eq('musician_user_id', userId));
-    await safe(() => supabase.from('musician_addons').delete().eq('musician_user_id', userId));
-    await safe(() => supabase.from('musician_portfolio').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('bookings').delete().or(`hirer_id.eq.${userId},musician_id.eq.${userId}`));
+    await safe(() => db.from('notifications').delete().eq('user_id', userId));
+    await safe(() => db.from('messages').delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`));
+    await safe(() => db.from('conversations').delete().or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`));
+    await safe(() => db.from('reviews').delete().or(`reviewer_id.eq.${userId},reviewee_id.eq.${userId}`));
+    await safe(() => db.from('support_tickets').delete().or(`user_id.eq.${userId},assigned_admin_id.eq.${userId}`));
+    await safe(() => db.from('ticket_messages').delete().eq('sender_id', userId));
+    await safe(() => db.from('disputes').delete().or(`filed_by.eq.${userId},filed_against.eq.${userId},resolved_by.eq.${userId}`));
+    await safe(() => db.from('dispute_messages').delete().eq('sender_id', userId));
+    await safe(() => db.from('dispute_evidence').delete().eq('uploaded_by', userId));
+    await safe(() => db.from('referrals').delete().or(`referrer_id.eq.${userId},referred_user_id.eq.${userId}`));
+    await safe(() => db.from('fraud_reports').delete().or(`user_id.eq.${userId},resolved_by.eq.${userId}`));
+    await safe(() => db.from('content_flags').delete().eq('actor_user_id', userId));
+    await safe(() => db.from('user_settings').delete().eq('user_id', userId));
+    await safe(() => db.from('musician_availability').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('availability_patterns').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('musician_packages').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('musician_addons').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('musician_portfolio').delete().eq('musician_user_id', userId));
 
-    const { error: deleteProfileError } = await supabase.from('profiles').delete().eq('user_id', userId);
+    const { error: deleteProfileError } = await db.from('profiles').delete().eq('user_id', userId);
     if (deleteProfileError) {
       // Final fallback: hide the account from admin lists even if hard delete is blocked by legacy FKs.
-      const { error: tombstoneError } = await supabase
+      const { error: tombstoneError } = await db
         .from('profiles')
         .update({
-          status: 'deleted' as any,
+          status: 'inactive' as any,
+          is_active: false,
           full_name: 'Deleted User',
           email: null,
           updated_at: new Date().toISOString(),
@@ -601,7 +603,7 @@ class AdminService {
     }
 
     // Always enforce local data deletion so user disappears from admin list.
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('user_id, role')
       .eq('user_id', userId)
@@ -613,7 +615,7 @@ class AdminService {
     if (res?.ok) return true;
 
     // Fallback: DB cleanup (cannot remove auth.users without edge/admin API)
-    const { data: targetProfile, error: profileFetchError } = await supabase
+    const { data: targetProfile, error: profileFetchError } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('user_id', userId)

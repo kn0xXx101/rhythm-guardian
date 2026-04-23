@@ -8,6 +8,8 @@ import { useSidebarContext } from '@/contexts/SidebarContext';
 import { cn } from '@/lib/utils';
 import { useBookingReminders } from '@/hooks/use-booking-reminders';
 import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { NavigationAssistant } from '@/components/navigation/NavigationAssistant';
+import { useNavigationAssistantContext } from '@/features/navigation-assistant/use-navigation-assistant-context';
 import {
   hirerDashboardTourSteps,
   musicianDashboardTourSteps,
@@ -78,6 +80,11 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
       ? 'ml-16' // Collapsed: 4rem
       : 'ml-64'; // Expanded: 16rem
   const isConversationRoute = /\/(chat|communications)(\/|$)/.test(location.pathname);
+  const assistant = useNavigationAssistantContext({
+    role: userType,
+    pathname: location.pathname,
+    tourCompleted: welcomeGate === 'ready',
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,6 +119,13 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
             isConversationRoute ? 'py-2 lg:py-3 px-2 sm:px-3' : 'py-6 lg:py-10 px-3 sm:px-4'
           )}
         >
+          <NavigationAssistant
+            role={userType}
+            pathname={location.pathname}
+            tourCompleted={welcomeGate === 'ready'}
+            signals={assistant.signals}
+            ready={assistant.ready && welcomeGate === 'ready'}
+          />
           <Outlet />
         </main>
       </div>

@@ -169,6 +169,7 @@ src/features/
 
 ## Notes
 
+- Planned product spec for an **automated in-app navigation assistant** (contextual help, auto-generated messages, robust fallbacks): [AI_NAVIGATION_ASSISTANT_SPEC.md](./AI_NAVIGATION_ASSISTANT_SPEC.md)
 - All implementations maintain backward compatibility
 - Features folder uses re-exports to avoid breaking existing imports
 - Settings page now supports tab navigation via query parameters
