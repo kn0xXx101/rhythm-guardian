@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog';
 import { Star, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromReviewList } from '@/lib/review-ratings';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -68,8 +69,9 @@ export function ReviewsDialog({
       setReviews(data || []);
       
       if (data && data.length > 0) {
-        const avg = data.reduce((sum, review) => sum + review.rating, 0) / data.length;
-        setAverageRating(Number(avg.toFixed(1)));
+        setAverageRating(averageRatingFromReviewList(data));
+      } else {
+        setAverageRating(0);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);

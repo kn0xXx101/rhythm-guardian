@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import type { Booking, BookingStatus, PaymentStatus } from '@/contexts/BookingContext';
 
 type DbBookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'in_progress' | 'expired';
@@ -72,7 +73,7 @@ class BookingService {
         return parsed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       };
 
-      return (bookings || []).map((booking: any) => {
+      const list = (bookings || []).map((booking: any) => {
         const durationHours = booking.duration_hours ? Number(booking.duration_hours) : undefined;
         const startTime = formatTimeValue(booking.start_time) || formatTimeFromDate(booking.event_date);
         const endTime =
@@ -108,6 +109,37 @@ class BookingService {
         serviceConfirmedByHirer: booking.service_confirmed_by_hirer || false,
         serviceConfirmedByMusician: booking.service_confirmed_by_musician || false,
         serviceConfirmedAt: booking.service_confirmed_at || null,
+        };
+      });
+
+      const participantIds = [
+        ...new Set(
+          list.flatMap((b) => [b.musician.id, b.client.id].filter((id) => typeof id === 'string' && id.length > 0))
+        ),
+      ];
+      const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, participantIds);
+
+      return list.map((b) => {
+        const mRow = b.musician.id ? byRevieweeId[b.musician.id] : undefined;
+        const hRow = b.client.id ? byRevieweeId[b.client.id] : undefined;
+
+        const musicianRating = failed
+          ? Number(b.musician.rating) > 0
+            ? Number(b.musician.rating)
+            : 0
+          : mRow && mRow.count > 0
+            ? averageRatingFromSumCount(mRow.sum, mRow.count) ?? 0
+            : 0;
+
+        const hirerRating =
+          failed || !hRow || hRow.count === 0
+            ? undefined
+            : averageRatingFromSumCount(hRow.sum, hRow.count) ?? undefined;
+
+        return {
+          ...b,
+          musician: { ...b.musician, rating: musicianRating },
+          client: { ...b.client, rating: hirerRating },
         };
       });
     } catch (error) {

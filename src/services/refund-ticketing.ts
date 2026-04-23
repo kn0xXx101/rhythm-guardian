@@ -12,6 +12,12 @@ export const refundTicketingService = {
     userId: string;
     reason: string;
     musicianName?: string;
+    /** Recorded on the ticket for fraud review (UI requires all true before submit). */
+    hirerAttestations?: {
+      paidOnlyThroughPlatform: boolean;
+      didNotCoordinateToSkipConfirmation: boolean;
+      reportingTruthfully: boolean;
+    };
   }): Promise<{ success: boolean; error?: string }> {
     try {
       const subject = `Refund Request Investigation - Booking #${params.bookingId.slice(0, 8)}`;
@@ -19,7 +25,15 @@ export const refundTicketingService = {
       if (params.musicianName) {
         originalMessage += `Musician: ${params.musicianName}\n`;
       }
-      originalMessage += `\nUser Reason:\n"${params.reason}"\n\nPlease investigate if services were rendered before manually releasing funds or processing the refund.`;
+      originalMessage += `\nUser Reason:\n"${params.reason}"\n`;
+      if (params.hirerAttestations) {
+        const a = params.hirerAttestations;
+        originalMessage += `\n--- Hirer confirmations (submitted with request) ---\n`;
+        originalMessage += `Paid only through platform: ${a.paidOnlyThroughPlatform ? 'YES' : 'NO'}\n`;
+        originalMessage += `Did not coordinate to skip in-app confirmation: ${a.didNotCoordinateToSkipConfirmation ? 'YES' : 'NO'}\n`;
+        originalMessage += `Reporting truthfully: ${a.reportingTruthfully ? 'YES' : 'NO'}\n`;
+      }
+      originalMessage += `\nPlease investigate using platform payment status, booking timestamps, chat where available, and service confirmations before releasing funds or processing the refund.`;
 
       // Prefer RPC, but fall back to direct insert if function is unavailable on the current project.
       const { data: ticketId, error: ticketError } = await supabase.rpc('create_support_ticket' as any, {

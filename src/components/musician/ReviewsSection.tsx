@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Star, User } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromReviewList } from '@/lib/review-ratings';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface Review {
@@ -54,8 +55,9 @@ export function ReviewsSection({ musicianId }: ReviewsSectionProps) {
       
       // Calculate average rating
       if (data && data.length > 0) {
-        const avg = data.reduce((sum, review) => sum + review.rating, 0) / data.length;
-        setAverageRating(Number(avg.toFixed(1)));
+        setAverageRating(averageRatingFromReviewList(data));
+      } else {
+        setAverageRating(0);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);

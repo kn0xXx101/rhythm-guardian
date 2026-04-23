@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import type { Database } from '@/types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -40,6 +41,30 @@ export interface UserProfile {
 
 class UserService {
   /**
+   * Override profile rating/totalReviews with values computed from `reviews`
+   * (authoritative). On fetch failure, keeps mapped profile fields.
+   */
+  private async attachComputedReviewRatings(users: UserProfile[]): Promise<UserProfile[]> {
+    if (users.length === 0) return users;
+    const ids = users.map((u) => u.userId);
+    const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, ids);
+    if (failed) return users;
+
+    return users.map((u) => {
+      const row = byRevieweeId[u.userId];
+      if (!row || row.count === 0) {
+        return { ...u, rating: undefined, totalReviews: 0 };
+      }
+      const avg = averageRatingFromSumCount(row.sum, row.count);
+      return {
+        ...u,
+        rating: avg ?? undefined,
+        totalReviews: row.count,
+      };
+    });
+  }
+
+  /**
    * Get all users/profiles with optional filters
    */
   async getUsers(filters?: { role?: string; status?: string; search?: string }): Promise<UserProfile[]> {
@@ -67,8 +92,8 @@ class UserService {
       if (error) throw error;
 
       // Fetch emails from auth.users if available (requires admin access)
-      // For now, we'll just map the profiles
-      return (data || []).map(this.mapProfileToUserProfile);
+      const mapped = (data || []).map(this.mapProfileToUserProfile);
+      return this.attachComputedReviewRatings(mapped);
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;
@@ -94,7 +119,9 @@ class UserService {
         throw error;
       }
 
-      return this.mapProfileToUserProfile(data);
+      const mapped = this.mapProfileToUserProfile(data);
+      const [withReviews] = await this.attachComputedReviewRatings([mapped]);
+      return withReviews ?? null;
     } catch (error) {
       console.error('Error fetching user profile:', error);
       throw error;
@@ -179,7 +206,8 @@ class UserService {
 
       if (error) throw error;
 
-      return (data || []).map(this.mapProfileToUserProfile);
+      const mapped = (data || []).map(this.mapProfileToUserProfile);
+      return this.attachComputedReviewRatings(mapped);
     } catch (error) {
       console.error('Error searching users:', error);
       throw error;

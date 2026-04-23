@@ -89,7 +89,7 @@ EXCEPTION
         RAISE WARNING 'create_booking_notification error (ignored): %', SQLERRM;
         RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 -- 3) Admin notification coverage: booking made, paid, accepted, confirmed, completed.
 CREATE OR REPLACE FUNCTION public.notify_admins_on_booking_change()
@@ -174,7 +174,7 @@ EXCEPTION WHEN OTHERS THEN
     RAISE WARNING 'notify_admins_on_booking_change error (ignored): %', SQLERRM;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
 
 -- 4) Cleanup old duplicate notifications (safe windowed dedupe).
 -- Keep the oldest row per fingerprint in a 90-second bucket.

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatGHSWithSymbol } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from "@/lib/review-ratings";
 import { ReviewsDialog } from "@/components/musician/ReviewsDialog";
 import { useNavigate, useLocation } from "react-router-dom";
 import { OptimizedImage } from "@/components/ui/optimized-image";
@@ -503,6 +504,37 @@ const InstrumentalistSearch = () => {
 
 				if (error) throw error;
 
+				const musicianIds = (data || [])
+					.map((m) => m.user_id)
+					.filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+				let bookingCountsByMusician: Record<string, number> = {};
+				let reviewStatsByMusician: Record<string, { sum: number; count: number }> = {};
+				let reviewsAggregateFailed = false;
+				if (musicianIds.length > 0) {
+					const { data: bookingRows, error: bookingError } = await supabase
+						.from('bookings')
+						.select('musician_id,status')
+						.in('musician_id', musicianIds)
+						.in('status', ['completed']);
+
+					if (bookingError) {
+						console.warn('Could not fetch booking counts for musicians:', bookingError);
+					} else {
+						bookingCountsByMusician = (bookingRows || []).reduce((acc, booking: any) => {
+							const musicianId = booking.musician_id;
+							if (typeof musicianId === 'string' && musicianId.length > 0) {
+								acc[musicianId] = (acc[musicianId] || 0) + 1;
+							}
+							return acc;
+						}, {} as Record<string, number>);
+					}
+
+					const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, musicianIds);
+					reviewsAggregateFailed = failed;
+					reviewStatsByMusician = byRevieweeId;
+				}
+
 				// Convert DECIMAL fields from string to number and normalize data
 				const normalizedData = (data || []).map(musician => {
 					const rawHourly = (musician as any).hourly_rate;
@@ -524,20 +556,51 @@ const InstrumentalistSearch = () => {
 					const pricingModel =
 						(musician as any).pricing_model ||
 						(basePrice !== undefined ? 'fixed' : hourlyRate !== undefined ? 'hourly' : undefined);
+					const normalizedInstruments = Array.isArray((musician as any).instruments)
+						? (musician as any).instruments.filter((item: unknown) => typeof item === 'string' && item.trim().length > 0)
+						: typeof (musician as any).instruments === 'string'
+						? (musician as any).instruments
+								.split(',')
+								.map((item: string) => item.trim())
+								.filter(Boolean)
+						: [];
+					const totalBookingsFromDb = bookingCountsByMusician[musician.user_id] ?? 0;
+					const rev = musician.user_id ? reviewStatsByMusician[musician.user_id] : undefined;
+					const reviewCount = rev?.count ?? 0;
+					const computedRating =
+						rev && reviewCount > 0 ? averageRatingFromSumCount(rev.sum, reviewCount) : null;
+					const fallbackProfileRating =
+						musician.rating && Number(musician.rating) > 0 ? parseFloat(String(musician.rating)) : null;
+					const displayRating = reviewsAggregateFailed
+						? fallbackProfileRating
+						: computedRating != null && computedRating > 0
+							? computedRating
+							: null;
+					const displayTotalReviews = reviewsAggregateFailed
+						? Number((musician as any).total_reviews) || 0
+						: reviewCount;
 
 					return {
 						...musician,
 						id: musician.user_id,
+						instruments: normalizedInstruments,
 						hourly_rate: Number.isFinite(hourlyRate) ? hourlyRate : undefined,
 						base_price: Number.isFinite(basePrice) ? basePrice : undefined,
 						price_min: Number.isFinite(priceMin) ? priceMin : undefined,
 						price_max: Number.isFinite(priceMax) ? priceMax : undefined,
 						pricing_model: pricingModel,
-						rating: musician.rating && Number(musician.rating) > 0 ? parseFloat(String(musician.rating)) : null,
-						total_reviews: musician.total_reviews || 0,
+						rating: displayRating,
+						total_reviews: displayTotalReviews,
+						total_bookings: totalBookingsFromDb,
 					};
 				});
 				const eligible = normalizedData.filter(isMusicianSearchEligible);
+				eligible.sort((a, b) => {
+					const ra = a.rating != null && Number(a.rating) > 0 ? Number(a.rating) : -1;
+					const rb = b.rating != null && Number(b.rating) > 0 ? Number(b.rating) : -1;
+					if (rb !== ra) return rb - ra;
+					return (b.total_reviews || 0) - (a.total_reviews || 0);
+				});
 
 				setMusicians(eligible);
 				setFilteredMusicians(eligible);

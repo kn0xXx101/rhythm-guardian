@@ -8,10 +8,11 @@ import { MaskedInput } from '@/components/ui/input-masked';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { Upload, MapPin, Save, CheckCircle2, AlertCircle, User, Mail, Phone, Calendar as CalendarIcon } from 'lucide-react';
+import { Upload, MapPin, Save, CheckCircle2, AlertCircle, User, Mail, Phone, Calendar as CalendarIcon, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -36,6 +37,35 @@ const HirerProfile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [hirerReviewAvg, setHirerReviewAvg] = useState<number | null>(null);
+  const [hirerReviewCount, setHirerReviewCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, [user.id]);
+      if (cancelled) return;
+      if (failed) {
+        const r =
+          user.rating != null && Number(user.rating) > 0 ? Number(user.rating) : null;
+        setHirerReviewAvg(r);
+        setHirerReviewCount(Number((user as { total_reviews?: number }).total_reviews) || 0);
+        return;
+      }
+      const row = byRevieweeId[user.id];
+      if (row && row.count > 0) {
+        setHirerReviewAvg(averageRatingFromSumCount(row.sum, row.count));
+        setHirerReviewCount(row.count);
+      } else {
+        setHirerReviewAvg(null);
+        setHirerReviewCount(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -337,6 +367,18 @@ const HirerProfile: React.FC = () => {
                 <Badge variant={user?.status === 'active' ? 'default' : 'secondary'} className="capitalize px-3 py-1">
                   {user?.status || 'Pending'}
                 </Badge>
+                {hirerReviewCount > 0 && hirerReviewAvg != null ? (
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Star className="h-4 w-4 shrink-0 fill-yellow-500 text-yellow-500" />
+                    <span className="font-semibold text-foreground">{hirerReviewAvg.toFixed(1)}</span>
+                    <span className="text-xs">({hirerReviewCount} reviews)</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Star className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span>No reviews yet</span>
+                  </div>
+                )}
                 {user?.created_at && (
                   <div className="flex items-center text-xs text-muted-foreground">
                     <CalendarIcon className="h-3 w-3 mr-1" />

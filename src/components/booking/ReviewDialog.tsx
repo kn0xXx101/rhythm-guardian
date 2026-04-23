@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromReviewList } from '@/lib/review-ratings';
 
 interface ReviewDialogProps {
   open: boolean;
@@ -105,8 +106,8 @@ export function ReviewDialog({
         .select('rating')
         .eq('reviewee_id', revieweeId);
 
-      if (reviews) {
-        const avgRating = reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length;
+      if (reviews && reviews.length > 0) {
+        const avgRating = averageRatingFromReviewList(reviews);
         const totalReviews = reviews.length;
 
         await supabase

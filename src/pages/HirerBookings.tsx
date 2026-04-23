@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, CreditCard, Guitar, MapPin, MessageCircle, Star, Clock, RefreshCcw } from 'lucide-react';
+import { Calendar, CreditCard, Guitar, MapPin, MessageCircle, Star, Clock, RefreshCcw, Shield } from 'lucide-react';
 import { useBookingContext } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,8 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const HirerBookings = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -38,6 +40,9 @@ const HirerBookings = () => {
   const [reviewBooking, setReviewBooking] = useState<any>(null);
   const [selectedRefundBooking, setSelectedRefundBooking] = useState<any>(null);
   const [refundReason, setRefundReason] = useState('');
+  const [refundAttestPlatformPayment, setRefundAttestPlatformPayment] = useState(false);
+  const [refundAttestNoCollusion, setRefundAttestNoCollusion] = useState(false);
+  const [refundAttestTruthful, setRefundAttestTruthful] = useState(false);
   const [isRefunding, setIsRefunding] = useState(false);
   const [refundRequestedBookingIds, setRefundRequestedBookingIds] = useState<Set<string>>(new Set());
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set());
@@ -246,10 +251,21 @@ const HirerBookings = () => {
   const handleRequestRefundClick = (booking: any) => {
     setSelectedRefundBooking(booking);
     setRefundReason('');
+    setRefundAttestPlatformPayment(false);
+    setRefundAttestNoCollusion(false);
+    setRefundAttestTruthful(false);
   };
 
   const submitRefundRequest = async () => {
     if (!user?.id || !selectedRefundBooking || !refundReason.trim()) return;
+    if (!refundAttestPlatformPayment || !refundAttestNoCollusion || !refundAttestTruthful) {
+      toast({
+        variant: 'destructive',
+        title: 'Confirmations required',
+        description: 'Please confirm all statements before submitting a refund request.',
+      });
+      return;
+    }
 
     setIsRefunding(true);
     try {
@@ -257,7 +273,12 @@ const HirerBookings = () => {
         bookingId: selectedRefundBooking.id,
         userId: user.id,
         reason: refundReason.trim(),
-        musicianName: selectedRefundBooking.musician?.name
+        musicianName: selectedRefundBooking.musician?.name,
+        hirerAttestations: {
+          paidOnlyThroughPlatform: refundAttestPlatformPayment,
+          didNotCoordinateToSkipConfirmation: refundAttestNoCollusion,
+          reportingTruthfully: refundAttestTruthful,
+        },
       });
 
       if (result.success) {
@@ -320,6 +341,16 @@ const HirerBookings = () => {
   return (
     <div className="container mx-auto max-w-full py-6 sm:py-8 space-y-6 animate-fade-in">
       <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
+
+      <Alert className="border-primary/30 bg-primary/5">
+        <Shield className="h-4 w-4" />
+        <AlertTitle className="text-sm font-semibold">Avoid refund and payment scams</AlertTitle>
+        <AlertDescription className="text-xs sm:text-sm leading-relaxed">
+          Refunds are decided using <strong>platform records</strong> (payment in app, booking status, and confirmations).
+          If you pay a musician outside the app or agree to skip in-app confirmation, we cannot verify what happened and
+          your case is much harder to resolve fairly.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
         <div className="mb-6 -mx-4 overflow-x-auto overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:px-0">
@@ -705,14 +736,53 @@ const HirerBookings = () => {
 
       {/* Refund Request Dialog */}
       <Dialog open={!!selectedRefundBooking} onOpenChange={(open) => !open && setSelectedRefundBooking(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Request a Refund</DialogTitle>
             <DialogDescription>
-              Please explain why you are requesting a refund for this booking. This will create a support ticket for our team to investigate.
+              Explain what went wrong. This opens a billing ticket for staff review. False or coordinated claims may
+              result in account action.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="flex flex-col gap-3 rounded-md border border-border/80 bg-muted/40 p-3">
+              <p className="text-xs font-medium text-foreground">Required confirmations</p>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="refund-attest-pay"
+                  checked={refundAttestPlatformPayment}
+                  onCheckedChange={(v) => setRefundAttestPlatformPayment(v === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="refund-attest-pay" className="text-xs font-normal leading-snug cursor-pointer">
+                  I paid for this booking through Rhythm Guardian (or its official checkout), not via a private side
+                  payment to the musician.
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="refund-attest-collusion"
+                  checked={refundAttestNoCollusion}
+                  onCheckedChange={(v) => setRefundAttestNoCollusion(v === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="refund-attest-collusion" className="text-xs font-normal leading-snug cursor-pointer">
+                  I did not agree with the other party to skip in-app service confirmation or to misrepresent whether
+                  the service happened.
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="refund-attest-truth"
+                  checked={refundAttestTruthful}
+                  onCheckedChange={(v) => setRefundAttestTruthful(v === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="refund-attest-truth" className="text-xs font-normal leading-snug cursor-pointer">
+                  The details I will provide are truthful to the best of my knowledge.
+                </Label>
+              </div>
+            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="reason">Reason for refund</Label>
               <Textarea
@@ -724,14 +794,24 @@ const HirerBookings = () => {
               />
             </div>
             <div className="bg-muted p-3 text-xs rounded-md text-muted-foreground">
-              Note: To prevent fraud and ensure fairness, all refund requests are reviewed by our support staff to confirm whether services were rendered. 
+              Support may compare chat, booking timestamps, payment status, and confirmations. Off-platform deals are not
+              covered by platform protections.
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedRefundBooking(null)}>
               Cancel
             </Button>
-            <Button onClick={submitRefundRequest} disabled={!refundReason.trim() || isRefunding}>
+            <Button
+              onClick={submitRefundRequest}
+              disabled={
+                !refundReason.trim() ||
+                !refundAttestPlatformPayment ||
+                !refundAttestNoCollusion ||
+                !refundAttestTruthful ||
+                isRefunding
+              }
+            >
               {isRefunding ? 'Submitting...' : 'Submit Request'}
             </Button>
           </DialogFooter>

@@ -112,6 +112,19 @@ Deno.serve(async (req: Request) => {
         await handleTransferFailed(supabase, event.data);
         break;
 
+      case "refund.processed":
+        await handleRefundProcessed(supabase, event.data);
+        break;
+
+      case "refund.failed":
+        await handleRefundFailed(supabase, event.data);
+        break;
+
+      case "refund.pending":
+      case "refund.processing":
+        console.log(`Refund lifecycle event: ${event.event}`);
+        break;
+
       default:
         console.log(`Unhandled event type: ${event.event}`);
     }
@@ -306,6 +319,78 @@ async function handleTransferFailed(supabase: any, data: any) {
     console.log("Transfer failure handled successfully");
   } catch (error) {
     console.error("Error handling transfer failure:", error);
+    throw error;
+  }
+}
+
+/**
+ * Paystack confirmed a refund to the customer.
+ * Keeps bookings.transactions in sync with gateway truth (idempotent with webhook_events).
+ */
+async function handleRefundProcessed(supabase: any, data: any) {
+  const transaction = data?.transaction ?? data?.Transaction;
+  const reference =
+    transaction?.reference ??
+    data?.transaction_reference ??
+    data?.reference;
+  const meta = transaction?.metadata ?? data?.metadata ?? {};
+  const bookingId = meta?.bookingId ?? meta?.booking_id ?? null;
+
+  console.log("Handling refund.processed:", { reference, bookingId });
+
+  try {
+    if (reference) {
+      const { error: txErr } = await supabase
+        .from("transactions")
+        .update({
+          status: "refunded",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("paystack_reference", reference);
+      if (txErr) {
+        console.warn("Could not mark transaction refunded by reference:", txErr);
+      }
+    }
+
+    if (bookingId) {
+      const { error: bErr } = await supabase
+        .from("bookings")
+        .update({
+          payment_status: "refunded",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bookingId);
+      if (bErr) {
+        console.warn("Could not mark booking refunded by metadata bookingId:", bErr);
+      }
+    }
+  } catch (error) {
+    console.error("Error handling refund.processed:", error);
+    throw error;
+  }
+}
+
+async function handleRefundFailed(supabase: any, data: any) {
+  const transaction = data?.transaction ?? data?.Transaction;
+  const reference =
+    transaction?.reference ??
+    data?.transaction_reference ??
+    data?.reference;
+
+  console.warn("refund.failed:", { reference, data });
+
+  try {
+    if (reference) {
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("paystack_reference", reference);
+    }
+  } catch (error) {
+    console.error("Error handling refund.failed:", error);
     throw error;
   }
 }

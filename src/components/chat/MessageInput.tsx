@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -9,6 +9,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
 import type { Message } from '@/types/chat';
+import { analyzeChatMessageForRisks } from '@/lib/anti-scam-chat';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const MessageInput = () => {
   const [message, setMessage] = useState('');
@@ -17,6 +28,8 @@ const MessageInput = () => {
   const [isSending, setIsSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [riskDialogOpen, setRiskDialogOpen] = useState(false);
+  const [riskDialogReasons, setRiskDialogReasons] = useState<string[]>([]);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
@@ -141,13 +154,12 @@ const MessageInput = () => {
     setMessage('');
   }, [activeContactId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() || !activeContactId || isSending || !messagingEnabled) return;
+  const executeSendFlow = useCallback(async () => {
+    const trimmed = message.trim();
+    if (!trimmed || !activeContactId || isSending || !messagingEnabled) return;
 
     setIsSending(true);
 
-    // Stop typing indicator
     if (isTyping) {
       setIsTyping(false);
       setTyping(activeContactId, false);
@@ -155,20 +167,17 @@ const MessageInput = () => {
 
     try {
       if (editingMessage) {
-        // Edit existing message
-        await editMessage(editingMessage.id, message);
+        await editMessage(editingMessage.id, trimmed);
         setEditingMessage(null);
         toast({
           title: 'Message edited',
           description: 'Your message has been updated.',
         });
       } else if (replyingTo) {
-        // Reply to message
-        await replyMessage(activeContactId, message, replyingTo.id, encryptMessage);
+        await replyMessage(activeContactId, trimmed, replyingTo.id, encryptMessage);
         setReplyingTo(null);
       } else {
-        // Send new message
-        await sendMessage(activeContactId, message, encryptMessage);
+        await sendMessage(activeContactId, trimmed, encryptMessage);
       }
       setMessage('');
     } catch (error: any) {
@@ -181,6 +190,43 @@ const MessageInput = () => {
     } finally {
       setIsSending(false);
     }
+  }, [
+    message,
+    activeContactId,
+    isSending,
+    messagingEnabled,
+    isTyping,
+    setTyping,
+    editingMessage,
+    replyingTo,
+    encryptMessage,
+    editMessage,
+    replyMessage,
+    sendMessage,
+    toast,
+  ]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = message.trim();
+    if (!trimmed || !activeContactId || isSending || !messagingEnabled) return;
+
+    if (!isAIAssistant) {
+      const analysis = analyzeChatMessageForRisks(trimmed);
+      if (analysis.shouldWarn && analysis.reasons.length > 0) {
+        setRiskDialogReasons(analysis.reasons);
+        setRiskDialogOpen(true);
+        return;
+      }
+    }
+
+    await executeSendFlow();
+  };
+
+  const handleConfirmRiskySend = async () => {
+    setRiskDialogOpen(false);
+    setRiskDialogReasons([]);
+    await executeSendFlow();
   };
 
   const cancelReply = () => {
@@ -222,6 +268,17 @@ const MessageInput = () => {
             </Button>
           ))}
         </div>
+      )}
+
+      {!isAIAssistant && messagingEnabled && (
+        <Alert className="mb-3 border-amber-500/40 bg-amber-500/5">
+          <Shield className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-xs leading-relaxed text-foreground/90">
+            <span className="font-medium text-foreground">Anti-scam:</span> Keep payment and booking changes on the
+            platform. Do not share bank details, OTPs, passwords, or &quot;pay me directly&quot; instructions. Use{' '}
+            <strong>Report message</strong> on anything abusive or suspicious.
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Messaging disabled warning */}
@@ -363,6 +420,38 @@ const MessageInput = () => {
           </div>
         </div>
       </form>
+
+      <AlertDialog
+        open={riskDialogOpen}
+        onOpenChange={(open) => {
+          setRiskDialogOpen(open);
+          if (!open) setRiskDialogReasons([]);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Double-check this message</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left text-sm text-muted-foreground">
+                <p>This message looks like it may involve common scam patterns:</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  {riskDialogReasons.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+                <p className="text-foreground/90">
+                  You can edit the message to remove off-platform payment or sensitive details, or send anyway if you
+                  are sure it is appropriate.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRiskDialogReasons([])}>Go back</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirmRiskySend()}>Send anyway</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

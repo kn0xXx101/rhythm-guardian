@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, MapPin, MessageCircle, Check, X, CreditCard, Clock, Star } from 'lucide-react';
+import { Calendar, MapPin, MessageCircle, Check, X, CreditCard, Clock, Star, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useBookingContext } from '@/contexts/BookingContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,6 +16,7 @@ import {
   isBookingEventWindowPast,
   isWithinPostServiceConfirmationWindow,
 } from '@/utils/booking-event-window';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const MusicianBookings = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -226,6 +227,15 @@ const MusicianBookings = () => {
     <div className="container mx-auto max-w-full py-6 sm:py-8 space-y-6 animate-fade-in">
       <h1 className="text-2xl sm:text-3xl font-bold">My Bookings</h1>
 
+      <Alert className="border-primary/30 bg-primary/5">
+        <Shield className="h-4 w-4" />
+        <AlertTitle className="text-sm font-semibold">Stay protected</AlertTitle>
+        <AlertDescription className="text-xs sm:text-sm leading-relaxed">
+          Payouts and dispute evidence depend on <strong>in-app payment</strong> and both sides confirming service in the app.
+          Agreeing privately to skip confirmation or to pay off-platform removes protections for you and the hirer.
+        </AlertDescription>
+      </Alert>
+
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
         <div className="mb-6 -mx-4 overflow-x-auto overscroll-x-contain px-4 pb-1 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:px-0">
           <TabsList className="inline-flex h-auto min-h-10 w-max flex-nowrap gap-1 justify-start sm:w-full sm:flex-wrap">
@@ -290,6 +300,21 @@ const MusicianBookings = () => {
                         </h3>
                         <div className="flex items-center gap-1 mt-1">
                           <span className="text-xs text-muted-foreground">Client</span>
+                        </div>
+                        <div className="flex items-center justify-center gap-1 mt-1">
+                          {booking.client.rating != null && Number(booking.client.rating) > 0 ? (
+                            <>
+                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs font-medium">
+                                {Number(booking.client.rating).toFixed(1)}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Star className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">No reviews</span>
+                            </>
+                          )}
                         </div>
                       </div>
 

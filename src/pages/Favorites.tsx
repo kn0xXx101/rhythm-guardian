@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Heart, MapPin, Star, MessageCircle, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { searchService } from '@/services/search';
+import { supabase } from '@/lib/supabase';
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -31,7 +33,28 @@ export default function Favorites() {
 
     try {
       const data = await searchService.getUserFavorites(user.id);
-      setFavorites(data);
+      const musicianIds = (data || [])
+        .map((f: { musician_user_id?: string }) => f.musician_user_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, musicianIds);
+      const enriched = (data || []).map((f: any) => {
+        const prof = f.profiles || {};
+        const mid = f.musician_user_id as string | undefined;
+        if (failed || !mid) return f;
+        const row = byRevieweeId[mid];
+        if (!row || row.count === 0) {
+          return { ...f, profiles: { ...prof, rating: null, total_reviews: 0 } };
+        }
+        return {
+          ...f,
+          profiles: {
+            ...prof,
+            rating: averageRatingFromSumCount(row.sum, row.count),
+            total_reviews: row.count,
+          },
+        };
+      });
+      setFavorites(enriched);
     } catch (error) {
       console.error('Failed to load favorites:', error);
       toast({ title: 'Failed to load favorites', variant: 'destructive' });
@@ -131,7 +154,11 @@ export default function Favorites() {
                   </CardTitle>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Star className="h-3 w-3 text-yellow-500 fill-yellow-500 mr-1" />
-                    <span>{favorite.profiles?.rating || 'New'}</span>
+                    <span>
+                      {favorite.profiles?.rating != null && Number(favorite.profiles.rating) > 0
+                        ? Number(favorite.profiles.rating).toFixed(1)
+                        : 'New'}
+                    </span>
                     <span className="mx-1">•</span>
                     <span className="truncate">{favorite.profiles?.instruments?.[0] || 'Musician'}</span>
                   </div>

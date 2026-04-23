@@ -29,6 +29,8 @@ export interface Booking {
     id: string;
     name: string;
     image: string;
+    /** Average rating from reviews where this hirer is the reviewee */
+    rating?: number;
   };
   status: BookingStatus;
   paymentStatus: PaymentStatus;

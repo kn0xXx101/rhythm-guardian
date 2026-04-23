@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import { SearchFilters, SearchPreferences } from '@/types/features';
 
 export const searchService = {
@@ -19,10 +20,6 @@ export const searchService = {
 
     if (filters.maxPrice !== undefined) {
       query = query.lte('price_max', filters.maxPrice);
-    }
-
-    if (filters.minRating !== undefined) {
-      query = query.gte('rating', filters.minRating);
     }
 
     if (filters.experienceLevel) {
@@ -46,7 +43,32 @@ export const searchService = {
       .order('rating', { ascending: false });
 
     if (error) throw error;
-    return data;
+
+    const rows = data || [];
+    const ids = rows.map((p: { user_id?: string }) => p.user_id).filter(Boolean) as string[];
+    const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, ids);
+
+    let merged = rows.map((p: Record<string, unknown> & { user_id?: string }) => {
+      const id = p.user_id;
+      if (!id || failed) return p;
+      const row = byRevieweeId[id];
+      if (!row || row.count === 0) {
+        return { ...p, rating: null, total_reviews: 0 };
+      }
+      return {
+        ...p,
+        rating: averageRatingFromSumCount(row.sum, row.count),
+        total_reviews: row.count,
+      };
+    });
+
+    if (filters.minRating !== undefined) {
+      merged = merged.filter((p: any) => (Number(p.rating) || 0) >= filters.minRating!);
+    }
+
+    merged.sort((a: any, b: any) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+
+    return merged;
   },
 
   async saveSearchPreference(preference: Omit<SearchPreferences, 'id' | 'created_at'>) {
