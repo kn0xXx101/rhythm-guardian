@@ -32,6 +32,7 @@ const MusicianChat = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const {
+    sendMessage,
     activeContactId,
     setActiveContactId,
     updateContactStatus,
@@ -53,6 +54,18 @@ const MusicianChat = () => {
   const aiAssistantUnread =
     aiAssistantMessages.length > 0 &&
     !aiAssistantMessages[aiAssistantMessages.length - 1]?.isSender;
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (aiAssistantMessages.length > 0) return;
+    const key = `ai-assistant-auto-init:musician:${user.id}`;
+    if (sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    void sendMessage(
+      AI_ASSISTANT_ID,
+      'Give me a short step-by-step guide for what I should do next as a musician, based on my current account and bookings.'
+    );
+  }, [aiAssistantMessages.length, sendMessage, user?.id]);
 
   // Update AI Assistant contact when messages change
   useEffect(() => {

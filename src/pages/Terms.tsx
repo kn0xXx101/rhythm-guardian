@@ -86,6 +86,28 @@ const sections = [
   },
   {
     number: '07',
+    title: 'Automated Guidance and AI Assistance',
+    subsections: [
+      {
+        heading: 'Purpose and Scope',
+        body: 'Rhythm Guardian may provide automated in-app guidance (including AI-assisted suggestions) to help you navigate bookings, profile setup, verification, and payment-related actions. These prompts are informational and operational only; they do not replace your own judgment or legal/financial advice.',
+      },
+      {
+        heading: 'How Suggestions Are Generated',
+        body: 'Guidance messages may be generated from account context such as role, page route, profile completion state, verification status, and booking/payment states. We design these prompts to recommend next best actions in-product and to direct users to valid platform flows.',
+      },
+      {
+        heading: 'User Responsibility',
+        body: 'You remain responsible for final actions taken on your account, including accepting bookings, confirming service completion, making or receiving payments, and sharing content. You should verify all key details before acting on any automated prompt.',
+      },
+      {
+        heading: 'Safety and Abuse Controls',
+        body: 'Automated guidance must not be used to bypass platform safeguards, escrow requirements, moderation controls, or other Terms. We may limit, suspend, or remove assistant features for misuse, security concerns, or policy violations.',
+      },
+    ],
+  },
+  {
+    number: '08',
     title: 'Disclaimers and Limitation of Liability',
     content: [
       'The platform is provided on an "as is" and "as available" basis. To the maximum extent permitted by law, Rhythm Guardian disclaims all warranties, express or implied, including fitness for a particular purpose and non-infringement.',
@@ -94,7 +116,7 @@ const sections = [
     ],
   },
   {
-    number: '08',
+    number: '09',
     title: 'Changes to These Terms',
     content: [
       'We may update these Terms from time to time. When we make material changes, we will update the version date and may notify you through the app or by email. Your continued use of Rhythm Guardian after changes take effect means you accept the updated Terms.',
@@ -118,7 +140,7 @@ export default function Terms() {
             These terms govern your use of Rhythm Guardian as a hirer, musician, or administrator.
             Please read them carefully before using the platform.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 20 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 23 April 2026</p>
         </div>
       </div>
 

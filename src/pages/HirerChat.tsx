@@ -37,6 +37,7 @@ const HirerChat = () => {
   console.log('[HirerChat] Auth state:', { user: !!user, isAuthLoading });
 
   const {
+    sendMessage,
     setActiveContactId,
     updateContactStatus,
     chatSettings,
@@ -57,6 +58,18 @@ const HirerChat = () => {
   const aiAssistantUnread =
     aiAssistantMessages.length > 0 &&
     !aiAssistantMessages[aiAssistantMessages.length - 1]?.isSender;
+
+  useEffect(() => {
+    if (!user?.id) return;
+    if (aiAssistantMessages.length > 0) return;
+    const key = `ai-assistant-auto-init:hirer:${user.id}`;
+    if (sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    void sendMessage(
+      AI_ASSISTANT_ID,
+      'Give me a short step-by-step guide for what I should do next as a hirer, based on my current account and bookings.'
+    );
+  }, [aiAssistantMessages.length, sendMessage, user?.id]);
 
   // Keep ref in sync with contacts state
   useEffect(() => {

@@ -26,6 +26,10 @@ const sections = [
         heading: 'Onboarding and product tours',
         body: 'We may store whether you have completed optional orientation or feature tours (for example a first-time dashboard walkthrough) in your account or in your browser’s local storage so we do not repeatedly show the same introduction. You can skip or dismiss these flows at any time.',
       },
+      {
+        heading: 'Automated navigation assistant data',
+        body: 'To provide contextual in-app guidance, we may process limited account context (such as your role, current route, booking/payment state, profile completion, and verification status). This is used to generate next-step prompts and reduce navigation friction within the product.',
+      },
     ],
   },
   {
@@ -111,6 +115,14 @@ const sections = [
   },
   {
     number: '08',
+    title: 'Automated Decisions and Assistant Limitations',
+    content: [
+      'Our navigation assistant and automation features are designed to suggest practical next steps, not to make binding decisions on your behalf. Final booking, payment, dispute, and confirmation actions remain user-controlled.',
+      'Where AI-assisted text generation is used, outputs are constrained to platform-supported actions and safety checks. We apply validation and fallback rules to reduce inaccurate or unsafe guidance.',
+    ],
+  },
+  {
+    number: '09',
     title: 'Updates to This Policy',
     content: [
       'We may update this Privacy Policy from time to time as we add new features or to comply with legal requirements. When we make material changes, we will update the version date and may notify you through the platform or by email. Your continued use of the platform after changes take effect means you accept the updated policy.',
@@ -134,7 +146,7 @@ export default function Privacy() {
             This policy explains how Rhythm Guardian collects, uses, and protects your information
             when you use our platform to hire musicians or offer musical services.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 20 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 23 April 2026</p>
         </div>
       </div>
 

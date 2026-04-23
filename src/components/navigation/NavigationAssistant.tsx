@@ -16,9 +16,12 @@ type NavigationAssistantProps = {
     profileCompletion: number | null;
     documentsSubmitted: boolean | null;
     documentsVerified: boolean | null;
+    totalBookingsCount: number;
+    activeBookingsCount: number;
     pendingBookingsCount: number;
     unpaidBookingsCount: number;
     needsServiceConfirmationCount: number;
+    unreadNotificationsCount: number;
   };
   /** When false, assistant stays hidden (prevents flicker during loading). */
   ready?: boolean;
