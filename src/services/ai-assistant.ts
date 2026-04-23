@@ -85,6 +85,192 @@ interface AIAssistantResponse {
   action?: 'list_tickets' | 'check_status' | 'close_ticket';
 }
 
+type AssistantIntent =
+  | 'next_steps'
+  | 'payments'
+  | 'confirm_service'
+  | 'verification'
+  | 'bookings'
+  | 'profile'
+  | 'messages'
+  | 'general';
+
+type UserGuidanceContext = {
+  userId: string;
+  role: 'hirer' | 'musician' | 'admin' | null;
+  profileCompletion: number | null;
+  documentsSubmitted: boolean | null;
+  documentsVerified: boolean | null;
+  unpaidActionableBookings: number;
+  needsServiceConfirmation: number;
+  pendingRequests: number;
+};
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function detectIntent(normalizedMessage: string): AssistantIntent {
+  if (/\b(next|what should i do|guide me|step by step|steps|help me decide)\b/i.test(normalizedMessage))
+    return 'next_steps';
+  if (/\b(pay|payment|paid|unpaid|fees|charge|invoice|billing)\b/i.test(normalizedMessage)) return 'payments';
+  if (/\b(confirm|service completed|complete service|rendering|payout release)\b/i.test(normalizedMessage))
+    return 'confirm_service';
+  if (/\b(verify|verification|badge|documents?|id)\b/i.test(normalizedMessage)) return 'verification';
+  if (/\b(bookings?|requests?|accept|decline|upcoming)\b/i.test(normalizedMessage)) return 'bookings';
+  if (/\b(profile|account|settings?|edit profile)\b/i.test(normalizedMessage)) return 'profile';
+  if (/\b(message|chat|inbox|conversation)\b/i.test(normalizedMessage)) return 'messages';
+  return 'general';
+}
+
+async function fetchGuidanceContext(
+  userId: string,
+  role: 'hirer' | 'musician' | 'admin' | null
+): Promise<UserGuidanceContext> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('profile_completion_percentage, documents_submitted, documents_verified')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  const ownerColumn = role === 'musician' ? 'musician_id' : 'hirer_id';
+  const now = Date.now();
+  const isPastOrNow = (dateValue: string) => {
+    const ts = new Date(dateValue).getTime();
+    if (Number.isNaN(ts)) return false;
+    return ts <= now;
+  };
+  const isFutureOrToday = (dateValue: string) => {
+    const ts = new Date(dateValue).getTime();
+    if (Number.isNaN(ts)) return false;
+    return ts >= now - 24 * 60 * 60 * 1000;
+  };
+
+  const { data: bookings } = await supabase
+    .from('bookings')
+    .select('status, payment_status, event_date, service_confirmed_by_hirer, service_confirmed_by_musician')
+    .eq(ownerColumn, userId)
+    .in('status', ['pending', 'accepted', 'in_progress']);
+
+  const list = (bookings as any[]) || [];
+  const unpaidActionableBookings = list.filter((b) => {
+    if (b.payment_status !== 'pending') return false;
+    if (!(b.status === 'accepted' || b.status === 'in_progress')) return false;
+    return isFutureOrToday(b.event_date);
+  }).length;
+
+  const needsServiceConfirmation = list.filter((b) => {
+    if (!(b.status === 'accepted' || b.status === 'in_progress')) return false;
+    if (!isPastOrNow(b.event_date)) return false;
+    return role === 'musician' ? b.service_confirmed_by_musician !== true : b.service_confirmed_by_hirer !== true;
+  }).length;
+
+  const pendingRequests = list.filter((b) => b.status === 'pending').length;
+
+  return {
+    userId,
+    role,
+    profileCompletion: (profile as any)?.profile_completion_percentage ?? null,
+    documentsSubmitted: (profile as any)?.documents_submitted ?? null,
+    documentsVerified: (profile as any)?.documents_verified ?? null,
+    unpaidActionableBookings,
+    needsServiceConfirmation,
+    pendingRequests,
+  };
+}
+
+function buildGuidanceResponse(intent: AssistantIntent, ctx: UserGuidanceContext): string {
+  const role = ctx.role;
+  const header =
+    role === 'musician'
+      ? "Here’s a clear next-step plan for you as a musician."
+      : role === 'hirer'
+        ? "Here’s a clear next-step plan for you as a hirer."
+        : "Here’s a clear next-step plan.";
+
+  const lines: string[] = [];
+  lines.push(`👋 ${header}`);
+  lines.push('');
+
+  // Always ground “action needed” items in real counts.
+  const actionLines: string[] = [];
+  if (ctx.unpaidActionableBookings > 0 && role === 'hirer') {
+    actionLines.push(`Payment pending (${pluralize(ctx.unpaidActionableBookings, 'booking', 'bookings')})`);
+    actionLines.push(`- Open My Bookings → open the booking → complete payment in-app.`);
+    actionLines.push('');
+  }
+  if (ctx.needsServiceConfirmation > 0) {
+    actionLines.push(
+      `Service confirmation needed (${pluralize(ctx.needsServiceConfirmation, 'booking', 'bookings')})`
+    );
+    actionLines.push(`- Open My Bookings → open the booking → Confirm Rendering / Complete Service.`);
+    actionLines.push('');
+  }
+  if (ctx.pendingRequests > 0 && role === 'musician') {
+    actionLines.push(`Booking requests waiting (${pluralize(ctx.pendingRequests, 'request', 'requests')})`);
+    actionLines.push(`- Open My Bookings → review details → Accept or Decline.`);
+    actionLines.push('');
+  }
+  if (role === 'musician' && ctx.documentsVerified === false) {
+    actionLines.push(`Verification`);
+    actionLines.push(`- Status: ${ctx.documentsSubmitted ? 'Submitted (under review)' : 'Not submitted yet'}.`);
+    actionLines.push(`- Open My Profile → submit verification documents (optional, helps trust).`);
+    actionLines.push('');
+  }
+  if ((ctx.profileCompletion ?? 0) > 0 && (ctx.profileCompletion ?? 0) < 80) {
+    // Do not nag verified musicians about profile completion unless it’s directly blocking something.
+    if (!(role === 'musician' && ctx.documentsVerified === true)) {
+      actionLines.push(`Profile quality`);
+      actionLines.push(`- Your profile is ${ctx.profileCompletion}% complete.`);
+      actionLines.push(`- Open My Profile → fill missing fields (rates, availability, bio, photos).`);
+      actionLines.push('');
+    }
+  }
+
+  const quickHelpLines: string[] = [];
+  if (intent === 'payments') {
+    quickHelpLines.push('Payments');
+    quickHelpLines.push('- Pay in-app to keep protection active.');
+    quickHelpLines.push('- Hirer: you’ll see totals before checkout.');
+    quickHelpLines.push('- Musician: payout depends on booking state + confirmations.');
+  } else if (intent === 'verification') {
+    quickHelpLines.push('Verification');
+    quickHelpLines.push('- Open My Profile → follow verification prompt.');
+    quickHelpLines.push('- If submitted, it stays pending until reviewed.');
+  } else if (intent === 'bookings') {
+    quickHelpLines.push('Bookings');
+    quickHelpLines.push('- Open My Bookings to see pending/active/completed.');
+    quickHelpLines.push('- Open a booking to accept/decline, pay, or confirm service.');
+  } else if (intent === 'messages') {
+    quickHelpLines.push('Messages');
+    quickHelpLines.push('- Keep details in chat.');
+    quickHelpLines.push('- Avoid off-platform payments; pay in-app for protection.');
+  }
+  if (quickHelpLines.length > 0) {
+    lines.push(quickHelpLines.join('\n'));
+    lines.push('');
+  }
+
+  lines.push('Next actions');
+  if (actionLines.length > 0) {
+    // Trim trailing empty line
+    while (actionLines.length > 0 && actionLines[actionLines.length - 1] === '') actionLines.pop();
+    lines.push(actionLines.join('\n'));
+  } else {
+    lines.push('- Nothing urgent found right now based on your current bookings and profile state.');
+  }
+  lines.push('');
+
+  lines.push('If you want, say one of these');
+  lines.push(
+    role === 'musician'
+      ? '- Help me respond to a booking request\n- How do I get paid?\n- Check my verification status'
+      : '- Help me book a musician\n- I need help with payment\n- How do I complete service confirmation?'
+  );
+
+  return lines.join('\n');
+}
+
 /**
  * AI Assistant Service
  * Handles user queries and provides automated responses
@@ -101,6 +287,7 @@ export class AIAssistantService {
     userRole?: 'hirer' | 'musician' | 'admin' | null
   ): Promise<AIAssistantResponse> {
     const normalizedMessage = userMessage.toLowerCase().trim();
+    const intent = detectIntent(normalizedMessage);
 
     // Check for escalation requests
     const wantsEscalation = ESCALATION_KEYWORDS.some((keyword) =>
@@ -138,6 +325,20 @@ export class AIAssistantService {
           shouldEscalate: false,
           action: 'close_ticket',
         };
+      }
+    }
+
+    // Grounded automation: if we have a userId+role, generate a DB-backed guide first.
+    // This avoids fabricated “action needed” guidance and keeps responses realistic.
+    if (userId && (userRole === 'hirer' || userRole === 'musician')) {
+      try {
+        const ctx = await fetchGuidanceContext(userId, userRole);
+        // Only run this for guidance-style requests, or when OpenAI is not configured.
+        if (intent !== 'general' || !openAIService.isConfigured()) {
+          return { response: buildGuidanceResponse(intent, ctx), shouldEscalate: false };
+        }
+      } catch (error) {
+        console.warn('Failed to fetch grounded guidance context:', error);
       }
     }
 
@@ -389,7 +590,14 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
    */
   async checkForAdminResponses(userId: string): Promise<{
     hasNewResponses: boolean;
-    responses: Array<{ ticket_id: string; admin_name: string; message: string; timestamp: string }>;
+    responses: Array<{
+      ticket_id: string;
+      message_id: string;
+      admin_name: string;
+      message: string;
+      timestamp: string;
+      session_expires_at?: string | null;
+    }>;
   }> {
     try {
       const session = await SessionManager.getValidSession();
@@ -399,9 +607,9 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
 
       console.log('🔍 Checking for admin responses for user:', userId);
       
-      // Use RPC function to get user's active tickets
+      // Use RPC function to get user's active tickets + session info
       const { data: tickets, error: ticketsError } = await supabase.rpc(
-        'get_user_active_tickets' as any,
+        'get_user_active_tickets_with_session' as any,
         { p_user_id: userId }
       );
 
@@ -418,7 +626,15 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
       
       console.log('⏰ Last check time:', lastCheck);
 
-      const responses: Array<{ ticket_id: string; admin_name: string; message: string; timestamp: string }> = [];
+      const responses: Array<{
+        ticket_id: string;
+        message_id: string;
+        admin_name: string;
+        message: string;
+        timestamp: string;
+        session_expires_at?: string | null;
+      }> = [];
+      let maxSeenTimestamp: string | null = null;
 
       // For each ticket, check for new admin messages
       for (const ticket of tickets) {
@@ -436,17 +652,26 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
         console.log('📨 New messages result for ticket', ticket.id, ':', { newMessages, error: messagesError });
 
         if (!messagesError && newMessages) {
-          responses.push(...newMessages.map((msg: any) => ({
-            ticket_id: ticket.id,
-            admin_name: msg.sender_name || 'Administrator',
-            message: msg.content,
-            timestamp: msg.created_at,
-          })));
+          for (const msg of newMessages as any[]) {
+            const createdAt = msg.created_at as string;
+            if (!maxSeenTimestamp || new Date(createdAt).getTime() > new Date(maxSeenTimestamp).getTime()) {
+              maxSeenTimestamp = createdAt;
+            }
+            responses.push({
+              ticket_id: ticket.id,
+              message_id: String(msg.id ?? `${ticket.id}:${createdAt}:${msg.content ?? ''}`),
+              admin_name: msg.sender_name || 'Administrator',
+              message: msg.content,
+              timestamp: createdAt,
+              session_expires_at: (ticket as any).session_expires_at ?? null,
+            });
+          }
         }
       }
 
       // Update last check time
-      const newCheckTime = new Date().toISOString();
+      // Use latest message timestamp to avoid duplicates on clock skew/poll overlap.
+      const newCheckTime = maxSeenTimestamp ?? new Date().toISOString();
       localStorage.setItem(lastCheckKey, newCheckTime);
       console.log('⏰ Updated last check time to:', newCheckTime);
 

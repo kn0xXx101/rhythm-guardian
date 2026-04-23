@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBookingContext } from '@/contexts/BookingContext';
 import { notificationsService } from '@/services/notificationsService';
+import { calculateProfileCompletion } from '@/lib/profile-completion';
 import type { AssistantUserRole } from '@/features/navigation-assistant/resolve-navigation-message';
 
 export type NavigationAssistantSignals = {
@@ -28,9 +29,9 @@ export type NavigationAssistantContext = {
 
 type ProfileSignalRow = {
   role: string | null;
-  profile_completion_percentage: number | null;
   documents_submitted: boolean | null;
   documents_verified: boolean | null;
+  completion: number | null;
 };
 
 export function useNavigationAssistantContext(args: {
@@ -59,7 +60,22 @@ export function useNavigationAssistantContext(args: {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('role, profile_completion_percentage, documents_submitted, documents_verified')
+          .select(
+            [
+              'role',
+              'full_name',
+              'bio',
+              'location',
+              'phone',
+              'avatar_url',
+              'instruments',
+              'genres',
+              'hourly_rate',
+              'available_days',
+              'documents_submitted',
+              'documents_verified',
+            ].join(',')
+          )
           .eq('user_id', user.id)
           .maybeSingle();
         if (cancelled) return;
@@ -68,7 +84,18 @@ export function useNavigationAssistantContext(args: {
           setProfileLoading(false);
           return;
         }
-        setProfileSignals((data as any) ?? null);
+        if (!data) {
+          setProfileSignals(null);
+          setProfileLoading(false);
+          return;
+        }
+        const result = calculateProfileCompletion(data as any);
+        setProfileSignals({
+          role: (data as any).role ?? null,
+          documents_submitted: (data as any).documents_submitted ?? null,
+          documents_verified: (data as any).documents_verified ?? null,
+          completion: result.percentage,
+        });
         setProfileLoading(false);
       } catch {
         if (cancelled) return;
@@ -201,7 +228,7 @@ export function useNavigationAssistantContext(args: {
     }).length;
 
     return {
-      profileCompletion: profileSignals?.profile_completion_percentage ?? null,
+      profileCompletion: profileSignals?.completion ?? null,
       documentsSubmitted: profileSignals?.documents_submitted ?? null,
       documentsVerified: profileSignals?.documents_verified ?? null,
       totalBookingsCount,

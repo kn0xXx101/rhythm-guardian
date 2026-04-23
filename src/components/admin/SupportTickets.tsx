@@ -16,6 +16,8 @@ interface SupportTicket {
   subject: string;
   original_message: string;
   created_at: string;
+  session_status?: string;
+  session_expires_at?: string | null;
   user_info?: {
     full_name: string;
     role: string;
@@ -232,7 +234,15 @@ export function SupportTickets() {
 
       {/* Ticket thread — full screen on mobile when selected */}
       {selectedTicket && (
-        <Card className="flex min-h-0 flex-col overflow-hidden lg:max-h-[calc(100dvh-12rem)]">
+        <Card
+          className={[
+            'flex min-h-0 flex-col overflow-hidden',
+            // Use available space on desktop/web without full-viewport overstretch.
+            // This eliminates the big empty area below while keeping the layout "normal".
+            'md:h-[clamp(40rem,78dvh,58rem)]',
+            'lg:h-[clamp(44rem,80dvh,62rem)]',
+          ].join(' ')}
+        >
           <CardHeader className="flex-shrink-0 space-y-3 border-b pb-3 sm:pb-4">
             <div className="flex flex-wrap items-start gap-2">
               <Button
@@ -252,7 +262,7 @@ export function SupportTickets() {
                 variant="outline"
                 size="sm"
                 onClick={() => resolveTicket(selectedTicket.id)}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto focus-visible:ring-2 focus-visible:ring-offset-0"
               >
                 Mark resolved
               </Button>
@@ -262,50 +272,81 @@ export function SupportTickets() {
               <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                 User: {selectedTicket.user_info?.full_name} ({selectedTicket.user_info?.role})
               </p>
+              {selectedTicket.session_expires_at && (
+                <p className="text-[11px] sm:text-xs text-muted-foreground mt-1">
+                  Session expires: {new Date(selectedTicket.session_expires_at).toLocaleString()}
+                </p>
+              )}
             </div>
           </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 p-3 pt-4 sm:p-6">
-            <div
-              className="min-h-[200px] flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-lg border bg-muted/20 p-2 sm:min-h-[240px] sm:p-3"
-              style={{ maxHeight: 'min(65dvh, 28rem)' }}
-            >
-              <div className="rounded-lg bg-muted p-3">
-                <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
-                <p className="mt-1 text-sm leading-relaxed">{selectedTicket.original_message}</p>
-              </div>
+          {/* Only the thread scrolls; composer stays pinned */}
+          <CardContent className="flex min-h-0 flex-1 flex-col p-3 pt-4 sm:p-6 overflow-hidden">
+            {/*
+              When there are no replies yet, avoid forcing a tall scroll container.
+              This keeps the web/desktop view compact instead of showing a large empty panel.
+            */}
+            {(() => {
+              const hasThread = (selectedTicket.messages?.length ?? 0) > 0;
+              const original = (selectedTicket.original_message || '').trim();
+              const hasOriginal = original.length > 0;
+              return (
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 rounded-lg border bg-muted/20 p-2 pb-28 sm:p-3 sm:pb-32">
+                  {hasOriginal ? (
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{original}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg bg-muted p-3">
+                      <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        No original request was captured for this ticket yet.
+                      </p>
+                    </div>
+                  )}
 
-              {selectedTicket.messages?.map((message) => (
-                <div
-                  key={message.id}
-                  className={`rounded-xl p-3 text-sm ${
-                    message.sender_type === 'admin'
-                      ? 'ml-0 border border-primary/20 bg-primary/10 sm:ml-6'
-                      : 'mr-0 border border-border bg-card sm:mr-6'
-                  }`}
-                >
-                  <p className="mb-1 text-[11px] text-muted-foreground sm:text-xs">
-                    {message.sender_name} · {new Date(message.created_at).toLocaleString()}
-                  </p>
-                  <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                  {selectedTicket.messages?.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`rounded-xl p-3 text-sm ${
+                        message.sender_type === 'admin'
+                          ? 'ml-0 border border-primary/20 bg-primary/10 sm:ml-6'
+                          : 'mr-0 border border-border bg-card sm:mr-6'
+                      }`}
+                    >
+                      <p className="mb-1 text-[11px] text-muted-foreground sm:text-xs">
+                        {message.sender_name} · {new Date(message.created_at).toLocaleString()}
+                      </p>
+                      <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                    </div>
+                  ))}
+
+                  {!hasThread && (
+                    <div className="rounded-lg border border-dashed bg-background/40 p-3 text-sm text-muted-foreground">
+                      No replies yet. Your response below will be sent to the user in the AI Assistant chat.
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
-            <div className="flex-shrink-0 space-y-2 border-t pt-3 sm:space-y-3 sm:pt-4">
-              <Textarea
-                placeholder="Type your reply… (user sees this in the AI Assistant chat)"
-                value={responseMessage}
-                onChange={(e) => setResponseMessage(e.target.value)}
-                rows={4}
-                className="min-h-[100px] resize-y sm:min-h-[120px]"
-              />
-              <Button
-                onClick={sendResponse}
-                disabled={!responseMessage.trim() || isSending}
-                className="w-full"
-              >
-                {isSending ? 'Sending…' : 'Send via AI Assistant'}
-              </Button>
+            <div className="sticky bottom-0 -mx-3 sm:-mx-6 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70">
+              <div className="space-y-2 px-3 pt-3 pb-3 sm:space-y-3 sm:px-6 sm:pt-4 sm:pb-6">
+                <Textarea
+                  placeholder="Type your reply… (user sees this in the AI Assistant chat)"
+                  value={responseMessage}
+                  onChange={(e) => setResponseMessage(e.target.value)}
+                  rows={4}
+                  className="min-h-[120px] max-h-[35dvh] resize-none sm:min-h-[140px] focus-visible:ring-2 focus-visible:ring-offset-0"
+                />
+                <Button
+                  onClick={sendResponse}
+                  disabled={!responseMessage.trim() || isSending}
+                  className="w-full focus-visible:ring-2 focus-visible:ring-offset-0"
+                >
+                  {isSending ? 'Sending…' : 'Send via AI Assistant'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

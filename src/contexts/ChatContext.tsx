@@ -170,9 +170,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const event = new CustomEvent('admin-response-received', {
                 detail: {
                   ticket_id: response.ticket_id,
+                  ticket_message_id: (response as any).message_id,
                   admin_name: response.admin_name,
                   message: response.message,
                   timestamp: response.timestamp,
+                  session_expires_at: (response as any).session_expires_at ?? null,
                 }
               });
               
@@ -194,8 +196,25 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const pollInterval = setInterval(pollForAdminResponses, 5000);
 
       // Listen for admin responses to support tickets
+      const seenKey = `ai-assistant:seen-admin-ticket-messages:${user.id}`;
+      const seenSet = new Set<string>(
+        (localStorage.getItem(seenKey) || '')
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+      const persistSeen = () => {
+        // Keep this compact to avoid localStorage bloat.
+        const list = Array.from(seenSet).slice(-200);
+        localStorage.setItem(seenKey, list.join('|'));
+      };
+
       const handleAdminResponse = (event: CustomEvent) => {
-        const { admin_name, message } = event.detail;
+        const { admin_name, message, ticket_message_id, session_expires_at } = event.detail as any;
+        const dedupeId = String(ticket_message_id || `${admin_name}:${message}:${session_expires_at || ''}`);
+        if (seenSet.has(dedupeId)) return;
+        seenSet.add(dedupeId);
+        persistSeen();
         
         console.log('🎯 Received admin response event:', event.detail);
         
@@ -204,7 +223,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: `admin-response-${Date.now()}-${Math.random()}`,
           senderId: AI_ASSISTANT_ID,
           receiverId: user.id,
-          text: `👨‍💼 **${admin_name} (Administrator):**\n\n${message}\n\n---\n💬 You can continue chatting here - I'll relay your messages to the admin. Session expires in 5 minutes if no response.`,
+          text: `${admin_name} (Administrator)\n\n${message}\n\nYou can reply here and I will relay your message to the admin.${
+            session_expires_at ? `\nSession ends at: ${new Date(session_expires_at).toLocaleTimeString()}` : ''
+          }`,
           timestamp: new Date().toISOString(),
           isSender: false,
           status: 'sent',
