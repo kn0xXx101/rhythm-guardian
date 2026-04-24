@@ -6,6 +6,7 @@ import { initPerformanceMonitoring } from './lib/performance';
 import { analytics } from './lib/analytics';
 import { initCacheBusting } from './utils/cache-buster';
 import { unlockNotificationSoundOnce } from './services/notification';
+import { initClientErrorReporting } from './lib/error-reporting';
 
 const STALE_CHUNK_RELOAD_KEY = 'rg_stale_chunk_reload_attempted';
 
@@ -85,6 +86,12 @@ try {
   console.log('[main.tsx] Analytics initialized');
 } catch (error) {
   console.error('[main.tsx] Error initializing analytics:', error);
+}
+
+try {
+  initClientErrorReporting();
+} catch (error) {
+  console.error('[main.tsx] Error initializing client error reporting:', error);
 }
 
 // Track page views

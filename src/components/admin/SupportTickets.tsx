@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -7,86 +7,53 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft } from 'lucide-react';
+import { auditService } from '@/services/audit';
+import {
+  rpcAddTicketMessage,
+  rpcGetSupportTickets,
+  rpcGetTicketMessages,
+  rpcResolveTicket,
+  type SupportTicketListRow,
+  type TicketMessageRow,
+} from '@/lib/support-ticket-rpc';
 
-interface SupportTicket {
-  id: string;
-  user_id: string;
-  status: string;
-  priority: string;
-  subject: string;
-  original_message: string;
-  created_at: string;
-  session_status?: string;
-  session_expires_at?: string | null;
-  user_info?: {
-    full_name: string;
-    role: string;
-  };
-  messages?: Array<{
-    id: string;
-    sender_type: string;
-    sender_name: string;
-    content: string;
-    created_at: string;
-  }>;
-}
+type SupportTicket = SupportTicketListRow & { messages?: TicketMessageRow[] };
+
+const TICKETS_QUERY_KEY = ['admin', 'support-tickets'] as const;
 
 export function SupportTickets() {
-  const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+  const queryClient = useQueryClient();
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [responseMessage, setResponseMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchTickets();
-  }, []);
+  const ticketsQuery = useQuery({
+    queryKey: TICKETS_QUERY_KEY,
+    queryFn: rpcGetSupportTickets,
+    staleTime: 30_000,
+  });
 
-  const fetchTickets = async () => {
-    try {
-      // Use raw SQL query since tables might not be in types yet
-      const { data, error } = await supabase
-        .rpc('get_support_tickets' as any)
-        .then(result => {
-          if (result.error) {
-            // Fallback: show message that tickets need to be set up
-            console.log('Support tickets not set up yet');
-            return { data: [], error: null };
-          }
-          return result;
-        });
+  const messagesQuery = useQuery({
+    queryKey: ['admin', 'support-ticket-messages', selectedTicketId],
+    queryFn: () => rpcGetTicketMessages(selectedTicketId!),
+    enabled: Boolean(selectedTicketId),
+  });
 
-      if (error) throw error;
+  const tickets = ticketsQuery.data ?? [];
 
-      setTickets(data || []);
-    } catch (error) {
-      console.error('Error fetching tickets:', error);
-      // Don't show error toast - just show empty state
-      setTickets([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const selectedTicket = useMemo((): SupportTicket | null => {
+    if (!selectedTicketId) return null;
+    const base = tickets.find((t) => t.id === selectedTicketId);
+    if (!base) return null;
+    return { ...base, messages: messagesQuery.data ?? [] };
+  }, [tickets, selectedTicketId, messagesQuery.data]);
 
-  const fetchTicketMessages = async (ticketId: string) => {
-    try {
-      const { data, error } = await supabase
-        .rpc('get_ticket_messages' as any, { ticket_id: ticketId });
+  const isLoading = ticketsQuery.isLoading;
 
-      if (error) throw error;
-
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching ticket messages:', error);
-      return [];
-    }
-  };
-
-  const selectTicket = async (ticket: SupportTicket) => {
-    const messages = await fetchTicketMessages(ticket.id);
-    setSelectedTicket({ ...ticket, messages });
+  const openTicket = (ticket: SupportTicketListRow) => {
+    setSelectedTicketId(ticket.id);
   };
 
   const sendResponse = async () => {
@@ -94,15 +61,20 @@ export function SupportTickets() {
 
     setIsSending(true);
     try {
-      // Use RPC function to add message
-      const { error } = await supabase.rpc('add_ticket_message' as any, {
-        p_ticket_id: selectedTicket.id,
-        p_sender_type: 'admin',
-        p_sender_id: user.id,
-        p_content: responseMessage.trim(),
+      await rpcAddTicketMessage({
+        ticketId: selectedTicket.id,
+        senderType: 'admin',
+        senderId: user.id,
+        content: responseMessage.trim(),
       });
 
-      if (error) throw error;
+      await auditService.logEvent({
+        action: 'support_ticket_admin_reply',
+        entityType: 'support_ticket',
+        entityId: selectedTicket.id,
+        description: 'Admin sent a reply on a support ticket',
+        metadata: { contentLength: responseMessage.trim().length },
+      });
 
       toast({
         title: 'Response Sent',
@@ -110,12 +82,8 @@ export function SupportTickets() {
       });
 
       setResponseMessage('');
-      
-      // Refresh the selected ticket
-      await selectTicket(selectedTicket);
-      
-      // Refresh tickets list
-      await fetchTickets();
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'support-ticket-messages', selectedTicket.id] });
+      await queryClient.invalidateQueries({ queryKey: TICKETS_QUERY_KEY });
     } catch (error) {
       console.error('Error sending response:', error);
       toast({
@@ -129,22 +97,28 @@ export function SupportTickets() {
   };
 
   const resolveTicket = async (ticketId: string) => {
+    if (!user?.id) return;
     try {
-      const { error } = await supabase.rpc('resolve_ticket' as any, {
-        p_ticket_id: ticketId,
-        p_admin_id: user?.id,
+      await rpcResolveTicket({
+        ticketId,
+        adminId: user.id,
       });
 
-      if (error) throw error;
+      await auditService.logEvent({
+        action: 'support_ticket_resolved',
+        entityType: 'support_ticket',
+        entityId: ticketId,
+        description: 'Admin marked a support ticket as resolved',
+      });
 
       toast({
         title: 'Ticket Resolved',
         description: 'Support ticket has been marked as resolved',
       });
 
-      await fetchTickets();
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket(null);
+      await queryClient.invalidateQueries({ queryKey: TICKETS_QUERY_KEY });
+      if (selectedTicketId === ticketId) {
+        setSelectedTicketId(null);
       }
     } catch (error) {
       console.error('Error resolving ticket:', error);
@@ -204,7 +178,7 @@ export function SupportTickets() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  void selectTicket(ticket);
+                  openTicket(ticket);
                 }
               }}
               className={`rounded-xl border p-3 sm:p-4 cursor-pointer transition-colors active:bg-muted/80 ${
@@ -212,7 +186,7 @@ export function SupportTickets() {
                   ? 'border-primary bg-primary/5'
                   : 'hover:bg-muted/50'
               }`}
-              onClick={() => void selectTicket(ticket)}
+              onClick={() => openTicket(ticket)}
             >
               <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <Badge variant={ticket.status === 'open' ? 'destructive' : 'secondary'}>
@@ -250,7 +224,7 @@ export function SupportTickets() {
                 variant="ghost"
                 size="sm"
                 className="-ml-2 lg:hidden"
-                onClick={() => setSelectedTicket(null)}
+                onClick={() => setSelectedTicketId(null)}
               >
                 <ArrowLeft className="mr-1 h-4 w-4" aria-hidden />
                 All tickets
@@ -281,54 +255,56 @@ export function SupportTickets() {
           </CardHeader>
           {/* Only the thread scrolls; composer stays pinned */}
           <CardContent className="flex min-h-0 flex-1 flex-col p-3 pt-4 sm:p-6 overflow-hidden">
-            {/*
-              When there are no replies yet, avoid forcing a tall scroll container.
-              This keeps the web/desktop view compact instead of showing a large empty panel.
-            */}
-            {(() => {
-              const hasThread = (selectedTicket.messages?.length ?? 0) > 0;
-              const original = (selectedTicket.original_message || '').trim();
-              const hasOriginal = original.length > 0;
-              return (
-                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 rounded-lg border bg-muted/20 p-2 pb-28 sm:p-3 sm:pb-32">
-                  {hasOriginal ? (
-                    <div className="rounded-lg bg-muted p-3">
-                      <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{original}</p>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg bg-muted p-3">
-                      <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
-                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                        No original request was captured for this ticket yet.
-                      </p>
-                    </div>
-                  )}
+            {messagesQuery.isLoading ? (
+              <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
+                Loading messages…
+              </div>
+            ) : (
+              (() => {
+                const hasThread = (selectedTicket.messages?.length ?? 0) > 0;
+                const original = (selectedTicket.original_message || '').trim();
+                const hasOriginal = original.length > 0;
+                return (
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-3 rounded-lg border bg-muted/20 p-2 pb-28 sm:p-3 sm:pb-32">
+                    {hasOriginal ? (
+                      <div className="rounded-lg bg-muted p-3">
+                        <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed">{original}</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg bg-muted p-3">
+                        <p className="text-xs font-medium text-muted-foreground sm:text-sm">Original request</p>
+                        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                          No original request was captured for this ticket yet.
+                        </p>
+                      </div>
+                    )}
 
-                  {selectedTicket.messages?.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`rounded-xl p-3 text-sm ${
-                        message.sender_type === 'admin'
-                          ? 'ml-0 border border-primary/20 bg-primary/10 sm:ml-6'
-                          : 'mr-0 border border-border bg-card sm:mr-6'
-                      }`}
-                    >
-                      <p className="mb-1 text-[11px] text-muted-foreground sm:text-xs">
-                        {message.sender_name} · {new Date(message.created_at).toLocaleString()}
-                      </p>
-                      <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-                    </div>
-                  ))}
+                    {selectedTicket.messages?.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`rounded-xl p-3 text-sm ${
+                          message.sender_type === 'admin'
+                            ? 'ml-0 border border-primary/20 bg-primary/10 sm:ml-6'
+                            : 'mr-0 border border-border bg-card sm:mr-6'
+                        }`}
+                      >
+                        <p className="mb-1 text-[11px] text-muted-foreground sm:text-xs">
+                          {message.sender_name} · {new Date(message.created_at).toLocaleString()}
+                        </p>
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                      </div>
+                    ))}
 
-                  {!hasThread && (
-                    <div className="rounded-lg border border-dashed bg-background/40 p-3 text-sm text-muted-foreground">
-                      No replies yet. Your response below will be sent to the user in the AI Assistant chat.
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+                    {!hasThread && (
+                      <div className="rounded-lg border border-dashed bg-background/40 p-3 text-sm text-muted-foreground">
+                        No replies yet. Your response below will be sent to the user in the AI Assistant chat.
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
+            )}
 
             <div className="sticky bottom-0 -mx-3 sm:-mx-6 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/70">
               <div className="space-y-2 px-3 pt-3 pb-3 sm:space-y-3 sm:px-6 sm:pt-4 sm:pb-6">
@@ -341,7 +317,7 @@ export function SupportTickets() {
                 />
                 <Button
                   onClick={sendResponse}
-                  disabled={!responseMessage.trim() || isSending}
+                  disabled={!responseMessage.trim() || isSending || messagesQuery.isLoading}
                   className="w-full focus-visible:ring-2 focus-visible:ring-offset-0"
                 >
                   {isSending ? 'Sending…' : 'Send via AI Assistant'}

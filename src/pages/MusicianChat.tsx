@@ -14,6 +14,7 @@ import { Settings, Shield, Bell, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useSearchParams } from 'react-router-dom';
 import { AI_ASSISTANT_ID } from '@/services/ai-assistant';
+import { featureFlags } from '@/lib/feature-flags';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { ChatSearchBar, type SearchContact } from '@/components/chat/ChatSearchBar';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +57,7 @@ const MusicianChat = () => {
     !aiAssistantMessages[aiAssistantMessages.length - 1]?.isSender;
 
   useEffect(() => {
+    if (!featureFlags.aiAssistantAutoWelcome()) return;
     if (!user?.id) return;
     if (aiAssistantMessages.length > 0) return;
     const key = `ai-assistant-auto-init:musician:${user.id}`;
