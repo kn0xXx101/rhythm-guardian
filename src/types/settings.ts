@@ -23,6 +23,7 @@ export interface Settings {
     secondaryColor: string;
     darkMode: boolean;
     fontFamily: string;
+    ambientIntensity: 'low' | 'medium' | 'high';
   };
   integrations: {
     paystackPublicKey: string;

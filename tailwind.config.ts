@@ -21,11 +21,12 @@ export default {
 		extend: {
 			fontFamily: {
 				// UI/UX Pro Max Typography - Music Platform Fonts
-				'display': ['Righteous', 'sans-serif'], // For headings, logos, and bold statements
-				'sans': ['Poppins', 'sans-serif'], // For body text and UI elements
-				'heading': ['Righteous', 'sans-serif'], // Alias for display
-				'body': ['Poppins', 'sans-serif'], // Alias for sans
+				display: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'], // Headings, logos
+				sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'], // Body + UI
+				heading: ['var(--font-display)', 'ui-sans-serif', 'system-ui', 'sans-serif'], // Alias
+				body: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'], // Alias
 				'fredoka': ['Fredoka', 'sans-serif'], // Playful, friendly font
+				'baloo-tamma': ['"Baloo Tamma 2"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',

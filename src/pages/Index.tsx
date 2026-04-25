@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -90,9 +91,44 @@ function HeroCrossfadeHeadline({ prefersReducedMotion }: { prefersReducedMotion:
   );
 }
 
+/** Fade + slide in when the section crosses into view while scrolling (viewport-linked). */
+function HomeScrollReveal({
+  children,
+  className,
+  prefersReducedMotion,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  prefersReducedMotion: boolean;
+  delay?: number;
+}) {
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 32 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      /* Positive bottom margin expands the IO root so reveals start slightly before sections enter. */
+      viewport={{ once: true, amount: 0.12, margin: '0px 0px 10% 0px' }}
+      transition={{ duration: 0.5, delay, ease: [0.25, 0.1, 0.25, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+const LOGO_PARALLAX_PX = 12;
+const ORBIT_PARALLAX_PX = -16;
+
 const Index = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const { theme, toggleTheme, settings } = useTheme();
+  const { theme, toggleTheme, settings, resolvedTheme } = useTheme();
+  const logoParallaxRef = useRef<HTMLDivElement>(null);
+  const orbitParallaxRef = useRef<HTMLDivElement>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [api, setApi] = useState<any>();
   const prefersReducedMotion = useReducedMotion();
@@ -103,6 +139,39 @@ const Index = () => {
   // Get admin colors or fallback to defaults
   const primaryColor = settings?.appearance?.primaryColor || '#8B5CF6';
   const secondaryColor = settings?.appearance?.secondaryColor || '#EC4899';
+  const ambientIntensity = settings?.appearance?.ambientIntensity ?? 'medium';
+
+  const rgba = useMemo(() => {
+    const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+    const hexToRgb = (hex: string) => {
+      const raw = hex.trim().replace('#', '');
+      const h = raw.length === 3 ? raw.split('').map((c) => c + c).join('') : raw;
+      if (h.length !== 6) return null;
+      const r = parseInt(h.slice(0, 2), 16);
+      const g = parseInt(h.slice(2, 4), 16);
+      const b = parseInt(h.slice(4, 6), 16);
+      if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) return null;
+      return { r, g, b };
+    };
+    const toRgba = (color: string, a: number) => {
+      const rgb = hexToRgb(color);
+      if (!rgb) return `rgba(139, 92, 246, ${clamp01(a)})`;
+      return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${clamp01(a)})`;
+    };
+
+    const isDark = resolvedTheme === 'dark';
+    const intensityScale =
+      ambientIntensity === 'low' ? 0.72 : ambientIntensity === 'high' ? 1.35 : 1;
+    return {
+      primary: (a: number) => toRgba(primaryColor, a),
+      secondary: (a: number) => toRgba(secondaryColor, a),
+      // Slightly stronger on dark to avoid the “washed out / vanished” feeling.
+      ambientA: (isDark ? 0.18 : 0.12) * intensityScale,
+      ambientB: (isDark ? 0.14 : 0.10) * intensityScale,
+      wash: (isDark ? 0.22 : 0.16) * intensityScale,
+      scale: intensityScale,
+    };
+  }, [primaryColor, secondaryColor, resolvedTheme, ambientIntensity]);
 
   useEffect(() => {
     if (!api) return;
@@ -187,16 +256,138 @@ const Index = () => {
     setIsVisible(true);
   }, []);
 
+  /* Drive scroll-linked motion via the DOM + CSS var — no setState on scroll (avoids full-page re-renders / jank). */
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      document.documentElement.style.setProperty('--home-scroll-progress', '0');
+      if (logoParallaxRef.current) logoParallaxRef.current.style.removeProperty('transform');
+      if (orbitParallaxRef.current) orbitParallaxRef.current.style.removeProperty('transform');
+      return;
+    }
+
+    let rafId = 0;
+    const applyScroll = () => {
+      const root = document.documentElement;
+      const maxScroll = Math.max(1, root.scrollHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
+      document.documentElement.style.setProperty('--home-scroll-progress', String(progress));
+      const yLogo = progress * LOGO_PARALLAX_PX;
+      const yOrbit = progress * ORBIT_PARALLAX_PX;
+      if (logoParallaxRef.current) {
+        logoParallaxRef.current.style.transform = `translate3d(0, ${yLogo}px, 0)`;
+      }
+      if (orbitParallaxRef.current) {
+        orbitParallaxRef.current.style.transform = `translate3d(0, ${yOrbit}px, 0)`;
+      }
+    };
+
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = 0;
+        applyScroll();
+      });
+    };
+
+    applyScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      document.documentElement.style.setProperty('--home-scroll-progress', '0');
+    };
+  }, [prefersReducedMotion]);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/90 to-primary/20 overflow-x-hidden">
-      {/* Logo centered at the top with floating animation */}
-      <div className="container mx-auto px-4 pt-6 pb-8 sm:py-8 flex flex-col items-center justify-center">
+    <div className="relative isolate min-h-screen bg-background text-foreground overflow-x-hidden">
+      {/* Theme-adaptive ambient background (animated, but blends into the current theme). */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div
+          className={cn(
+            'home-ambient-spectrum home-ambient-spectrum--soft home-ambient-scroll home-ambient-scroll--a',
+            prefersReducedMotion && 'home-ambient-static'
+          )}
+          style={{
+            backgroundImage: `linear-gradient(125deg, ${rgba.primary(0.12 * rgba.scale)} 0%, ${rgba.secondary(0.08 * rgba.scale)} 42%, ${rgba.primary(0.06 * rgba.scale)} 100%)`,
+          }}
+        />
+        <div
+          className={cn(
+            'home-ambient-spectrum home-ambient-spectrum--rich home-ambient-scroll home-ambient-scroll--b',
+            prefersReducedMotion && 'home-ambient-static'
+          )}
+          style={{
+            backgroundImage: `linear-gradient(140deg, ${rgba.primary(0.24 * rgba.scale)} 0%, ${rgba.secondary(0.20 * rgba.scale)} 52%, ${rgba.primary(0.16 * rgba.scale)} 100%)`,
+          }}
+        />
+        <div
+          className={cn(
+            'home-ambient-spectrum home-ambient-spectrum--aurora home-ambient-scroll home-ambient-scroll--c',
+            prefersReducedMotion && 'home-ambient-static'
+          )}
+        />
+        <div
+          className={cn(
+            'home-ambient-spectrum home-ambient-spectrum--prism home-ambient-scroll home-ambient-scroll--d',
+            prefersReducedMotion && 'home-ambient-static'
+          )}
+          style={{
+            backgroundImage: `conic-gradient(from 210deg at 62% 38%, ${rgba.primary(
+              0.13 * rgba.scale
+            )} 0deg, ${rgba.secondary(0.11 * rgba.scale)} 120deg, transparent 300deg, ${rgba.primary(
+              0.09 * rgba.scale
+            )} 360deg)`,
+          }}
+        />
+        <div
+          className={cn(
+            'home-ambient-spectrum home-ambient-spectrum--tertiary home-ambient-scroll home-ambient-scroll--e',
+            prefersReducedMotion && 'home-ambient-static'
+          )}
+          style={{
+            backgroundImage: [
+              `radial-gradient(1200px circle at 8% 48%, ${rgba.primary(0.11 * rgba.scale)} 0%, transparent 62%)`,
+              `radial-gradient(1400px circle at 92% 72%, ${rgba.secondary(0.12 * rgba.scale)} 0%, transparent 64%)`,
+              `linear-gradient(120deg, transparent 0%, ${rgba.primary(0.06 * rgba.scale)} 40%, transparent 78%)`,
+            ].join(', '),
+          }}
+        />
+        <div
+          className={cn('home-ambient-blob home-ambient-blob--a', prefersReducedMotion && 'home-ambient-static')}
+          style={{
+            background: `radial-gradient(circle at 30% 30%, ${rgba.primary(rgba.ambientA)} 0%, transparent 62%)`,
+          }}
+        />
+        <div
+          className={cn('home-ambient-blob home-ambient-blob--b', prefersReducedMotion && 'home-ambient-static')}
+          style={{
+            background: `radial-gradient(circle at 50% 50%, ${rgba.secondary(rgba.ambientB)} 0%, transparent 60%)`,
+          }}
+        />
+        <div
+          className={cn('home-ambient-blob home-ambient-blob--c', prefersReducedMotion && 'home-ambient-static')}
+          style={{
+            background: `radial-gradient(circle at 70% 70%, ${rgba.primary(rgba.wash)} 0%, transparent 65%)`,
+          }}
+        />
+        {/* Soft wash to ensure readability and prevent “vanish” when hovering bright UI elements */}
+        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background" />
+      </div>
+      <div className="relative z-10">
+      {/* Logo centered at the top — gentle scroll-linked parallax + drift */}
+      <div
+        ref={logoParallaxRef}
+        className="container mx-auto px-4 pt-6 pb-8 sm:py-8 flex flex-col items-center justify-center"
+      >
         <div className="relative">
           {/* Audio Waveform Shield Logo */}
           <img 
             src="/logo.svg" 
             alt="Rhythm Guardian Logo"
-            className={`w-44 h-44 sm:w-72 sm:h-72 -mb-6 sm:-mb-8 object-contain ${prefersReducedMotion ? '' : 'animate-float'} md:hover:scale-110 transition-transform duration-300`}
+            className={`w-44 h-44 sm:w-72 sm:h-72 -mb-6 sm:-mb-8 object-contain ${prefersReducedMotion ? '' : 'animate-logo-drift'} md:hover:scale-105 transition-transform duration-500`}
             style={{
               filter: `drop-shadow(0 0 20px ${primaryColor}60)`,
             } as React.CSSProperties}
@@ -204,7 +395,7 @@ const Index = () => {
           <div
             className={`absolute -inset-8 rounded-full blur-xl opacity-70 pointer-events-none ${prefersReducedMotion ? '' : 'animate-pulse'}`}
             style={{
-              background: `radial-gradient(circle, ${primaryColor}20, ${secondaryColor}10, transparent)`
+              background: `radial-gradient(circle, ${rgba.primary(0.14)} 0%, ${rgba.secondary(0.10)} 40%, transparent 70%)`,
             }}
           ></div>
         </div>
@@ -313,11 +504,11 @@ const Index = () => {
           </div>
 
           {/* Right column: logo orbit visual — desktop/tablet only (hidden on mobile) */}
-          <div className="relative hidden md:block">
+          <div ref={orbitParallaxRef} className="relative hidden md:block">
             <div
-              className={`aspect-square max-w-[260px] md:max-w-md mx-auto rounded-full flex items-center justify-center ${prefersReducedMotion ? '' : 'animate-float'} group`}
+              className={`home-hero-orbit-shell aspect-square max-w-[260px] md:max-w-md mx-auto rounded-full flex items-center justify-center ${prefersReducedMotion ? '' : 'animate-float'} group`}
               style={{
-                background: `radial-gradient(circle, ${primaryColor}15, ${secondaryColor}10, transparent)`
+                background: `radial-gradient(circle, ${rgba.primary(0.24)} 0%, ${rgba.secondary(0.16)} 42%, ${rgba.primary(0.08)} 76%, transparent 100%)`,
               }}
             >
               <div className="absolute inset-0 flex items-center justify-center">
@@ -411,7 +602,10 @@ const Index = () => {
         </div>
 
         {/* Rest of the component remains unchanged */}
-        <div className="mt-24 mb-16 relative">
+        <HomeScrollReveal
+          className="mt-24 mb-16 relative"
+          prefersReducedMotion={prefersReducedMotion}
+        >
           <div className="relative z-10 mx-auto max-w-3xl px-2">
             {/* Solid theme colors only — never use bg-clip-text here; it can vanish with GPU compositing / overlays. */}
             <h2 className="text-center text-4xl font-bold tracking-tight text-balance">
@@ -564,10 +758,14 @@ const Index = () => {
               ))}
             </div>
           </div>
-        </div>
+        </HomeScrollReveal>
 
         {/* Featured Talent Section */}
-        <div className="mt-24 mb-16 container mx-auto">
+        <HomeScrollReveal
+          className="mt-24 mb-16 container mx-auto"
+          prefersReducedMotion={prefersReducedMotion}
+          delay={0.06}
+        >
           <div className="flex flex-col md:flex-row justify-between items-end mb-8 px-4">
             <div>
               <h2 className="text-3xl font-bold mb-2">Featured Talent</h2>
@@ -694,13 +892,22 @@ const Index = () => {
               </div>
             )}
           </div>
-        </div>
+        </HomeScrollReveal>
 
       </main>
 
       {/* Call to Action */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="bg-gradient-to-r from-primary/20 to-secondary/20 rounded-xl p-8 text-center">
+      <HomeScrollReveal
+        className="container mx-auto px-4 py-16"
+        prefersReducedMotion={prefersReducedMotion}
+        delay={0.08}
+      >
+        <div
+          className="home-cta-panel rounded-xl p-8 text-center"
+          style={{
+            backgroundImage: `linear-gradient(100deg, ${rgba.primary(0.22)} 0%, ${rgba.secondary(0.20)} 48%, ${rgba.primary(0.14)} 100%)`,
+          }}
+        >
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
             Join our community of musicians and hirers today and discover new opportunities.
@@ -722,7 +929,7 @@ const Index = () => {
             </Link>
           </div>
         </div>
-      </div>
+      </HomeScrollReveal>
 
       {/* Footer */}
       <footer className="border-t mt-20">
@@ -758,6 +965,7 @@ const Index = () => {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 };

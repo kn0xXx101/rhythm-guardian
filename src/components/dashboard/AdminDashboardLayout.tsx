@@ -41,7 +41,7 @@ const AdminDashboardLayout = () => {
   }, [location.pathname, toast]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="admin-font min-h-screen bg-background">
       {/* Mobile Backdrop */}
       {isMobile && isMobileOpen && (
         <div 

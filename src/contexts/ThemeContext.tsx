@@ -59,6 +59,7 @@ const defaultSettings: Settings = {
     secondaryColor: '#EC4899',
     darkMode: false,
     fontFamily: 'inter',
+    ambientIntensity: 'medium',
   },
   integrations: {
     paystackPublicKey: '',
@@ -308,11 +309,17 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
           'poppins': 'Poppins, sans-serif',
           'righteous': 'Righteous, sans-serif',
           'fredoka': 'Fredoka, sans-serif',
+          'baloo-tamma': '"Baloo Tamma 2", sans-serif',
         };
         
         const selectedFont = fontMap[themeSettings.appearance.fontFamily] || 'Inter, sans-serif';
-        document.body.style.fontFamily = selectedFont;
+        // Prefer CSS variables so the change affects headings + all Tailwind typography consistently.
+        root.style.setProperty('--font-sans', selectedFont);
+        root.style.setProperty('--font-display', selectedFont);
+        // Back-compat for any legacy code still reading --font-family.
         root.style.setProperty('--font-family', selectedFont);
+        // Keep body style in sync for any elements outside Tailwind/base.
+        document.body.style.fontFamily = selectedFont;
         console.log('Applied font:', selectedFont);
       }
 
@@ -534,6 +541,8 @@ function getFontFamily(fontFamily: string): string {
       return '"Righteous", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     case 'fredoka':
       return '"Fredoka", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    case 'baloo-tamma':
+      return '"Baloo Tamma 2", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     default:
       return '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   }

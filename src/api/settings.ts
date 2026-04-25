@@ -27,6 +27,7 @@ const defaultSettings: Settings = {
     secondaryColor: '#EC4899',
     darkMode: false,
     fontFamily: 'inter',
+    ambientIntensity: 'medium',
   },
   integrations: {
     paystackPublicKey: '',

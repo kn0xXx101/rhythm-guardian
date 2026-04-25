@@ -1,5 +1,5 @@
-/* UI/UX Pro Max Typography - All Available Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Righteous&family=Fredoka:wght@300;400;500;600;700&display=swap');
+/* UI/UX Pro Max Typography - Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Baloo+Tamma+2:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Righteous&family=Fredoka:wght@300;400;500;600;700&display=swap');
 
 @import './styles/enhanced-cards.css';
 @tailwind base;
@@ -7,23 +7,28 @@
 @tailwind utilities;
 
 @layer base {
-  /* Set default font families */
-  body {
-    font-family: 'Poppins', sans-serif;
+  :root {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Righteous', ui-sans-serif, system-ui, sans-serif;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Righteous', sans-serif;
-  }
-}
 
-@layer base {
-  body {
-    font-family: 'Poppins', sans-serif;
+  /* Admin console typography (apply by adding class 'admin-font' on a wrapper). */
+  .admin-font {
+    --font-sans: 'Baloo Tamma 2', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Baloo Tamma 2', ui-sans-serif, system-ui, sans-serif;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Righteous', sans-serif;
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
   }
 }
 
@@ -205,6 +210,7 @@
 
     /* Disable specific animation classes */
     .animate-float,
+    .animate-logo-drift,
     .animate-orbit-1,
     .animate-orbit-2,
     .animate-orbit-3,
@@ -233,6 +239,7 @@
 
     /* Disable complex animations on mobile for better performance */
     .animate-float,
+    .animate-logo-drift,
     .animate-orbit-1,
     .animate-orbit-2,
     .animate-orbit-3,
@@ -642,34 +649,9 @@ div[class*="Card"]:hover {
 
 /* Override Tailwind hover background utilities */
 .hover\:bg-primary:hover,
-.hover\:bg-secondary:hover,
-.hover\:bg-accent:hover,
-.hover\:bg-muted:hover,
-.hover\:bg-gradient-to-r:hover,
-.hover\:bg-gradient-to-br:hover,
-.hover\:from-primary:hover,
-.hover\:to-primary:hover {
-  background: inherit !important;
-  background-image: none !important;
-}
-
-/* Ensure no gradient backgrounds on hover */
-*:hover {
-  background-image: none !important;
-}
-
-/* Override Tailwind hover background utilities */
-.hover\:bg-primary:hover,
-.hover\:bg-secondary:hover,
-.hover\:bg-accent:hover,
-.hover\:bg-muted:hover,
-.hover\:bg-gradient-to-r:hover,
-.hover\:bg-gradient-to-br:hover,
-.hover\:from-primary:hover,
-.hover\:to-primary:hover {
-  background: inherit !important;
-  background-image: none !important;
-}
+/* NOTE: Do not globally disable hover backgrounds/gradients.
+   That causes “background vanishing” across the app when the cursor moves.
+   If you need to neutralize a specific component’s hover styles, scope it to that component only. */
 
 /* Advanced Logo Animations */
 @keyframes logo-breathe {
@@ -716,6 +698,197 @@ div[class*="Card"]:hover {
   50% { 
     text-shadow: 0 0 20px currentColor, 0 0 30px currentColor;
   }
+}
+
+/* Homepage ambient background blobs (theme-safe + never interactive). */
+.home-ambient-blob {
+  position: absolute;
+  inset: -35%;
+  filter: blur(56px);
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+.home-ambient-blob--a {
+  animation: home-ambient-a 14s ease-in-out infinite;
+}
+.home-ambient-blob--b {
+  animation: home-ambient-b 18s ease-in-out infinite;
+}
+.home-ambient-blob--c {
+  animation: home-ambient-c 22s ease-in-out infinite;
+}
+
+.home-ambient-static {
+  animation: none !important;
+  transform: translate3d(0, 0, 0) scale(1) !important;
+}
+
+/* Slow full-page color drift so the homepage background is always alive. */
+.home-ambient-spectrum {
+  position: absolute;
+  inset: -12%;
+  background-size: 180% 180%;
+  animation: home-spectrum-shift 26s ease-in-out infinite;
+}
+
+.home-ambient-spectrum--soft {
+  opacity: 0.7;
+  filter: saturate(0.95);
+}
+
+.home-ambient-spectrum--rich {
+  opacity: 0.46;
+  filter: saturate(1.2);
+  animation-duration: 34s;
+  mix-blend-mode: multiply;
+}
+
+.home-ambient-spectrum--aurora {
+  opacity: 0.38;
+  filter: saturate(1.35) blur(2px);
+  animation-duration: 30s;
+  mix-blend-mode: soft-light;
+  background-image:
+    radial-gradient(1200px circle at 16% 82%, hsl(var(--info) / 0.22) 0%, transparent 56%),
+    radial-gradient(1000px circle at 88% 18%, hsl(var(--warning) / 0.18) 0%, transparent 52%),
+    radial-gradient(900px circle at 50% 55%, hsl(var(--success) / 0.20) 0%, transparent 58%);
+}
+
+.dark .home-ambient-spectrum--soft {
+  opacity: 0.62;
+}
+
+.dark .home-ambient-spectrum--rich {
+  opacity: 0.52;
+  mix-blend-mode: screen;
+}
+
+.dark .home-ambient-spectrum--aurora {
+  opacity: 0.46;
+  mix-blend-mode: screen;
+}
+
+.home-ambient-spectrum--prism {
+  opacity: 0.34;
+  filter: saturate(1.4) blur(1px);
+  animation:
+    home-spectrum-shift 28s ease-in-out infinite,
+    home-prism-rotate 42s linear infinite;
+  mix-blend-mode: soft-light;
+}
+
+.home-ambient-spectrum--tertiary {
+  opacity: 0.30;
+  filter: saturate(1.1);
+  animation-duration: 36s;
+  mix-blend-mode: multiply;
+}
+
+.dark .home-ambient-spectrum--prism {
+  opacity: 0.42;
+  mix-blend-mode: screen;
+}
+
+.dark .home-ambient-spectrum--tertiary {
+  opacity: 0.40;
+  mix-blend-mode: screen;
+}
+
+.home-ambient-scroll {
+  will-change: transform;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.home-ambient-scroll--a {
+  transform: translate3d(0, calc(var(--home-scroll-progress, 0) * -110px), 0)
+    scale(calc(1 + var(--home-scroll-progress, 0) * 0.04));
+}
+
+.home-ambient-scroll--b {
+  transform: translate3d(0, calc(var(--home-scroll-progress, 0) * -170px), 0)
+    scale(calc(1 + var(--home-scroll-progress, 0) * 0.06));
+}
+
+.home-ambient-scroll--c {
+  transform: translate3d(0, calc(var(--home-scroll-progress, 0) * -140px), 0)
+    scale(calc(1 + var(--home-scroll-progress, 0) * 0.05));
+}
+
+.home-ambient-scroll--d {
+  transform: translate3d(0, calc(var(--home-scroll-progress, 0) * -220px), 0)
+    scale(calc(1 + var(--home-scroll-progress, 0) * 0.08));
+}
+
+.home-ambient-scroll--e {
+  transform: translate3d(0, calc(var(--home-scroll-progress, 0) * -260px), 0)
+    scale(calc(1 + var(--home-scroll-progress, 0) * 0.10));
+}
+
+/* Stable shell behind the hero orbit so it never looks like it disappears. */
+.home-hero-orbit-shell {
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--background) / 0.25),
+    0 20px 48px hsl(var(--foreground) / 0.08);
+}
+
+/* CTA panel keeps blended theme colors while remaining readable. */
+.home-cta-panel {
+  border: 1px solid hsl(var(--border) / 0.55);
+  box-shadow:
+    0 20px 40px hsl(var(--foreground) / 0.08),
+    inset 0 1px 0 hsl(var(--background) / 0.4);
+  background-size: 180% 180%;
+  animation: home-spectrum-shift 24s ease-in-out infinite;
+}
+
+@keyframes home-ambient-a {
+  0% { transform: translate3d(-6%, -4%, 0) scale(1); }
+  50% { transform: translate3d(8%, 6%, 0) scale(1.06); }
+  100% { transform: translate3d(-6%, -4%, 0) scale(1); }
+}
+@keyframes home-ambient-b {
+  0% { transform: translate3d(10%, -2%, 0) scale(1); }
+  50% { transform: translate3d(-10%, 10%, 0) scale(1.08); }
+  100% { transform: translate3d(10%, -2%, 0) scale(1); }
+}
+@keyframes home-ambient-c {
+  0% { transform: translate3d(-2%, 12%, 0) scale(1); }
+  50% { transform: translate3d(12%, -12%, 0) scale(1.10); }
+  100% { transform: translate3d(-2%, 12%, 0) scale(1); }
+}
+
+@keyframes home-spectrum-shift {
+  0% { background-position: 0% 40%; }
+  50% { background-position: 100% 60%; }
+  100% { background-position: 0% 40%; }
+}
+
+@keyframes home-prism-rotate {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(6deg) scale(1.05); }
+  100% { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes logo-drift {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  35% {
+    transform: translate3d(0, -6px, 0) rotate(-2deg) scale(1.01);
+  }
+  70% {
+    transform: translate3d(0, 3px, 0) rotate(1.4deg) scale(0.995);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+}
+
+.animate-logo-drift {
+  animation: logo-drift 6.5s ease-in-out infinite;
+  transform-origin: center;
 }
 
 /* Utility classes for advanced animations */
@@ -988,5 +1161,79 @@ div[class*="Card"]:hover {
     .text-display-md {
       font-size: 1.75rem; /* 28px */
     }
+  }
+}
+
+/* 
+===== SCROLL REVEAL ANIMATIONS ===== */
+
+/* Base state — hidden before entering viewport */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Slide from left */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-left.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Slide from right */
+.reveal-right {
+  opacity: 0;
+  transform: translateX(40px);
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-right.is-visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Scale up */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.55s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-scale.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Stagger delays for child elements */
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-left,
+  .reveal-right,
+  .reveal-scale {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }

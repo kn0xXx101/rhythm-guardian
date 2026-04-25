@@ -49,6 +49,7 @@ const defaultSettings: Settings = {
     secondaryColor: '#EC4899',
     darkMode: false,
     fontFamily: 'inter',
+    ambientIntensity: 'medium',
   },
   integrations: {
     paystackPublicKey: '',
@@ -546,6 +547,28 @@ const Settings = () => {
                     <SelectItem value="poppins">Poppins</SelectItem>
                     <SelectItem value="righteous">Righteous</SelectItem>
                     <SelectItem value="fredoka">Fredoka</SelectItem>
+                    <SelectItem value="baloo-tamma">Baloo Tamma</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ambient-intensity">Homepage Ambient Intensity</Label>
+                <Select
+                  value={settings.appearance.ambientIntensity}
+                  onValueChange={(value: 'low' | 'medium' | 'high') =>
+                    handleAppearanceChange({
+                      ...settings,
+                      appearance: { ...settings.appearance, ambientIntensity: value },
+                    })
+                  }
+                >
+                  <SelectTrigger id="ambient-intensity">
+                    <SelectValue placeholder="Select intensity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low (subtle)</SelectItem>
+                    <SelectItem value="medium">Medium (balanced)</SelectItem>
+                    <SelectItem value="high">High (rich)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
