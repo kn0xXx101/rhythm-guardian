@@ -259,7 +259,6 @@ const Index = () => {
   /* Drive scroll-linked motion via the DOM + CSS var — no setState on scroll (avoids full-page re-renders / jank). */
   useEffect(() => {
     if (prefersReducedMotion) {
-      document.documentElement.style.setProperty('--home-scroll-progress', '0');
       if (logoParallaxRef.current) logoParallaxRef.current.style.removeProperty('transform');
       if (orbitParallaxRef.current) orbitParallaxRef.current.style.removeProperty('transform');
       return;
@@ -270,7 +269,6 @@ const Index = () => {
       const root = document.documentElement;
       const maxScroll = Math.max(1, root.scrollHeight - window.innerHeight);
       const progress = Math.min(1, Math.max(0, window.scrollY / maxScroll));
-      document.documentElement.style.setProperty('--home-scroll-progress', String(progress));
       const yLogo = progress * LOGO_PARALLAX_PX;
       const yOrbit = progress * ORBIT_PARALLAX_PX;
       if (logoParallaxRef.current) {
@@ -297,91 +295,17 @@ const Index = () => {
       if (rafId) window.cancelAnimationFrame(rafId);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      document.documentElement.style.setProperty('--home-scroll-progress', '0');
     };
   }, [prefersReducedMotion]);
 
   return (
     <div className="relative isolate min-h-screen bg-background text-foreground overflow-x-hidden">
-      {/* Theme-adaptive ambient background (animated, but blends into the current theme). */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-        <div
-          className={cn(
-            'home-ambient-spectrum home-ambient-spectrum--soft home-ambient-scroll home-ambient-scroll--a',
-            prefersReducedMotion && 'home-ambient-static'
-          )}
-          style={{
-            backgroundImage: `linear-gradient(125deg, ${rgba.primary(0.12 * rgba.scale)} 0%, ${rgba.secondary(0.08 * rgba.scale)} 42%, ${rgba.primary(0.06 * rgba.scale)} 100%)`,
-          }}
-        />
-        <div
-          className={cn(
-            'home-ambient-spectrum home-ambient-spectrum--rich home-ambient-scroll home-ambient-scroll--b',
-            prefersReducedMotion && 'home-ambient-static'
-          )}
-          style={{
-            backgroundImage: `linear-gradient(140deg, ${rgba.primary(0.24 * rgba.scale)} 0%, ${rgba.secondary(0.20 * rgba.scale)} 52%, ${rgba.primary(0.16 * rgba.scale)} 100%)`,
-          }}
-        />
-        <div
-          className={cn(
-            'home-ambient-spectrum home-ambient-spectrum--aurora home-ambient-scroll home-ambient-scroll--c',
-            prefersReducedMotion && 'home-ambient-static'
-          )}
-        />
-        <div
-          className={cn(
-            'home-ambient-spectrum home-ambient-spectrum--prism home-ambient-scroll home-ambient-scroll--d',
-            prefersReducedMotion && 'home-ambient-static'
-          )}
-          style={{
-            backgroundImage: `conic-gradient(from 210deg at 62% 38%, ${rgba.primary(
-              0.13 * rgba.scale
-            )} 0deg, ${rgba.secondary(0.11 * rgba.scale)} 120deg, transparent 300deg, ${rgba.primary(
-              0.09 * rgba.scale
-            )} 360deg)`,
-          }}
-        />
-        <div
-          className={cn(
-            'home-ambient-spectrum home-ambient-spectrum--tertiary home-ambient-scroll home-ambient-scroll--e',
-            prefersReducedMotion && 'home-ambient-static'
-          )}
-          style={{
-            backgroundImage: [
-              `radial-gradient(1200px circle at 8% 48%, ${rgba.primary(0.11 * rgba.scale)} 0%, transparent 62%)`,
-              `radial-gradient(1400px circle at 92% 72%, ${rgba.secondary(0.12 * rgba.scale)} 0%, transparent 64%)`,
-              `linear-gradient(120deg, transparent 0%, ${rgba.primary(0.06 * rgba.scale)} 40%, transparent 78%)`,
-            ].join(', '),
-          }}
-        />
-        <div
-          className={cn('home-ambient-blob home-ambient-blob--a', prefersReducedMotion && 'home-ambient-static')}
-          style={{
-            background: `radial-gradient(circle at 30% 30%, ${rgba.primary(rgba.ambientA)} 0%, transparent 62%)`,
-          }}
-        />
-        <div
-          className={cn('home-ambient-blob home-ambient-blob--b', prefersReducedMotion && 'home-ambient-static')}
-          style={{
-            background: `radial-gradient(circle at 50% 50%, ${rgba.secondary(rgba.ambientB)} 0%, transparent 60%)`,
-          }}
-        />
-        <div
-          className={cn('home-ambient-blob home-ambient-blob--c', prefersReducedMotion && 'home-ambient-static')}
-          style={{
-            background: `radial-gradient(circle at 70% 70%, ${rgba.primary(rgba.wash)} 0%, transparent 65%)`,
-          }}
-        />
-        {/* Soft wash to ensure readability and prevent “vanish” when hovering bright UI elements */}
-        <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/60 to-background" />
-      </div>
       <div className="relative z-10">
-      {/* Logo centered at the top — gentle scroll-linked parallax + drift */}
-      <div
-        ref={logoParallaxRef}
-        className="container mx-auto px-4 pt-6 pb-8 sm:py-8 flex flex-col items-center justify-center"
-      >
+        {/* Logo centered at the top — gentle scroll-linked parallax + drift */}
+        <div
+          ref={logoParallaxRef}
+          className="container mx-auto px-4 pt-6 pb-8 sm:py-8 flex flex-col items-center justify-center"
+        >
         <div className="relative">
           {/* Audio Waveform Shield Logo */}
           <img 
