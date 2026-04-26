@@ -13,12 +13,14 @@ import { ReviewDialog } from '@/components/booking/ReviewDialog';
 import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { supabase } from '@/lib/supabase';
 import {
+  getBookingEventEndMs,
   isBookingEventWindowPast,
   isWithinPostServiceConfirmationWindow,
 } from '@/utils/booking-event-window';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const MusicianBookings = () => {
+  const showDebugTiming = import.meta.env.DEV;
   const [activeTab, setActiveTab] = useState('all');
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedBookingForReview, setSelectedBookingForReview] = useState<any>(null);
@@ -118,7 +120,7 @@ const MusicianBookings = () => {
 
   const handleAccept = async (bookingId: string) => {
     const booking = bookings.find((b) => b.id === bookingId);
-    if (booking && isBookingEventWindowPast(booking.date, booking.durationHours)) {
+    if (booking && isBookingEventWindowPast(booking.date, booking.durationHours, booking.time)) {
       toast({
         variant: 'destructive',
         title: 'Event time has passed',
@@ -256,10 +258,24 @@ const MusicianBookings = () => {
               </div>
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
-                const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
+                const computedEndMs = getBookingEventEndMs(
+                  booking.date,
+                  booking.durationHours,
+                  booking.time
+                );
+                const eventEnded = isBookingEventWindowPast(
+                  booking.date,
+                  booking.durationHours,
+                  booking.time
+                );
+                const computedEndLabel =
+                  computedEndMs != null
+                    ? new Date(computedEndMs).toLocaleString()
+                    : 'Unable to compute';
                 const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
                   booking.date,
-                  booking.durationHours
+                  booking.durationHours,
+                  booking.time
                 );
                 const isFunded =
                   booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid';
@@ -384,6 +400,11 @@ const MusicianBookings = () => {
                               >
                                 {booking.status}
                               </span>
+                              {showDebugTiming && (
+                                <div className="mt-2 text-[10px] leading-tight rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-2 py-1 font-mono text-amber-800">
+                                  end={computedEndLabel} | ended={String(eventEnded)}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="sm:text-right">

@@ -938,6 +938,7 @@ export type Database = {
           genres: string[] | null
           hourly_rate: number | null
           instruments: string[] | null
+          is_active: boolean | null
           last_active_at: string | null
           location: string | null
           mobile_money_name: string | null
@@ -975,6 +976,7 @@ export type Database = {
           genres?: string[] | null
           hourly_rate?: number | null
           instruments?: string[] | null
+          is_active?: boolean | null
           last_active_at?: string | null
           location?: string | null
           mobile_money_name?: string | null
@@ -1012,6 +1014,7 @@ export type Database = {
           genres?: string[] | null
           hourly_rate?: number | null
           instruments?: string[] | null
+          is_active?: boolean | null
           last_active_at?: string | null
           location?: string | null
           mobile_money_name?: string | null

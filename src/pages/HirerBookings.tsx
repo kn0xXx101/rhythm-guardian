@@ -15,6 +15,7 @@ import { checkAndExpireBookings } from '@/services/booking-expiration';
 import { refundTicketingService } from '@/services/refund-ticketing';
 import { supabase } from '@/lib/supabase';
 import {
+  getBookingEventEndMs,
   isBookingEventWindowPast,
   isPostServiceConfirmationWindowExpired,
   isWithinPostServiceConfirmationWindow,
@@ -33,6 +34,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const HirerBookings = () => {
+  const showDebugTiming = import.meta.env.DEV;
   const [activeTab, setActiveTab] = useState('all');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
@@ -219,7 +221,7 @@ const HirerBookings = () => {
   };
 
   const handlePayNow = (booking: any) => {
-    if (isBookingEventWindowPast(booking.date, booking.durationHours)) {
+    if (isBookingEventWindowPast(booking.date, booking.durationHours, booking.time)) {
       toast({
         variant: 'destructive',
         title: 'Event no longer bookable',
@@ -390,14 +392,29 @@ const HirerBookings = () => {
               </div>
             ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => {
-                const eventEnded = isBookingEventWindowPast(booking.date, booking.durationHours);
+                const computedEndMs = getBookingEventEndMs(
+                  booking.date,
+                  booking.durationHours,
+                  booking.time
+                );
+                const eventEnded = isBookingEventWindowPast(
+                  booking.date,
+                  booking.durationHours,
+                  booking.time
+                );
+                const computedEndLabel =
+                  computedEndMs != null
+                    ? new Date(computedEndMs).toLocaleString()
+                    : 'Unable to compute';
                 const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
                   booking.date,
-                  booking.durationHours
+                  booking.durationHours,
+                  booking.time
                 );
                 const confirmWindowExpired = isPostServiceConfirmationWindowExpired(
                   booking.date,
-                  booking.durationHours
+                  booking.durationHours,
+                  booking.time
                 );
                 const isFunded =
                   booking.paymentStatus === 'paid_to_admin' ||
@@ -521,6 +538,11 @@ const HirerBookings = () => {
                               >
                                 {booking.status || 'pending'}
                               </span>
+                              {showDebugTiming && (
+                                <div className="mt-2 text-[10px] leading-tight rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-2 py-1 font-mono text-amber-800">
+                                  end={computedEndLabel} | ended={String(eventEnded)}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="sm:text-right">
@@ -539,7 +561,7 @@ const HirerBookings = () => {
                           booking.status !== 'pending' &&
                           booking.status !== 'expired' &&
                           booking.status !== 'cancelled' &&
-                          !isBookingEventWindowPast(booking.date, booking.durationHours) && (
+                          !isBookingEventWindowPast(booking.date, booking.durationHours, booking.time) && (
                           <Button className="w-full" onClick={() => handlePayNow(booking)}>
                             <CreditCard className="h-4 w-4 mr-2" /> Pay Now
                           </Button>

@@ -312,7 +312,8 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             'booking',
             'Booking: both parties confirmed service',
             `${booking.client.name} (hirer) and ${booking.musician.name} (musician) both confirmed completion for booking ${id.slice(0, 8)}…`,
-            '/admin/bookings'
+            '/admin/bookings',
+            { eventKey: `booking-service-confirmed-both:${id}` }
           );
         } else {
           const partialTitle =
@@ -331,6 +332,16 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             priority: 'normal',
             data: { bookingId: id },
           });
+
+          await notifyAdmins(
+            'booking',
+            role === 'hirer'
+              ? 'Hirer confirmed service completion'
+              : 'Musician confirmed service rendering',
+            `${actorName} submitted a completion confirmation for booking ${id.slice(0, 8)}…. Waiting for the other party to confirm.`,
+            '/admin/bookings',
+            { eventKey: `booking-service-confirmed-partial:${id}:${role}` }
+          );
         }
       } catch (notificationError) {
         console.error('Failed to send notification:', notificationError);

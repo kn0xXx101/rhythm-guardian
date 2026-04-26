@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import type { Booking, BookingStatus, PaymentStatus } from '@/contexts/BookingContext';
+import { notifyAdmins } from '@/services/admin-notify';
 
 type DbBookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'in_progress' | 'expired';
 type DbPaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
@@ -195,6 +196,18 @@ class BookingService {
 
       if (!completeBooking) throw new Error('Failed to fetch complete booking details');
 
+      try {
+        await notifyAdmins(
+          'booking',
+          'New booking placed',
+          `${booking.client.name} placed a booking request with ${booking.musician.name} for ${booking.date || 'a scheduled date'}.`,
+          '/admin/bookings',
+          { eventKey: `booking-created:${data.id}` }
+        );
+      } catch (notifyError) {
+        console.error('Failed to notify admins about new booking:', notifyError);
+      }
+
       return completeBooking;
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -204,6 +217,12 @@ class BookingService {
 
   async updateBooking(id: string, updates: Partial<Booking>): Promise<void> {
     try {
+      const { data: beforeUpdate } = await supabase
+        .from('bookings_with_profiles')
+        .select('id, status, hirer_name, musician_name')
+        .eq('id', id)
+        .maybeSingle();
+
       const updateData: any = {
         updated_at: new Date().toISOString(),
       };
@@ -236,6 +255,42 @@ class BookingService {
       const { error } = await supabase.from('bookings').update(updateData).eq('id', id);
 
       if (error) throw error;
+
+      const previousStatus = String(beforeUpdate?.status || '');
+      const nextStatus = String(updateData.status || previousStatus);
+      if (nextStatus && previousStatus && nextStatus !== previousStatus) {
+        const hirerName = beforeUpdate?.hirer_name || 'A hirer';
+        const musicianName = beforeUpdate?.musician_name || 'a musician';
+        const shortBookingId = id.slice(0, 8);
+
+        let title = 'Booking status updated';
+        let content = `${hirerName} / ${musicianName} booking ${shortBookingId} status changed from ${previousStatus} to ${nextStatus}.`;
+
+        if (nextStatus === 'accepted' || nextStatus === 'in_progress') {
+          title = 'Booking accepted';
+          content = `${musicianName} accepted booking ${shortBookingId} from ${hirerName}.`;
+        } else if (nextStatus === 'cancelled') {
+          title = 'Booking cancelled';
+          content = `Booking ${shortBookingId} between ${hirerName} and ${musicianName} was cancelled.`;
+        } else if (nextStatus === 'rejected') {
+          title = 'Booking rejected';
+          content = `${musicianName} rejected booking ${shortBookingId} from ${hirerName}.`;
+        } else if (nextStatus === 'completed') {
+          title = 'Booking completed';
+          content = `Booking ${shortBookingId} between ${hirerName} and ${musicianName} was marked completed.`;
+        } else if (nextStatus === 'expired') {
+          title = 'Booking expired';
+          content = `Booking ${shortBookingId} between ${hirerName} and ${musicianName} has expired.`;
+        }
+
+        try {
+          await notifyAdmins('booking', title, content, '/admin/bookings', {
+            eventKey: `booking-status:${id}:${nextStatus}`,
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify admins about booking status update:', notifyError);
+        }
+      }
     } catch (error) {
       console.error('Error updating booking:', error);
       throw error;
@@ -244,6 +299,12 @@ class BookingService {
 
   async updatePaymentStatus(id: string, paymentStatus: PaymentStatus): Promise<void> {
     try {
+      const { data: beforeUpdate } = await supabase
+        .from('bookings_with_profiles')
+        .select('id, payment_status, hirer_name, musician_name')
+        .eq('id', id)
+        .maybeSingle();
+
       const dbPaymentStatus = appToDbPaymentStatus[paymentStatus] || 'pending';
 
       const { error } = await supabase
@@ -255,6 +316,32 @@ class BookingService {
         .eq('id', id);
 
       if (error) throw error;
+
+      const previousPaymentStatus = String(beforeUpdate?.payment_status || '');
+      if (previousPaymentStatus !== dbPaymentStatus) {
+        const hirerName = beforeUpdate?.hirer_name || 'A hirer';
+        const musicianName = beforeUpdate?.musician_name || 'a musician';
+        const shortBookingId = id.slice(0, 8);
+
+        let title = 'Payment status updated';
+        let content = `Payment status for booking ${shortBookingId} (${hirerName} / ${musicianName}) changed from ${previousPaymentStatus || 'unknown'} to ${dbPaymentStatus}.`;
+
+        if (dbPaymentStatus === 'paid') {
+          title = 'Booking payment received';
+          content = `${hirerName} paid for booking ${shortBookingId} with ${musicianName}.`;
+        } else if (dbPaymentStatus === 'refunded') {
+          title = 'Booking refunded';
+          content = `Refund processed for booking ${shortBookingId} (${hirerName} / ${musicianName}).`;
+        }
+
+        try {
+          await notifyAdmins('payment', title, content, '/admin/bookings', {
+            eventKey: `booking-payment-status:${id}:${dbPaymentStatus}`,
+          });
+        } catch (notifyError) {
+          console.error('Failed to notify admins about payment status update:', notifyError);
+        }
+      }
     } catch (error) {
       console.error('Error updating payment status:', error);
       throw error;

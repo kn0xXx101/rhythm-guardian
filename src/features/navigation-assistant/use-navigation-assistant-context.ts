@@ -5,6 +5,10 @@ import { useBookingContext } from '@/contexts/BookingContext';
 import { notificationsService } from '@/services/notificationsService';
 import { calculateProfileCompletion } from '@/lib/profile-completion';
 import type { AssistantUserRole } from '@/features/navigation-assistant/resolve-navigation-message';
+import {
+  isBookingEventWindowPast,
+  isWithinPostServiceConfirmationWindow,
+} from '@/utils/booking-event-window';
 
 export type NavigationAssistantSignals = {
   profileCompletion: number | null;
@@ -33,6 +37,22 @@ type ProfileSignalRow = {
   documents_verified: boolean | null;
   completion: number | null;
 };
+
+function normalizeTimeValue(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const timePart = value.includes('T') ? value.split('T')[1] ?? '' : value;
+  const cleaned = timePart.replace('Z', '').split('+')[0] ?? '';
+  const [hours, minutes] = cleaned.split(':');
+  if (!hours || !minutes) return null;
+  return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+}
+
+function composeBookingTime(start: string | null | undefined, end: string | null | undefined): string | null {
+  const startNorm = normalizeTimeValue(start);
+  const endNorm = normalizeTimeValue(end);
+  if (startNorm && endNorm) return `${startNorm} - ${endNorm}`;
+  return startNorm ?? null;
+}
 
 export function useNavigationAssistantContext(args: {
   role: AssistantUserRole;
@@ -123,35 +143,44 @@ export function useNavigationAssistantContext(args: {
         const { data, error } = await supabase
           .from('bookings')
           .select(
-            'status, payment_status, event_date, service_confirmed_by_hirer, service_confirmed_by_musician'
+            'status, payment_status, event_date, duration_hours, start_time, end_time, service_confirmed_by_hirer, service_confirmed_by_musician'
           )
           .eq(ownerColumn, user.id)
-          .in('status', ['accepted', 'in_progress', 'pending']);
+          .in('status', ['accepted', 'in_progress', 'pending', 'expired']);
         if (cancelled) return;
         if (error) {
           setDbCountsLoading(false);
           return;
         }
-        const now = Date.now();
-        const isPastOrNow = (dateValue: string) => {
-          const ts = new Date(dateValue).getTime();
-          if (Number.isNaN(ts)) return false;
-          return ts <= now;
-        };
-        const isFutureOrToday = (dateValue: string) => {
-          const ts = new Date(dateValue).getTime();
-          if (Number.isNaN(ts)) return false;
-          return ts >= now - 24 * 60 * 60 * 1000;
-        };
         const confirm = (data || []).filter((b: any) => {
-          if (!(b.status === 'accepted' || b.status === 'in_progress')) return false;
-          if (!isPastOrNow(b.event_date)) return false;
+          const bookingTime = composeBookingTime(b.start_time, b.end_time);
+          const eventEnded = isBookingEventWindowPast(
+            b.event_date,
+            typeof b.duration_hours === 'number' ? b.duration_hours : Number(b.duration_hours) || undefined,
+            bookingTime
+          );
+          const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
+            b.event_date,
+            typeof b.duration_hours === 'number' ? b.duration_hours : Number(b.duration_hours) || undefined,
+            bookingTime
+          );
+          const isFunded = b.payment_status === 'paid';
+          const canConfirm =
+            b.status === 'in_progress' ||
+            (b.status === 'accepted' && isFunded) ||
+            (b.status === 'expired' && isFunded && withinConfirmWindow);
+          if (!canConfirm || !eventEnded) return false;
           return args.role === 'hirer' ? b.service_confirmed_by_hirer !== true : b.service_confirmed_by_musician !== true;
         }).length;
         const unpaid = (data || []).filter((b: any) => {
           if (b.payment_status !== 'pending') return false;
           if (!(b.status === 'accepted' || b.status === 'in_progress')) return false;
-          return isFutureOrToday(b.event_date);
+          const bookingTime = composeBookingTime(b.start_time, b.end_time);
+          return !isBookingEventWindowPast(
+            b.event_date,
+            typeof b.duration_hours === 'number' ? b.duration_hours : Number(b.duration_hours) || undefined,
+            bookingTime
+          );
         }).length;
         setDbCounts({ unpaid, confirm });
         setDbCountsLoading(false);
@@ -193,20 +222,8 @@ export function useNavigationAssistantContext(args: {
   }, [user?.id]);
 
   const signals = useMemo<NavigationAssistantSignals>(() => {
-    const now = Date.now();
-    const isFutureOrToday = (dateValue: string) => {
-      const ts = new Date(dateValue).getTime();
-      if (Number.isNaN(ts)) return false;
-      return ts >= now - 24 * 60 * 60 * 1000;
-    };
-    const isPastOrNow = (dateValue: string) => {
-      const ts = new Date(dateValue).getTime();
-      if (Number.isNaN(ts)) return false;
-      return ts <= now;
-    };
-
     const paymentActionEligibleStatuses = new Set(['accepted', 'upcoming']);
-    const confirmationEligibleStatuses = new Set(['accepted', 'upcoming']);
+    const confirmationEligibleStatuses = new Set(['accepted', 'upcoming', 'expired']);
 
     const totalBookingsCount = bookings.length;
     const activeBookingsCount = bookings.filter(
@@ -217,12 +234,23 @@ export function useNavigationAssistantContext(args: {
       (b) =>
         b.paymentStatus === 'unpaid' &&
         paymentActionEligibleStatuses.has(b.status) &&
-        isFutureOrToday(b.date)
+        !isBookingEventWindowPast(b.date, b.durationHours, b.time)
     ).length;
 
     const derivedNeedsServiceConfirmationCount = bookings.filter((b) => {
       if (!confirmationEligibleStatuses.has(b.status)) return false;
-      if (!isPastOrNow(b.date)) return false;
+      const eventEnded = isBookingEventWindowPast(b.date, b.durationHours, b.time);
+      const withinConfirmWindow = isWithinPostServiceConfirmationWindow(
+        b.date,
+        b.durationHours,
+        b.time
+      );
+      const isFunded = b.paymentStatus === 'paid_to_admin' || b.paymentStatus === 'paid';
+      const canConfirm =
+        b.status === 'upcoming' ||
+        (b.status === 'accepted' && isFunded) ||
+        (b.status === 'expired' && isFunded && withinConfirmWindow);
+      if (!canConfirm || !eventEnded) return false;
       if (args.role === 'hirer') return b.serviceConfirmedByHirer !== true;
       return b.serviceConfirmedByMusician !== true;
     }).length;

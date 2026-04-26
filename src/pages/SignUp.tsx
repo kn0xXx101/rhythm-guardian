@@ -182,7 +182,7 @@ const SignUpBase = ({
 
       const successMessage =
         userType === 'musician' && userManagementSettings?.requireMusicianVerification
-          ? 'Account created! Your registration is pending approval. Please check your email.'
+          ? 'Account created! Complete your musician profile and upload documents for admin verification.'
           : 'Account created successfully! Please check your email to verify your account.';
 
       toast({
@@ -190,11 +190,7 @@ const SignUpBase = ({
         description: successMessage,
       });
 
-      if (userType === 'musician' && userManagementSettings?.requireMusicianVerification) {
-        navigate('/pending-approval');
-      } else {
-        navigate('/login');
-      }
+      navigate('/login');
     } catch (error) {
       toast({
         title: 'Error',
@@ -288,11 +284,11 @@ const SignUpBase = ({
                 <AlertDescription>
                   {userType === 'musician' &&
                     userManagementSettings?.requireMusicianVerification &&
-                    'Musician accounts require verification before activation. '}
+                    'Musician accounts are active immediately, but verified badge requires profile + document review. '}
                   {userType === 'hirer' &&
                     !userManagementSettings?.autoApproveHirers &&
                     'Hirer accounts require admin approval before activation. '}
-                  You'll receive an email once your account is approved.
+                  Complete required musician details and upload documents to request verification.
                 </AlertDescription>
               </Alert>
             )}

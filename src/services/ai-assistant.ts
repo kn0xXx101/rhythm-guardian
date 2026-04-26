@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { openAIService } from './openai-service';
 import { SessionManager } from '@/utils/session-manager';
+import { notifyAdmins } from '@/services/admin-notify';
 
 // Special ID for AI Assistant contact
 export const AI_ASSISTANT_ID = 'ai-assistant';
@@ -515,6 +516,18 @@ Platform facts (stay accurate; if unsure, say so and offer to connect the user w
           adminId: null,
           error: 'Unable to create support request. Please ensure support tickets are set up in the database.',
         };
+      }
+
+      try {
+        await notifyAdmins(
+          'system',
+          'New support ticket from AI assistant',
+          `User ${userId.slice(0, 8)}… opened support ticket ${String(ticketId).slice(0, 8)}… through AI escalation.`,
+          '/admin/support',
+          { eventKey: `support-ticket-ai-escalation:${String(ticketId)}` }
+        );
+      } catch (notifyError) {
+        console.error('Failed to notify admins about AI support ticket:', notifyError);
       }
 
       return {

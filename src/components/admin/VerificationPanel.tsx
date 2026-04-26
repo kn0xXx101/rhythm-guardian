@@ -26,6 +26,18 @@ interface StorageFile {
   isImage: boolean;
 }
 
+type VerificationProfile = {
+  full_name: string | null;
+  phone: string | null;
+  location: string | null;
+  bio: string | null;
+  instruments: string[] | null;
+  genres: string[] | null;
+  hourly_rate: number | null;
+  base_price: number | null;
+  available_days: string[] | null;
+};
+
 export function VerificationPanel({
   userId,
   userName,
@@ -39,9 +51,14 @@ export function VerificationPanel({
   const [isActioning, setIsActioning] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectForm, setShowRejectForm] = useState(false);
+  const [profileData, setProfileData] = useState<VerificationProfile | null>(null);
 
   useEffect(() => {
     loadDocuments();
+  }, [userId]);
+
+  useEffect(() => {
+    loadProfileRequirements();
   }, [userId]);
 
   const loadDocuments = async () => {
@@ -79,6 +96,47 @@ export function VerificationPanel({
       setIsLoading(false);
     }
   };
+
+  const loadProfileRequirements = async () => {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select(
+          'full_name, phone, location, bio, instruments, genres, hourly_rate, base_price, available_days'
+        )
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) throw error;
+      setProfileData((data as VerificationProfile | null) || null);
+    } catch {
+      setProfileData(null);
+    }
+  };
+
+  const missingRequirements = (() => {
+    const missing: string[] = [];
+    if (files.length === 0) missing.push('identity document upload');
+    if (!profileData?.full_name?.trim()) missing.push('full name');
+    if (!profileData?.phone?.trim()) missing.push('phone number');
+    if (!profileData?.location?.trim()) missing.push('location');
+    if (!profileData?.bio?.trim()) missing.push('bio');
+    if (!profileData?.instruments || profileData.instruments.length === 0) {
+      missing.push('at least one instrument');
+    }
+    if (!profileData?.genres || profileData.genres.length === 0) {
+      missing.push('at least one genre');
+    }
+    const hasPricing =
+      (typeof profileData?.hourly_rate === 'number' && profileData.hourly_rate > 0) ||
+      (typeof profileData?.base_price === 'number' && profileData.base_price > 0);
+    if (!hasPricing) missing.push('pricing (hourly or fixed)');
+    if (!profileData?.available_days || profileData.available_days.length === 0) {
+      missing.push('availability');
+    }
+    return missing;
+  })();
+
+  const canApprove = missingRequirements.length === 0;
 
   const handleApprove = async () => {
     setIsActioning(true);
@@ -126,7 +184,7 @@ export function VerificationPanel({
         .update({
           documents_verified: false,
           documents_submitted: false,
-          status: 'pending',
+          status: 'active',
         })
         .eq('user_id', userId);
 
@@ -238,14 +296,19 @@ export function VerificationPanel({
                 className="w-full gap-2"
                 size="sm"
                 onClick={handleApprove}
-                disabled={isActioning}
+                disabled={isActioning || !canApprove}
               >
                 {isActioning
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <CheckCircle className="h-4 w-4" />
                 }
-                {files.length > 0 ? 'Approve & Grant Verified Badge' : 'Manually Verify & Grant Badge'}
+                Approve & Grant Verified Badge
               </Button>
+              {!canApprove && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Missing before approval: {missingRequirements.join(', ')}.
+                </div>
+              )}
               {documentsSubmitted && (
                 <Button
                   variant="outline"

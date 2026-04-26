@@ -128,7 +128,7 @@ export function useBookingReminders(userType: 'hirer' | 'musician') {
           if (!belongs) return false;
           if (!b?.date) return false;
           // Only remind if within grace window after end time.
-          if (!isWithinPostServiceConfirmationWindow(b.date, b.durationHours)) return false;
+          if (!isWithinPostServiceConfirmationWindow(b.date, b.durationHours, b.time)) return false;
           const hasConfirmed =
             userType === 'hirer' ? Boolean(b.serviceConfirmedByHirer) : Boolean(b.serviceConfirmedByMusician);
           // If this user already confirmed, no need to remind.
@@ -137,7 +137,7 @@ export function useBookingReminders(userType: 'hirer' | 'musician') {
         });
 
         for (const booking of confirmRelevant) {
-          const endMs = getBookingEventEndMs(booking.date, booking.durationHours);
+          const endMs = getBookingEventEndMs(booking.date, booking.durationHours, booking.time);
           if (endMs == null) continue;
           const minutesAfterEnd = Math.floor((now - endMs) / 60000);
           if (minutesAfterEnd < 0) continue;

@@ -827,7 +827,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userRole = profileData.role || 'hirer';
       const userStatus = profileData.status || 'active';
 
-      if (userStatus === 'pending') {
+      if (userStatus === 'pending' && userRole !== 'musician') {
         navigate('/pending-approval', { replace: true });
       } else if (userRole === 'hirer') {
         navigate('/hirer', { replace: true });
@@ -1017,9 +1017,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSigningUpRef.current = true; // Mark that we're signing up
     signupTimestampRef.current = Date.now(); // Record signup timestamp
     try {
-      // Set initial status (pending for musicians if verification is required, active otherwise)
+      // Account activation is immediate. Musician verification is handled separately.
       const initialStatus: 'pending' | 'active' =
-        role === 'admin' ? 'active' : role === 'musician' ? 'pending' : 'active';
+        role === 'admin' ? 'active' : 'active';
 
       // Create auth user with role in both user_metadata and app_metadata
       const {
@@ -1211,9 +1211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast({
           title: 'Musician Account Created',
           description:
-            initialStatus === 'pending'
-              ? "Your account is pending approval. You'll receive an email once approved."
-              : 'Your musician account has been created. Please check your email to verify your account.',
+            'Your musician account has been created. Complete your profile and upload verification documents for admin review.',
         });
       } else {
         toast({
@@ -1226,11 +1224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (role === 'admin') {
         navigate('/admin');
       } else if (role === 'musician') {
-        if (initialStatus === 'pending') {
-          navigate('/pending-approval');
-        } else {
-          navigate('/musician');
-        }
+        navigate('/musician');
       } else if (role === 'hirer') {
         navigate('/hirer');
       } else {

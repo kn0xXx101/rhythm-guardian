@@ -65,6 +65,14 @@ export const refundTicketingService = {
         }
       }
 
+      await notifyAdmins(
+        'payment',
+        'Refund request submitted',
+        `A hirer submitted a refund request for booking ${params.bookingId.slice(0, 8)}…. Review in support tickets and booking history.`,
+        '/admin/support',
+        { eventKey: `refund-request:${params.bookingId}` }
+      );
+
       // Some deployed DBs still enforce a strict payment_status constraint
       // without `refund_pending`. We keep ticket creation successful even if
       // this status update is rejected.
@@ -92,7 +100,8 @@ export const refundTicketingService = {
           'booking',
           'Manual refund review required',
           `Refund request received for booking ${params.bookingId.slice(0, 8)}… but ticket creation failed. Please review manually.`,
-          '/admin/bookings'
+          '/admin/bookings',
+          { eventKey: `refund-manual-review:${params.bookingId}` }
         );
         return { success: true };
       } catch (fallbackError: any) {

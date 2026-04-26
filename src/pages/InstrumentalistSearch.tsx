@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Guitar, MapPin, Star, LayoutGrid, List, ArrowUpDown, BadgeCheck } from "lucide-react";
+import { Guitar, MapPin, Star, LayoutGrid, List, ArrowUpDown, BadgeCheck, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatGHSWithSymbol } from "@/lib/currency";
@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { notificationsService } from "@/services/notificationsService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { locationMatchesQuery, toGoogleMapsSearchUrl } from "@/utils/location-search";
 
 interface Musician {
 	id?: string;
@@ -402,6 +403,17 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 							value={location}
 							onChange={(e) => setLocation(e.target.value)}
 						/>
+						{location.trim() && (
+							<a
+								href={toGoogleMapsSearchUrl(location)}
+								target="_blank"
+								rel="noreferrer"
+								className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-2"
+							>
+								<Navigation className="h-3 w-3" />
+								Open this event location in Google Maps
+							</a>
+						)}
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="notes">Notes/Requirements</Label>
@@ -627,7 +639,7 @@ const InstrumentalistSearch = () => {
 			const matchesQuery =
 				searchQuery === "" ||
 				musician.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				musician.location?.toLowerCase().includes(searchQuery.toLowerCase());
+				locationMatchesQuery(musician.location, searchQuery);
 
 			// Filter by instrument
 			const matchesInstrument =
@@ -1064,7 +1076,19 @@ const InstrumentalistSearch = () => {
 										</h3>
 										<p className="text-sm text-muted-foreground flex items-center gap-1">
 											<MapPin className="h-3.5 w-3.5 shrink-0" /> 
-											<span className="truncate">{musician.location || 'Location not specified'}</span>
+											{musician.location ? (
+												<a
+													href={toGoogleMapsSearchUrl(musician.location)}
+													target="_blank"
+													rel="noreferrer"
+													className="truncate underline underline-offset-2 hover:text-primary"
+													title="Open musician location in Google Maps"
+												>
+													{musician.location}
+												</a>
+											) : (
+												<span className="truncate">Location not specified</span>
+											)}
 										</p>
 									</div>
 									<div className="text-right ml-3 shrink-0">
@@ -1121,6 +1145,23 @@ const InstrumentalistSearch = () => {
 										<span className="font-medium">{musician.total_bookings || 0} bookings</span>
 									</div>
 									<div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:justify-center">
+										{musician.location && (
+											<Button
+												size="sm"
+												variant="ghost"
+												className="gap-1 w-full sm:flex-1 sm:max-w-[140px] touch-manipulation"
+												asChild
+											>
+												<a
+													href={toGoogleMapsSearchUrl(musician.location)}
+													target="_blank"
+													rel="noreferrer"
+												>
+													<Navigation className="h-3.5 w-3.5" />
+													Map
+												</a>
+											</Button>
+										)}
 										<Button
 											size="sm"
 											variant="outline"

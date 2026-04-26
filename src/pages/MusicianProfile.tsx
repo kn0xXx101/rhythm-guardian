@@ -629,7 +629,7 @@ const MusicianProfile: React.FC = () => {
                         <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
                           id="location"
-                          placeholder="Your location"
+                          placeholder="Your town and city (e.g., East Legon, Accra)"
                           value={formattedProfileData.location || ''}
                           disabled={!isEditing}
                           onChange={(e) => setFormattedProfileData(prev => ({ ...prev, location: e.target.value }))}
