@@ -29,6 +29,10 @@ const sections = [
         body: 'Payments are held securely in escrow until both parties confirm service completion. This protects hirers and musicians by ensuring payment is only released when the service is successfully rendered.',
       },
       {
+        heading: 'Locations and Navigation',
+        body: 'Users are responsible for entering accurate profile and event location details (for example town and city). Rhythm Guardian may provide map links (such as Google Maps search links) for convenience, but route quality, travel conditions, and third-party map content are outside our control.',
+      },
+      {
         heading: 'Platform Fees',
         body: 'Rhythm Guardian charges a platform commission and payment processing fees (for example Paystack: 1.5% + ₵0.50) on each booking. Fees and totals are shown before you confirm payment. The commission rate that applies to a booking is recorded with that booking; later changes to platform-wide rates do not retroactively change fees already set for past bookings.',
       },
@@ -53,6 +57,10 @@ const sections = [
       {
         heading: 'Dispute Resolution',
         body: 'If there is a disagreement about service completion or quality, either party can file a dispute through the platform. Disputes are reviewed by Rhythm Guardian administrators who will mediate and make a final decision based on evidence provided by both parties.',
+      },
+      {
+        heading: 'Support and Administrative Alerts',
+        body: 'To keep bookings safe and auditable, Rhythm Guardian may generate administrative alerts for important lifecycle events such as booking creation, acceptance, cancellation, payment confirmation, service confirmation, refund requests, and support escalation.',
       },
       {
         heading: 'Reviews and Ratings',
@@ -140,7 +148,7 @@ export default function Terms() {
             These terms govern your use of Rhythm Guardian as a hirer, musician, or administrator.
             Please read them carefully before using the platform.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 23 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 26 April 2026</p>
         </div>
       </div>
 

@@ -8,11 +8,11 @@ const sections = [
     subsections: [
       {
         heading: 'Account Information',
-        body: 'When you create an account, we collect your name, email address, role (hirer, musician, or admin), and any details you add to your profile — such as location, instruments, genres, rates, and availability.',
+        body: 'When you create an account, we collect your name, email address, role (hirer, musician, or admin), and any details you add to your profile — such as location, instruments, genres, rates, and availability. Location entries may include town and city information to improve search relevance.',
       },
       {
         heading: 'Usage Data',
-        body: 'When you use Rhythm Guardian, we collect booking details, messages sent through the platform, reviews and ratings, search queries, in-app and push notifications (where enabled), reminder preferences, and basic technical data such as device type, IP address, browser information, and usage logs used for security and analytics.',
+        body: 'When you use Rhythm Guardian, we collect booking details, messages sent through the platform, reviews and ratings, search queries, in-app and push notifications (where enabled), reminder preferences, and basic technical data such as device type, IP address, browser information, and usage logs used for security and analytics. We may also record operational event identifiers in notification metadata to prevent duplicate administrative alerts.',
       },
       {
         heading: 'Payment Information',
@@ -21,6 +21,10 @@ const sections = [
       {
         heading: 'Communications',
         body: 'We collect messages sent through our platform messaging system, support tickets, and any other communications you have with us or other users through the platform.',
+      },
+      {
+        heading: 'Map and Location Link Usage',
+        body: 'When you open a map link from Rhythm Guardian (for example Google Maps search links for musician or event locations), that action is handled by the third-party map provider. Their processing of location and usage data is governed by their own privacy terms.',
       },
       {
         heading: 'Onboarding and product tours',
@@ -146,7 +150,7 @@ export default function Privacy() {
             This policy explains how Rhythm Guardian collects, uses, and protects your information
             when you use our platform to hire musicians or offer musical services.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 23 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 26 April 2026</p>
         </div>
       </div>
 
