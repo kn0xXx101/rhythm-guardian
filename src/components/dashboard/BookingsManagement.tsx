@@ -39,6 +39,7 @@ import { formatGHSWithSymbol } from '@/lib/currency';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { exportToCSV, bookingExportColumns } from '@/lib/export-utils';
 import { getSettings } from '@/api/settings';
+import { isWithinPostServiceConfirmationWindow } from '@/utils/booking-event-window';
 
 interface Booking {
   id: string;
@@ -50,6 +51,7 @@ interface Booking {
   musician_email: string;
   event_type: string;
   event_date: string;
+  duration_hours?: number | null;
   location: string;
   total_amount: number;
   platform_fee: number;
@@ -120,6 +122,7 @@ export function BookingsManagement() {
           musician_email: booking.musician_email || '',
           event_type: booking.event_type || 'Event',
           event_date: booking.event_date,
+          duration_hours: booking.duration_hours ?? booking.event_duration ?? null,
           location: booking.location || 'TBD',
           total_amount: totalAmount,
           platform_fee: platformFee,
@@ -192,6 +195,16 @@ export function BookingsManagement() {
     };
   }, [platformCommissionRate, fetchBookings]);
 
+  const getDisplayStatus = useCallback((booking: Booking) => {
+    const withinWaitingConfirmationWindow =
+      booking.status === 'expired' &&
+      isWithinPostServiceConfirmationWindow(
+        booking.event_date,
+        booking.duration_hours ?? null
+      );
+    return withinWaitingConfirmationWindow ? 'waiting_confirmation' : booking.status;
+  }, []);
+
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
       const matchesSearch =
@@ -199,12 +212,13 @@ export function BookingsManagement() {
         booking.musician_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         booking.id.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
+      const displayStatus = getDisplayStatus(booking);
+      const matchesStatus = statusFilter === 'all' || displayStatus === statusFilter;
       const matchesPayment = paymentFilter === 'all' || booking.payment_status === paymentFilter;
       
       return matchesSearch && matchesStatus && matchesPayment;
     });
-  }, [bookings, searchTerm, statusFilter, paymentFilter]);
+  }, [bookings, searchTerm, statusFilter, paymentFilter, getDisplayStatus]);
 
   const stats = useMemo(() => {
     const totalBookings = bookings.length;
@@ -446,14 +460,16 @@ export function BookingsManagement() {
       accepted: { variant: 'outline', className: 'bg-blue-100 text-blue-800' },
       upcoming: { variant: 'outline', className: 'bg-blue-100 text-blue-800' },
       completed: { variant: 'outline', className: 'bg-green-100 text-green-800' },
+      waiting_confirmation: { variant: 'outline', className: 'bg-amber-100 text-amber-800' },
       cancelled: { variant: 'destructive', className: '' },
       rejected: { variant: 'destructive', className: '' },
       expired: { variant: 'outline', className: 'bg-gray-100 text-gray-600' },
     };
     const config = variants[status] || variants.pending;
+    const label = status === 'waiting_confirmation' ? 'waiting confirmation' : status;
     return (
       <Badge variant={config?.variant} className={config?.className}>
-        {status}
+        {label}
       </Badge>
     );
   };
@@ -579,6 +595,7 @@ export function BookingsManagement() {
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="accepted">Accepted</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="waiting_confirmation">Waiting Confirmation</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                     <SelectItem value="expired">Expired</SelectItem>
                   </SelectGroup>
@@ -643,7 +660,7 @@ export function BookingsManagement() {
                         {formatGHSWithSymbol(booking.total_amount)}
                       </TableCell>
                       <TableCell>{getPaymentBadge(booking.payment_status)}</TableCell>
-                      <TableCell>{getStatusBadge(booking.status)}</TableCell>
+                      <TableCell>{getStatusBadge(getDisplayStatus(booking))}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           {booking.service_confirmed_by_hirer ? (
@@ -816,7 +833,7 @@ export function BookingsManagement() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Booking Status</p>
-                      {getStatusBadge(selectedBooking.status)}
+                      {getStatusBadge(getDisplayStatus(selectedBooking))}
                     </div>
                   </div>
                 </div>

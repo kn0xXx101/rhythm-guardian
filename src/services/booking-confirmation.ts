@@ -1,10 +1,68 @@
 import { supabase } from '@/lib/supabase';
 import { payoutService } from '@/services/payout';
+import { notifyAdmins } from '@/services/admin-notify';
 
 /**
  * Service confirmation utility with enhanced error handling
  */
 export class BookingConfirmationService {
+  private static async triggerAutomaticPayoutIfReady(bookingId: string): Promise<void> {
+    try {
+      const { data: booking, error } = await supabase
+        .from('bookings')
+        .select(
+          'payment_status, service_confirmed_by_hirer, service_confirmed_by_musician, payout_released'
+        )
+        .eq('id', bookingId)
+        .single();
+
+      if (error || !booking) {
+        console.warn('Could not verify payout readiness after confirmation:', error);
+        return;
+      }
+
+      const b = booking as any;
+      const paidLikeStatus = ['paid', 'paid_to_admin', 'service_completed'];
+      const readyForAutoPayout =
+        paidLikeStatus.includes(String(b.payment_status)) &&
+        b.service_confirmed_by_hirer === true &&
+        b.service_confirmed_by_musician === true &&
+        b.payout_released !== true;
+
+      if (!readyForAutoPayout) return;
+
+      await payoutService.requestAutomaticPayout(bookingId);
+
+      const { data: bookingMeta } = await supabase
+        .from('bookings_with_profiles')
+        .select('hirer_name,musician_name,musician_payout,total_amount')
+        .eq('id', bookingId)
+        .maybeSingle();
+      const hirerName = (bookingMeta as any)?.hirer_name || 'Hirer';
+      const musicianName = (bookingMeta as any)?.musician_name || 'Musician';
+      const payoutAmount =
+        (bookingMeta as any)?.musician_payout != null
+          ? Number((bookingMeta as any).musician_payout)
+          : Number((bookingMeta as any)?.total_amount || 0);
+
+      await notifyAdmins(
+        'payout',
+        'Funds released to musician',
+        `Automatic payout was released for booking ${bookingId.slice(0, 8)}… (${hirerName} → ${musicianName})${Number.isFinite(payoutAmount) && payoutAmount > 0 ? ` amount ${payoutAmount}.` : '.'}`,
+        '/admin/bookings',
+        { eventKey: `booking-payout-released:${bookingId}` }
+      );
+    } catch (payoutError) {
+      console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
+      await notifyAdmins(
+        'payout',
+        'Payout release failed',
+        `Automatic payout attempt failed for booking ${bookingId.slice(0, 8)}…. Manual review may be required.`,
+        '/admin/bookings',
+        { eventKey: `booking-payout-failed:${bookingId}` }
+      ).catch(() => {});
+    }
+  }
   /**
    * Confirm service completion with better error handling
    */
@@ -35,15 +93,7 @@ export class BookingConfirmationService {
         console.log('Service confirmed successfully:', result.message);
 
         // If both parties are now confirmed, try to trigger automatic payout.
-        // This will only succeed when the booking is eligible and the caller is authorized.
-        try {
-          const eligible = await payoutService.isEligibleForPayout(bookingId);
-          if (eligible) {
-            await payoutService.requestAutomaticPayout(bookingId);
-          }
-        } catch (payoutError) {
-          console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
-        }
+        await this.triggerAutomaticPayoutIfReady(bookingId);
       } catch (rpcError: any) {
         // If RPC fails, use fallback method
         if (rpcError.message.includes('function') && rpcError.message.includes('does not exist')) {
@@ -138,15 +188,7 @@ export class BookingConfirmationService {
     console.log('Update successful:', updatedData);
 
     // Try to trigger automatic payout after database update (non-blocking).
-    // The edge function will enforce eligibility and only mark payout released on success.
-    try {
-      const eligible = await payoutService.isEligibleForPayout(bookingId);
-      if (eligible) {
-        await payoutService.requestAutomaticPayout(bookingId);
-      }
-    } catch (payoutError) {
-      console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
-    }
+    await this.triggerAutomaticPayoutIfReady(bookingId);
   }
 
   /**

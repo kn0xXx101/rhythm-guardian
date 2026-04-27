@@ -21,6 +21,7 @@ export interface PayoutRequest {
  * Handles automatic fund release to musicians via Paystack Transfer API
  */
 class PayoutService {
+  private readonly paidLikeStatuses = ['paid', 'paid_to_admin', 'service_completed'];
   /**
    * Check if a booking is eligible for automatic payout
    */
@@ -38,10 +39,10 @@ class PayoutService {
 
     const bookingData = booking as any;
     return (
-      bookingData.payment_status === 'paid' &&
+      this.paidLikeStatuses.includes(String(bookingData.payment_status)) &&
       bookingData.service_confirmed_by_hirer === true &&
       bookingData.service_confirmed_by_musician === true &&
-      bookingData.payout_released === false
+      bookingData.payout_released !== true
     );
   }
 
@@ -52,7 +53,7 @@ class PayoutService {
     const { data: bookings, error } = await supabase
       .from('bookings')
       .select('id')
-      .eq('payment_status', 'paid')
+      .in('payment_status', this.paidLikeStatuses as any)
       .eq('service_confirmed_by_hirer', true)
       .eq('service_confirmed_by_musician', true)
       .eq('payout_released', false);

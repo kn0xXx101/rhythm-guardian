@@ -151,11 +151,16 @@ const HirerBookings = () => {
 
   // Filter bookings for current user (hirer)
   const userBookings = bookings?.filter((b) => b?.client?.id === user?.id) || [];
+  const isWaitingConfirmationStatus = (booking: any) =>
+    booking.status === 'expired' &&
+    isWithinPostServiceConfirmationWindow(booking.date, booking.durationHours, booking.time);
 
   const filteredBookings =
     activeTab === 'all'
       ? userBookings
       : userBookings.filter((booking) => {
+          if (activeTab === 'waiting_confirmation') return isWaitingConfirmationStatus(booking);
+          if (activeTab === 'expired') return booking.status === 'expired' && !isWaitingConfirmationStatus(booking);
           if (activeTab === 'upcoming') return booking.status === 'upcoming' || booking.status === 'pending';
           return booking.status === activeTab;
         });
@@ -172,6 +177,8 @@ const HirerBookings = () => {
         return 'bg-red-100 text-red-800';
       case 'expired':
         return 'bg-gray-100 text-gray-600';
+      case 'waiting_confirmation':
+        return 'bg-amber-100 text-amber-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -360,6 +367,7 @@ const HirerBookings = () => {
             <TabsTrigger value="all">All Bookings</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
             <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="waiting_confirmation">Waiting Confirmation</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
             <TabsTrigger value="expired">Expired</TabsTrigger>
           </TabsList>
@@ -424,9 +432,17 @@ const HirerBookings = () => {
                   booking.status === 'upcoming' ||
                   (booking.status === 'accepted' && isFunded) ||
                   (booking.status === 'expired' && isFunded && withinConfirmWindow);
+                const displayStatus =
+                  booking.status === 'expired' && withinConfirmWindow
+                    ? 'waiting_confirmation'
+                    : booking.status || 'pending';
+                const allowActionsDuringGrace =
+                  booking.status === 'expired' && withinConfirmWindow;
                 const calendarLink = buildCalendarLink(booking);
                 const cardTone =
-                  booking.status === 'expired'
+                  displayStatus === 'waiting_confirmation'
+                    ? 'border-amber-500/40 bg-amber-500/[0.06]'
+                    : booking.status === 'expired'
                     ? 'border-amber-900/40 bg-amber-950/10'
                     : booking.status === 'cancelled'
                       ? 'border-destructive/30 bg-destructive/[0.06]'
@@ -533,10 +549,12 @@ const HirerBookings = () => {
                             <div className="mt-3">
                               <span
                                 className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${getStatusBadgeClass(
-                                  booking.status || 'pending'
+                                  displayStatus
                                 )}`}
                               >
-                                {booking.status || 'pending'}
+                                {displayStatus === 'waiting_confirmation'
+                                  ? 'Waiting Confirmation'
+                                  : displayStatus}
                               </span>
                               {showDebugTiming && (
                                 <div className="mt-2 text-[10px] leading-tight rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-2 py-1 font-mono text-amber-800">
@@ -559,7 +577,7 @@ const HirerBookings = () => {
                       <div className="md:w-1/5 p-6 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l">
                         {booking.paymentStatus === 'unpaid' &&
                           booking.status !== 'pending' &&
-                          booking.status !== 'expired' &&
+                          (booking.status !== 'expired' || allowActionsDuringGrace) &&
                           booking.status !== 'cancelled' &&
                           !isBookingEventWindowPast(booking.date, booking.durationHours, booking.time) && (
                           <Button className="w-full" onClick={() => handlePayNow(booking)}>
@@ -567,7 +585,7 @@ const HirerBookings = () => {
                           </Button>
                         )}
                         {calendarLink &&
-                          booking.status !== 'expired' &&
+                          (booking.status !== 'expired' || allowActionsDuringGrace) &&
                           booking.status !== 'cancelled' &&
                           booking.status !== 'rejected' && (
                           <Button variant="outline" className="w-full" asChild>
@@ -579,7 +597,7 @@ const HirerBookings = () => {
                         )}
                         
                         {/* Show funded status after payment to reassure the hirer */}
-                        {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') && (booking.status !== 'expired' && booking.status !== 'cancelled' && booking.status !== 'completed') && (
+                        {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') && ((booking.status !== 'expired' || allowActionsDuringGrace) && booking.status !== 'cancelled' && booking.status !== 'completed') && (
                           <div className="text-center py-2 px-3 bg-blue-50 rounded-md border border-blue-200">
                             <span className="text-xs font-medium text-blue-700 flex items-center justify-center gap-1">
                               <CreditCard className="h-3 w-3" />
@@ -588,7 +606,7 @@ const HirerBookings = () => {
                           </div>
                         )}
                         
-                        {/* Show refund status for expired/cancelled bookings that were paid */}
+                        {/* Show refund state once a booking has moved beyond the waiting-confirmation stage. */}
                         {(booking.status === 'expired' || booking.status === 'cancelled' || booking.status === 'rejected') && 
                          (booking.paymentStatus === 'refunded' || booking.paymentStatus === 'refund_pending') && (
                           <div className={`text-center py-2 px-3 rounded-md border ${booking.paymentStatus === 'refund_pending' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-green-50 border-green-200 text-green-700'}`}>
@@ -599,8 +617,8 @@ const HirerBookings = () => {
                           </div>
                         )}
                         
-                        {/* Manual refund request should NOT appear immediately after end-time.
-                            Only allow refund escalation after the post-service confirmation window expires. */}
+                        {/* Do not show refund escalation immediately after end-time.
+                            Allow escalation only after the waiting-confirmation window expires. */}
                         {(booking.status === 'expired' ||
                           booking.status === 'cancelled' ||
                           booking.status === 'rejected') &&
@@ -638,7 +656,7 @@ const HirerBookings = () => {
                         )}
                         
                         {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') &&
-                          booking.status !== 'expired' &&
+                          (booking.status !== 'expired' || allowActionsDuringGrace) &&
                           booking.status !== 'cancelled' && (
                           <Button
                             variant="default"

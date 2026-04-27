@@ -235,11 +235,22 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const booking = bookings.find((b) => b.id === id);
       if (!booking) return;
 
+      const { data: latestBooking } = await supabase
+        .from('bookings')
+        .select(
+          'status,payment_status,payout_released,service_confirmed_at,service_confirmed_by_hirer,service_confirmed_by_musician'
+        )
+        .eq('id', id)
+        .maybeSingle();
+
       // Determine if service will be fully confirmed after this update
-      const willBeFullyConfirmed = 
-        role === 'hirer' 
-          ? booking.serviceConfirmedByMusician 
-          : booking.serviceConfirmedByHirer;
+      const willBeFullyConfirmed = Boolean(
+        latestBooking
+          ? latestBooking.service_confirmed_by_hirer && latestBooking.service_confirmed_by_musician
+          : role === 'hirer'
+            ? booking.serviceConfirmedByMusician
+            : booking.serviceConfirmedByHirer
+      );
       
       // Update local state
       const updates: Partial<Booking> =
@@ -250,15 +261,18 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // If both parties have now confirmed, mark as completed and release payout
       if (willBeFullyConfirmed) {
         updates.status = 'completed';
-        updates.serviceConfirmedAt = new Date().toISOString();
+        updates.serviceConfirmedAt = latestBooking?.service_confirmed_at || new Date().toISOString();
         
         // Auto-release payout if payment has been received
-        if (
+        const payoutReleased = latestBooking?.payout_released === true;
+        if (payoutReleased) {
+          updates.payoutStatus = 'released';
+        } else if (
           booking.paymentStatus === 'paid_to_admin' ||
           booking.paymentStatus === 'paid' ||
           booking.paymentStatus === 'service_completed'
         ) {
-          updates.payoutStatus = 'released';
+          updates.payoutStatus = 'pending';
         }
       }
       
@@ -283,16 +297,21 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       try {
         if (willBeFullyConfirmed) {
+          const payoutActuallyReleased = latestBooking?.payout_released === true;
           // Notify both parties about completion
           await notificationsService.createNotification({
             user_id: targetUserId,
             type: 'booking',
-            title: 'Service Completed & Payment Released! 🎉',
-            message: `Both parties have confirmed service completion. ${recipientRole === 'musician' ? 'Your payment has been automatically released!' : 'The musician\'s payment has been released.'}`,
+            title: payoutActuallyReleased
+              ? 'Service Completed & Payment Released! 🎉'
+              : 'Service Completed! ✓',
+            message: payoutActuallyReleased
+              ? `Both parties have confirmed service completion. ${recipientRole === 'musician' ? 'Your payment has been automatically released!' : 'The musician\'s payment has been released.'}`
+              : 'Both parties have confirmed service completion. Payout release is being processed.',
             link: `/${recipientRole}/bookings`,
             is_read: false,
             priority: 'high',
-            data: { bookingId: id, payoutReleased: true },
+            data: { bookingId: id, payoutReleased: payoutActuallyReleased },
           });
           
           // Also notify the confirming party
@@ -301,11 +320,13 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
             user_id: confirmingUserId,
             type: 'booking',
             title: 'Service Completed! ✓',
-            message: `You've confirmed service completion. The booking is now complete${role === 'musician' ? ' and your payment has been released!' : '!'}`,
+            message: payoutActuallyReleased
+              ? `You've confirmed service completion. The booking is now complete${role === 'musician' ? ' and your payment has been released!' : '!'}`
+              : `You've confirmed service completion. The booking is now complete${role === 'musician' ? ' and payout release is being processed.' : '.'}`,
             link: `/${role === 'hirer' ? 'hirer' : 'musician'}/bookings`,
             is_read: false,
             priority: 'high',
-            data: { bookingId: id, payoutReleased: role === 'musician' },
+            data: { bookingId: id, payoutReleased: payoutActuallyReleased },
           });
 
           await notifyAdmins(

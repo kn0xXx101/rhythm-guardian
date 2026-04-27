@@ -6,6 +6,10 @@ import { BackToTop } from '@/components/ui/back-to-top';
 import { useToast } from '@/hooks/use-toast';
 import { useSidebarContext } from '@/contexts/SidebarContext';
 import { cn } from '@/lib/utils';
+import { OnboardingTour } from '@/components/onboarding/OnboardingTour';
+import { adminDashboardTourSteps } from '@/components/onboarding/dashboard-tour-steps';
+
+const ADMIN_TOUR_NAME = 'admin_orientation_v1';
 
 const AdminDashboardLayout = () => {
   const { isMobileOpen, setMobileSidebarOpen, isCollapsed, isMobile } = useSidebarContext();
@@ -13,16 +17,6 @@ const AdminDashboardLayout = () => {
   const { toast } = useToast();
   const hasShownWelcome = useRef(false);
   const isConversationRoute = /\/(chat|communications)(\/|$)/.test(location.pathname);
-
-  // Admin defaults to dark mode if no theme preference has been saved
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (!savedTheme) {
-      localStorage.setItem('theme', 'dark');
-      document.documentElement.classList.remove('light', 'system');
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
 
   useEffect(() => {
     // Show welcome toast once per session when admin first navigates to dashboard after login
@@ -41,7 +35,12 @@ const AdminDashboardLayout = () => {
   }, [location.pathname, toast]);
 
   return (
-    <div className="admin-font min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
+      <OnboardingTour
+        tourName={ADMIN_TOUR_NAME}
+        steps={adminDashboardTourSteps}
+        onComplete={() => {}}
+      />
       {/* Mobile Backdrop */}
       {isMobile && isMobileOpen && (
         <div 

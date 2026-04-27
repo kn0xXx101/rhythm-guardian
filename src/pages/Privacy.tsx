@@ -127,6 +127,24 @@ const sections = [
   },
   {
     number: '09',
+    title: 'Onboarding and Navigation Guidance Data',
+    subsections: [
+      {
+        heading: 'What is stored',
+        body: 'We may store onboarding progress such as tour name, step index, completion status, completion time, and basic route context needed to resume or suppress repeated tours.',
+      },
+      {
+        heading: 'Why this is processed',
+        body: 'This data helps present role-appropriate product education across hirer, musician, and admin paths so users can complete booking, payment, verification, and support workflows correctly.',
+      },
+      {
+        heading: 'Control and retention',
+        body: 'Tour state may be stored in account records and/or local browser storage to avoid repetition. Users can skip tours, and platform operators may reset or update tours when important workflows change.',
+      },
+    ],
+  },
+  {
+    number: '10',
     title: 'Updates to This Policy',
     content: [
       'We may update this Privacy Policy from time to time as we add new features or to comply with legal requirements. When we make material changes, we will update the version date and may notify you through the platform or by email. Your continued use of the platform after changes take effect means you accept the updated policy.',
@@ -150,7 +168,7 @@ export default function Privacy() {
             This policy explains how Rhythm Guardian collects, uses, and protects your information
             when you use our platform to hire musicians or offer musical services.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 26 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 27 April 2026</p>
         </div>
       </div>
 

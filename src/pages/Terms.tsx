@@ -125,6 +125,24 @@ const sections = [
   },
   {
     number: '09',
+    title: 'Onboarding, Navigation Paths, and Feature Education',
+    subsections: [
+      {
+        heading: 'Guided Orientation',
+        body: 'Rhythm Guardian may provide role-based onboarding tours for hirers, musicians, and admins. These tours explain key feature paths (for example search, bookings, confirmations, payouts, verification, support, and settings) so users can operate the platform correctly.',
+      },
+      {
+        heading: 'Path-Specific Guidance',
+        body: 'Tours and contextual prompts may reference in-app routes such as dashboard, bookings, chat, notifications, referrals, verification, transactions, and settings pages. These references are provided to reduce navigation errors and improve successful task completion.',
+      },
+      {
+        heading: 'No Replacement for User Responsibility',
+        body: 'Onboarding guidance is educational and operational only. Users remain responsible for reviewing booking terms, payment details, timelines, and confirmations before taking action.',
+      },
+    ],
+  },
+  {
+    number: '10',
     title: 'Changes to These Terms',
     content: [
       'We may update these Terms from time to time. When we make material changes, we will update the version date and may notify you through the app or by email. Your continued use of Rhythm Guardian after changes take effect means you accept the updated Terms.',
@@ -148,7 +166,7 @@ export default function Terms() {
             These terms govern your use of Rhythm Guardian as a hirer, musician, or administrator.
             Please read them carefully before using the platform.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 26 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 27 April 2026</p>
         </div>
       </div>
 

@@ -73,11 +73,16 @@ const MusicianBookings = () => {
 
   // Filter bookings for current musician
   const musicianBookings = bookings.filter((b) => b.musician.id === user?.id);
+  const isWaitingConfirmationStatus = (booking: any) =>
+    booking.status === 'expired' &&
+    isWithinPostServiceConfirmationWindow(booking.date, booking.durationHours, booking.time);
 
   const filteredBookings =
     activeTab === 'all'
       ? musicianBookings
       : musicianBookings.filter((booking) => {
+          if (activeTab === 'waiting_confirmation') return isWaitingConfirmationStatus(booking);
+          if (activeTab === 'expired') return booking.status === 'expired' && !isWaitingConfirmationStatus(booking);
           if (activeTab === 'upcoming') return booking.status === 'upcoming' || booking.status === 'accepted';
           return booking.status === activeTab;
         });
@@ -96,6 +101,8 @@ const MusicianBookings = () => {
         return 'bg-red-100 text-red-800';
       case 'expired':
         return 'bg-gray-100 text-gray-600';
+      case 'waiting_confirmation':
+        return 'bg-amber-100 text-amber-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -124,7 +131,7 @@ const MusicianBookings = () => {
       toast({
         variant: 'destructive',
         title: 'Event time has passed',
-        description: 'This booking can no longer be accepted. It should move to expired.',
+        description: 'This booking can no longer be accepted because the event has already ended.',
       });
       return;
     }
@@ -244,6 +251,7 @@ const MusicianBookings = () => {
             <TabsTrigger value="all">All Bookings</TabsTrigger>
             <TabsTrigger value="pending">Booking Requests</TabsTrigger>
             <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+            <TabsTrigger value="waiting_confirmation">Waiting Confirmation</TabsTrigger>
             <TabsTrigger value="completed">Past Bookings</TabsTrigger>
             <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
             <TabsTrigger value="expired">Expired</TabsTrigger>
@@ -283,14 +291,22 @@ const MusicianBookings = () => {
                   booking.status === 'upcoming' ||
                   (booking.status === 'accepted' && isFunded) ||
                   (booking.status === 'expired' && isFunded && withinConfirmWindow);
+                const displayStatus =
+                  booking.status === 'expired' && withinConfirmWindow
+                    ? 'waiting_confirmation'
+                    : booking.status;
+                const allowActionsDuringGrace =
+                  booking.status === 'expired' && withinConfirmWindow;
                 const calendarLink = buildCalendarLink(booking);
                 const showCalendar =
                   calendarLink &&
-                  booking.status !== 'expired' &&
+                  (displayStatus !== 'expired' || allowActionsDuringGrace) &&
                   booking.status !== 'cancelled' &&
                   booking.status !== 'rejected';
                 const cardTone =
-                  booking.status === 'expired'
+                  displayStatus === 'waiting_confirmation'
+                    ? 'border-amber-500/40 bg-amber-500/[0.06]'
+                    : booking.status === 'expired'
                     ? 'border-amber-900/40 bg-amber-950/10'
                     : booking.status === 'cancelled'
                       ? 'border-destructive/30 bg-destructive/[0.06]'
@@ -395,10 +411,12 @@ const MusicianBookings = () => {
                             <div className="mt-3">
                               <span
                                 className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${getStatusBadgeClass(
-                                  booking.status
+                                  displayStatus
                                 )}`}
                               >
-                                {booking.status}
+                                {displayStatus === 'waiting_confirmation'
+                                  ? 'Waiting Confirmation'
+                                  : displayStatus}
                               </span>
                               {showDebugTiming && (
                                 <div className="mt-2 text-[10px] leading-tight rounded-md border border-dashed border-amber-500/50 bg-amber-500/10 px-2 py-1 font-mono text-amber-800">
@@ -417,7 +435,7 @@ const MusicianBookings = () => {
 
                       <div className="md:w-1/5 p-6 flex flex-col gap-2 justify-center border-t md:border-t-0 md:border-l">
                         {(booking.paymentStatus === 'paid_to_admin' || booking.paymentStatus === 'paid') &&
-                          booking.status !== 'expired' &&
+                          (booking.status !== 'expired' || allowActionsDuringGrace) &&
                           booking.status !== 'cancelled' && (
                           <Button
                             className="w-full md:hover:scale-105 transition-transform duration-200 touch-manipulation"

@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import type { Booking, BookingStatus, PaymentStatus } from '@/contexts/BookingContext';
 import { notifyAdmins } from '@/services/admin-notify';
+import { inferLocationRegion } from '@/utils/location-search';
 
 type DbBookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'in_progress' | 'expired';
 type DbPaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
@@ -197,10 +198,14 @@ class BookingService {
       if (!completeBooking) throw new Error('Failed to fetch complete booking details');
 
       try {
+        const eventRegion = inferLocationRegion(booking.location);
+        const locationSummary = booking.location
+          ? ` Location: ${booking.location}${eventRegion ? ` (region: ${eventRegion})` : ''}.`
+          : '';
         await notifyAdmins(
           'booking',
           'New booking placed',
-          `${booking.client.name} placed a booking request with ${booking.musician.name} for ${booking.date || 'a scheduled date'}.`,
+          `${booking.client.name} placed a booking request with ${booking.musician.name} for ${booking.date || 'a scheduled date'}.${locationSummary}`,
           '/admin/bookings',
           { eventKey: `booking-created:${data.id}` }
         );

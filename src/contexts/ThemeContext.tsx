@@ -163,7 +163,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       setIsLoading(true);
       try {
         // Load saved theme preference
-        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+        let savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+        const themeMigrationKey = 'rg:theme-migration:admin-dark-default-fix:v1';
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
         // Use cached settings for fastest first paint.
@@ -176,15 +177,26 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         // 2) Fetch authoritative settings in the background and apply if different.
         let settings: Settings = cachedSettings;
 
+        // One-time migration: older admin layout forced `theme=dark` in localStorage.
+        // If platform default dark mode is now off, restore true default behavior.
+        const migrated = localStorage.getItem(themeMigrationKey) === 'true';
+        if (!migrated && savedTheme === 'dark' && settings.appearance.darkMode === false) {
+          localStorage.removeItem('theme');
+          savedTheme = null;
+        }
+        if (!migrated) {
+          localStorage.setItem(themeMigrationKey, 'true');
+        }
+
         // Determine initial theme
-        // Priority: saved theme > settings darkMode > system preference > light
+        // Priority: saved theme > settings darkMode > light
         let initialTheme: 'light' | 'dark' | 'system';
         if (savedTheme) {
           initialTheme = savedTheme;
         } else if (settings.appearance.darkMode) {
           initialTheme = 'dark';
         } else {
-          initialTheme = prefersDark ? 'dark' : 'light';
+          initialTheme = 'light';
         }
         setTheme(initialTheme);
 
@@ -421,18 +433,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         }
       }
 
-      // Apply default dark mode if user has no saved theme preference
+      // Apply default dark mode if user has no saved theme preference.
+      // When darkMode is OFF, default must be light (not system-driven dark).
       // User's manual theme selection (via toggleTheme) should always take precedence
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
       if (!savedTheme) {
-        // No saved preference - apply default dark mode setting (matches initialization logic)
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        let newTheme: 'light' | 'dark';
-        if (themeSettings.appearance.darkMode) {
-          newTheme = 'dark';
-        } else {
-          newTheme = prefersDark ? 'dark' : 'light';
-        }
+        // No saved preference - apply platform default exactly as configured.
+        const newTheme: 'light' | 'dark' = themeSettings.appearance.darkMode ? 'dark' : 'light';
 
         // Update theme state and apply to DOM
         setTheme(newTheme);

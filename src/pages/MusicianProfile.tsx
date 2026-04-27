@@ -38,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import { toGoogleMapsSearchUrl } from '@/utils/location-search';
 import {
   Dialog,
   DialogTrigger,
@@ -636,6 +637,16 @@ const MusicianProfile: React.FC = () => {
                           className={cn(!isEditing && 'bg-muted/50 border-transparent cursor-default')}
                         />
                       </div>
+                      {!!formattedProfileData.location?.trim() && (
+                        <a
+                          href={toGoogleMapsSearchUrl(formattedProfileData.location)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary underline underline-offset-2"
+                        >
+                          Open profile location in Google Maps
+                        </a>
+                      )}
                     </div>
 
                     <div className="space-y-2 md:col-span-2">

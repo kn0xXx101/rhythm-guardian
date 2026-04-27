@@ -5,6 +5,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  location?: string;
   userType: 'hirer' | 'musician';
   status: 'active' | 'suspended' | 'banned' | 'pending';
   verified: boolean;
@@ -310,6 +311,7 @@ class AdminService {
             user_id,
             full_name,
             email,
+            location,
             role,
             status,
             is_active,
@@ -335,7 +337,7 @@ class AdminService {
           query = query.eq('is_active', filters.availability === 'active');
         }
         if (filters?.search) {
-          query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
+          query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,location.ilike.%${filters.search}%`);
         }
 
         const { data: profiles, error } = await query.order('created_at', { ascending: false });
@@ -346,6 +348,7 @@ class AdminService {
           id: profile.user_id,
           name: profile.full_name || 'Unknown',
           email: profile.email || 'No email',
+          location: profile.location || '',
           userType: (profile.role as 'hirer' | 'musician') || 'hirer',
           status: (profile.status as 'active' | 'suspended' | 'banned' | 'pending') || 'pending',
           verified: profile.email_verified || false,

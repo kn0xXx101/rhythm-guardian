@@ -44,6 +44,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  location?: string;
   userType: 'hirer' | 'musician';
   status: 'active' | 'suspended' | 'banned' | 'pending';
   verified: boolean;
@@ -116,7 +117,8 @@ export function UsersManagement() {
     return users.filter(user => {
       const matchesSearch = searchTerm === '' || 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.location || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       return matchesSearch;
     });
@@ -414,6 +416,7 @@ export function UsersManagement() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
+                    <TableHead>Location</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Availability</TableHead>
@@ -428,6 +431,7 @@ export function UsersManagement() {
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.location || 'N/A'}</TableCell>
                       <TableCell>{getRoleBadge(user.userType)}</TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell>{getAvailabilityBadge(user.isActive)}</TableCell>
@@ -547,6 +551,10 @@ export function UsersManagement() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Email</p>
                   <p className="text-sm break-all">{selectedUser.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Location</p>
+                  <p>{selectedUser.location || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Role</p>

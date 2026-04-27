@@ -48,6 +48,7 @@ import { AppErrorBoundary, RouteErrorBoundary } from '@/components/ErrorBoundary
 import { OfflineIndicator } from '@/components/offline/OfflineIndicator';
 import { SessionManager } from '@/utils/session-manager';
 import { SessionDebug } from '@/components/debug/SessionDebug';
+import { AdminNotifyAuditToast } from '@/components/debug/AdminNotifyAuditToast';
 import { SuspensionCheck } from '@/components/auth/SuspensionCheck';
 
 // Lazy load layout components
@@ -130,6 +131,7 @@ const AppContent = () => {
       <LiveRegion id="app-live-region" message="" politeness="polite" />
       <OfflineIndicator />
       {import.meta.env.DEV && <SessionDebug />}
+      {import.meta.env.DEV && <AdminNotifyAuditToast />}
       <SuspensionCheck />
       <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
         <AppErrorBoundary context="Application">

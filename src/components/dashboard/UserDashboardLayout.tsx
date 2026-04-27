@@ -17,8 +17,8 @@ import {
 } from '@/components/onboarding/dashboard-tour-steps';
 
 const TOUR_NAME = {
-  hirer: 'hirer_orientation_v1',
-  musician: 'musician_orientation_v1',
+  hirer: 'hirer_orientation_v2',
+  musician: 'musician_orientation_v2',
 } as const;
 
 type WelcomeGate = 'loading' | 'tour' | 'ready';
