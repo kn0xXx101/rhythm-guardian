@@ -181,12 +181,26 @@ const SignUpBase = ({
       await signUp(values.email, values.password, userType as UserRole, values.fullName);
       // AuthContext.signUp() handles the success toast and navigation to /login
     } catch (error) {
-      toast({
-        title: 'Error',
-        description:
-          error instanceof Error ? error.message : 'Failed to create account. Please try again.',
-        variant: 'destructive',
-      });
+      // Handle specific Supabase signup errors
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create account. Please try again.';
+      
+      if (errorMessage.includes('User already registered') || 
+          errorMessage.includes('already been registered') ||
+          errorMessage.includes('email address is already registered') ||
+          errorMessage.includes('duplicate') ||
+          errorMessage.includes('already exists')) {
+        toast({
+          title: 'Email Already Registered',
+          description: 'This email is already registered. Please sign in instead or use a different email.',
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }

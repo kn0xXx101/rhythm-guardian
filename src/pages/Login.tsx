@@ -13,19 +13,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordRevealInput } from '@/components/ui/password-reveal-input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, Mail, User } from 'lucide-react';
+import { Lock, Mail, User, RefreshCw, Info } from 'lucide-react';
 
 const Login = () => {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const verifiedToastShown = useRef(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showResendOption, setShowResendOption] = useState(false);
 
-  const { login } = useAuth();
+  const { login, resendConfirmation } = useAuth();
 
   useEffect(() => {
     if (verifiedToastShown.current) return;
@@ -41,21 +44,66 @@ const Login = () => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams, toast]);
 
+  // Check for pending confirmation email on component mount
+  useEffect(() => {
+    try {
+      const pendingEmail = sessionStorage.getItem('pendingConfirmationEmail');
+      if (pendingEmail) {
+        setEmail(pendingEmail);
+        setShowResendOption(true);
+        sessionStorage.removeItem('pendingConfirmationEmail');
+      }
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setShowResendOption(false); // Hide resend option during login attempt
 
     try {
       await login(email, password);
       // Navigation is handled in AuthContext after successful login
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      
+      // Check if this is an email confirmation issue
+      if (errorMessage.includes('verify your email') || 
+          errorMessage.includes('confirmation link') ||
+          errorMessage.includes('Email not confirmed')) {
+        setShowResendOption(true);
+      }
+      
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      toast({
+        variant: 'destructive',
+        title: 'Email Required',
+        description: 'Please enter your email address first.',
+      });
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      await resendConfirmation(email);
+      setShowResendOption(false); // Hide after successful resend
+    } catch (error) {
+      // Error is handled in resendConfirmation function
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -68,6 +116,35 @@ const Login = () => {
         </CardHeader>
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
+            {showResendOption && (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>Need to verify your email first?</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResendConfirmation}
+                    disabled={isResending || !email}
+                    className="ml-2"
+                  >
+                    {isResending ? (
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="h-3 w-3 animate-spin" />
+                        <span>Sending...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3" />
+                        <span>Resend Email</span>
+                      </div>
+                    )}
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <div className="relative">

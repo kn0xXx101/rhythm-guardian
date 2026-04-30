@@ -34,6 +34,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, role: UserRole, fullName: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
+  resendConfirmation: (email: string) => Promise<void>;
   isAuthenticated: boolean;
   twoFactorRequired: false;
   twoFactorSetupRequired: false;
@@ -867,19 +868,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Auth response:', { authUser, authError, session });
       if (authError) {
+        // Enhanced error handling for unconfirmed emails
         if (
           authError.message?.includes('Email not confirmed') ||
           authError.message?.includes('email_not_confirmed')
         ) {
-          throw new Error(
-            'Please verify your email address before signing in. Check your inbox for the confirmation link.'
-          );
+          throw new Error('EMAIL_NOT_CONFIRMED');
         } else if (
           authError.message?.includes('Invalid login credentials') ||
           authError.message?.includes('invalid_credentials')
         ) {
-          // Supabase sometimes returns this for unconfirmed emails too.
-          // Try to give a more helpful message by checking if the user exists but is unconfirmed.
+          // For invalid credentials, we can't easily check if it's unconfirmed
+          // Let the user try the resend option if they think it's an email issue
           throw new Error(
             'Invalid email or password. If you just signed up, please check your email for the confirmation link first.'
           );
@@ -905,21 +905,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserRole(null);
 
       let errorMessage = 'Failed to sign in. Please check your credentials and try again.';
+      let showResendOption = false;
 
-      if (
+      if (error.message === 'EMAIL_NOT_CONFIRMED') {
+        errorMessage = 'Please verify your email address before signing in. Check your inbox for the confirmation link.';
+        showResendOption = true;
+      } else if (
         error.message?.includes('Invalid email or password') ||
         error.message?.includes('Invalid login credentials') ||
         error.message?.includes('invalid_credentials')
       ) {
         errorMessage = 'Invalid email or password. If you just signed up, please check your email for the confirmation link first.';
+        showResendOption = true; // Allow user to try resend if they think it's an email issue
       } else if (
         error.message?.includes('Email not confirmed') ||
         error.message?.includes('email_not_confirmed') ||
         error.message?.includes('verify your email') ||
-        error.message?.includes('confirmation link')
+        error.message?.includes('confirmation link') ||
+        error.message?.includes('not verified')
       ) {
-        errorMessage =
-          'Please verify your email address before signing in. Check your inbox for the confirmation link.';
+        errorMessage = 'Please verify your email address before signing in. Check your inbox for the confirmation link.';
+        showResendOption = true;
       } else if (error.message?.includes('Database schema error')) {
         errorMessage = 'Database configuration error. Please contact support.';
       } else if (
@@ -934,8 +940,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast({
         variant: 'destructive',
         title: 'Sign in failed',
-        description: errorMessage,
+        description: showResendOption 
+          ? `${errorMessage} Need a new confirmation email?`
+          : errorMessage,
       });
+
+      // If email not confirmed, store email for potential resend
+      if (showResendOption) {
+        // Store email in sessionStorage for resend functionality
+        try {
+          sessionStorage.setItem('pendingConfirmationEmail', email);
+        } catch (e) {
+          // Ignore storage errors
+        }
+      }
 
       throw error;
     } finally {
@@ -1040,7 +1058,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Handle specific signup errors
+        if (authError.message?.includes('User already registered') ||
+            authError.message?.includes('already been registered') ||
+            authError.message?.includes('email address is already registered')) {
+          throw new Error('This email is already registered. Please sign in instead or use a different email.');
+        }
+        throw authError;
+      }
       if (!authUser) throw new Error('Failed to create user');
 
       // Detect "email confirmations enabled" case:
@@ -1255,11 +1281,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('Signup error:', error);
       isSigningUpRef.current = false; // Reset signup flag on error
-      toast({
-        variant: 'destructive',
-        title: 'Error creating account',
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-      });
+      
+      // Handle specific error messages
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      
+      if (errorMessage.includes('User already registered') ||
+          errorMessage.includes('already been registered') ||
+          errorMessage.includes('email address is already registered') ||
+          errorMessage.includes('already registered')) {
+        toast({
+          variant: 'destructive',
+          title: 'Email Already Registered',
+          description: 'This email is already registered. Please sign in instead or use a different email.',
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Error creating account',
+          description: errorMessage,
+        });
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -1352,6 +1393,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resendConfirmation = async (email: string) => {
+    console.log('Resend confirmation attempt:', { email });
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/email-confirmed`,
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Confirmation Email Sent',
+        description: 'Please check your email for the new confirmation link.',
+        duration: 8000,
+      });
+    } catch (error) {
+      console.error('Resend confirmation error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Failed to Resend',
+        description: error instanceof Error ? error.message : 'Could not resend confirmation email. Please try again later.',
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const refreshUser = async () => {
     if (user?.id) {
       await fetchUserData(user.id);
@@ -1368,6 +1441,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     resetPassword,
     updatePassword,
+    resendConfirmation,
     isAuthenticated: !!user,
     twoFactorRequired: false,
     twoFactorSetupRequired: false,
