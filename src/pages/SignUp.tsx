@@ -179,18 +179,7 @@ const SignUpBase = ({
       }
 
       await signUp(values.email, values.password, userType as UserRole, values.fullName);
-
-      const successMessage =
-        userType === 'musician' && userManagementSettings?.requireMusicianVerification
-          ? 'Account created! Complete your musician profile and upload documents for admin verification.'
-          : 'Account created successfully! Please check your email to verify your account.';
-
-      toast({
-        title: 'Success',
-        description: successMessage,
-      });
-
-      navigate('/login');
+      // AuthContext.signUp() handles the success toast and navigation to /login
     } catch (error) {
       toast({
         title: 'Error',
@@ -284,7 +273,7 @@ const SignUpBase = ({
                 <AlertDescription>
                   {userType === 'musician' &&
                     userManagementSettings?.requireMusicianVerification &&
-                    'Musician accounts are active immediately, but verified badge requires profile + document review. '}
+                    'After confirming your email, complete your profile and upload documents for admin verification. '}
                   {userType === 'hirer' &&
                     !userManagementSettings?.autoApproveHirers &&
                     'Hirer accounts require admin approval before activation. '}

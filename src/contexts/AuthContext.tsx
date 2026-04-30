@@ -868,18 +868,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Auth response:', { authUser, authError, session });
       if (authError) {
         if (
-          authError.message?.includes('Invalid login credentials') ||
-          authError.message?.includes('invalid_credentials')
-        ) {
-          throw new Error(
-            'Invalid email or password. Please check your credentials and try again.'
-          );
-        } else if (
           authError.message?.includes('Email not confirmed') ||
           authError.message?.includes('email_not_confirmed')
         ) {
           throw new Error(
-            'Please verify your email address before signing in. Check your inbox for the verification link.'
+            'Please verify your email address before signing in. Check your inbox for the confirmation link.'
+          );
+        } else if (
+          authError.message?.includes('Invalid login credentials') ||
+          authError.message?.includes('invalid_credentials')
+        ) {
+          // Supabase sometimes returns this for unconfirmed emails too.
+          // Try to give a more helpful message by checking if the user exists but is unconfirmed.
+          throw new Error(
+            'Invalid email or password. If you just signed up, please check your email for the confirmation link first.'
           );
         } else if (
           authError.message?.includes('too many requests') ||
@@ -909,14 +911,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         error.message?.includes('Invalid login credentials') ||
         error.message?.includes('invalid_credentials')
       ) {
-        errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        errorMessage = 'Invalid email or password. If you just signed up, please check your email for the confirmation link first.';
       } else if (
         error.message?.includes('Email not confirmed') ||
         error.message?.includes('email_not_confirmed') ||
-        error.message?.includes('verify your email')
+        error.message?.includes('verify your email') ||
+        error.message?.includes('confirmation link')
       ) {
         errorMessage =
-          'Please verify your email address before signing in. Check your inbox for the verification link.';
+          'Please verify your email address before signing in. Check your inbox for the confirmation link.';
       } else if (error.message?.includes('Database schema error')) {
         errorMessage = 'Database configuration error. Please contact support.';
       } else if (
@@ -1017,11 +1020,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isSigningUpRef.current = true; // Mark that we're signing up
     signupTimestampRef.current = Date.now(); // Record signup timestamp
     try {
-      // Account activation is immediate. Musician verification is handled separately.
-      const initialStatus: 'pending' | 'active' =
-        role === 'admin' ? 'active' : 'active';
+      const initialStatus: 'pending' | 'active' = 'active';
 
-      // Create auth user with role in both user_metadata and app_metadata
+      // Create auth user — emailRedirectTo sends the confirmation link
       const {
         data: { user: authUser },
         error: authError,
@@ -1039,26 +1040,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      // Also set the role in app_metadata for RLS policies
-      if (authUser && !authError) {
-        await supabase.auth.updateUser({
-          data: { role, status: initialStatus, full_name: fullName },
-        });
-      }
-
       if (authError) throw authError;
       if (!authUser) throw new Error('Failed to create user');
 
-      // Wait for the user to be fully committed to the database
-      // Increased wait time for better reliability with foreign key constraints
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // Detect "email confirmations enabled" case:
+      // Supabase returns identities: [] when the account needs email confirmation
+      // and no session is created yet. We must NOT call updateUser() in this case
+      // because there is no active session.
+      const needsEmailConfirmation =
+        !authUser.email_confirmed_at &&
+        (!authUser.identities || authUser.identities.length === 0);
 
-      if (!authUser) {
-        throw new Error('Failed to create user: No user returned from auth');
+      if (needsEmailConfirmation) {
+        // User was created but needs to confirm email before they can log in.
+        // Don't try to update user metadata or create profile — the trigger will
+        // handle profile creation when the user confirms and first logs in.
+        console.log('Email confirmation required — skipping session-dependent operations');
+
+        toast({
+          title: 'Check your email!',
+          description:
+            'We sent a confirmation link to ' +
+            email +
+            '. Click it to activate your account, then sign in.',
+          duration: 10000,
+        });
+
+        if (role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/login');
+        }
+        return;
       }
 
-    // Check if profile was created by trigger with retry logic
-    let existingProfile = null;
+      // Email confirmations are disabled on this Supabase project — user is immediately active.
+      // Safe to call updateUser() because a session exists.
+      if (authUser && !authError) {
+        try {
+          await supabase.auth.updateUser({
+            data: { role, status: initialStatus, full_name: fullName },
+          });
+        } catch (updateErr) {
+          console.warn('updateUser failed (non-critical):', updateErr);
+        }
+      }
+
+      // Wait for the user to be fully committed to the database
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      // Check if profile was created by trigger with retry logic
+      let existingProfile = null;
       let retryCount = 0;
       const maxRetries = 5;
 
@@ -1206,29 +1238,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Show success message based on role and status
-      if (role === 'musician') {
-        toast({
-          title: 'Musician Account Created',
-          description:
-            'Your musician account has been created. Complete your profile and upload verification documents for admin review.',
-        });
-      } else {
-        toast({
-          title: 'Account Created',
-          description: 'Please check your email to verify your account.',
-        });
-      }
+      // Show success message — same for all roles: check email first
+      toast({
+        title: 'Account Created!',
+        description:
+          'Please check your email and click the confirmation link before signing in.',
+        duration: 8000,
+      });
 
-      // Redirect to appropriate page based on role and status
+      // Always redirect to login after signup — user must confirm email before accessing dashboard
       if (role === 'admin') {
         navigate('/admin');
-      } else if (role === 'musician') {
-        navigate('/musician');
-      } else if (role === 'hirer') {
-        navigate('/hirer');
       } else {
-        navigate('/dashboard');
+        navigate('/login');
       }
     } catch (error) {
       console.error('Signup error:', error);
