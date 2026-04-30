@@ -143,8 +143,8 @@ export function PaymentDetailsForm() {
         return;
       }
 
-      // Build update payload - don't clear fields unless user actually cleared them in the form
-      const payload: Record<string, string | null> = {
+      // Build update payload - only include fields that have values
+      const payload: any = {
         bank_account_number: bankAccountNumber || null,
         bank_code: bankCode || null,
         bank_account_name: bankAccountName || null,
