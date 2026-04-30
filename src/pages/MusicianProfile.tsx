@@ -559,7 +559,7 @@ const MusicianProfile: React.FC = () => {
                 <TabsContent value="basic">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor="first-name">First Name</Label>
+                      <Label htmlFor="first-name">First Name *</Label>
                       <div className="flex items-center space-x-2">
                         <User className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
@@ -574,7 +574,7 @@ const MusicianProfile: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="last-name">Last Name</Label>
+                      <Label htmlFor="last-name">Last Name *</Label>
                       <div className="flex items-center space-x-2">
                         <User className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
@@ -603,7 +603,7 @@ const MusicianProfile: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phone">Phone Number *</Label>
                       <div className="flex items-center space-x-2">
                         <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                         {isEditing ? (
@@ -625,7 +625,7 @@ const MusicianProfile: React.FC = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="location">Location</Label>
+                      <Label htmlFor="location">Location *</Label>
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                         <Input
@@ -650,7 +650,7 @@ const MusicianProfile: React.FC = () => {
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
-                      <Label htmlFor="bio">Bio</Label>
+                      <Label htmlFor="bio">Bio *</Label>
                       {isEditing ? (
                         <TextareaWithCounter
                           id="bio"
@@ -702,15 +702,15 @@ const MusicianProfile: React.FC = () => {
         <TabsContent value="instruments">
           <Card>
             <CardHeader>
-              <CardTitle>Instruments & Skills</CardTitle>
+              <CardTitle>Instruments & Skills *</CardTitle>
               <CardDescription>
-                What instruments do you play and what styles can you perform?
+                What instruments do you play and what styles can you perform? (At least one instrument and one genre required for search visibility)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-medium">Primary Instrument</h3>
+                  <h3 className="text-lg font-medium">Primary Instrument *</h3>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -724,7 +724,7 @@ const MusicianProfile: React.FC = () => {
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="instrument-name">Instrument Name</Label>
+                          <Label htmlFor="instrument-name">Instrument Name *</Label>
                           <Input id="instrument-name" placeholder="e.g. Guitar, Piano, Drums" />
                         </div>
                         <div className="space-y-2">
@@ -813,11 +813,18 @@ const MusicianProfile: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  {(!formattedProfileData.instruments || formattedProfileData.instruments.length === 0) && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Guitar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">No instruments added yet</p>
+                      <p className="text-xs text-red-600 mt-1">* At least one instrument is required to appear in search results</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Music Styles</h3>
+                <h3 className="text-lg font-medium">Music Styles *</h3>
                 <div className="flex flex-wrap gap-2">
                   {formattedProfileData.genres?.map((genre, index) => (
                     <div
@@ -855,7 +862,7 @@ const MusicianProfile: React.FC = () => {
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="genre-name">Style/Genre Name</Label>
+                          <Label htmlFor="genre-name">Style/Genre Name *</Label>
                           <Input id="genre-name" placeholder="e.g. Jazz, Rock, Classical" />
                         </div>
                       </div>
@@ -888,6 +895,12 @@ const MusicianProfile: React.FC = () => {
                     </DialogContent>
                   </Dialog>
                 </div>
+                {(!formattedProfileData.genres || formattedProfileData.genres.length === 0) && (
+                  <div className="text-center py-4 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
+                    <p className="text-sm">No music styles added yet</p>
+                    <p className="text-xs text-red-600 mt-1">* At least one music style is required to appear in search results</p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1029,15 +1042,15 @@ const MusicianProfile: React.FC = () => {
                       <Save className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Pricing Options</CardTitle>
-                      <CardDescription>Select how you want to be paid</CardDescription>
+                      <CardTitle className="text-lg">Pricing Options *</CardTitle>
+                      <CardDescription>Select how you want to be paid (Required for bookings)</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <Label htmlFor="pricing-model" className="text-sm font-semibold">Pricing Model</Label>
+                      <Label htmlFor="pricing-model" className="text-sm font-semibold">Pricing Model *</Label>
                       <Select
                         value={formattedProfileData.pricingModel || 'hourly'}
                         onValueChange={(value) => {
@@ -1063,8 +1076,8 @@ const MusicianProfile: React.FC = () => {
                     <div className="space-y-3">
                       <Label htmlFor="price-amount" className="text-sm font-semibold">
                         {formattedProfileData.pricingModel === 'fixed'
-                          ? 'Flat Fee Amount (GHS)'
-                          : 'Hourly Rate Amount (GHS)'}
+                          ? 'Flat Fee Amount (GHS) *'
+                          : 'Hourly Rate Amount (GHS) *'}
                       </Label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
@@ -1102,14 +1115,14 @@ const MusicianProfile: React.FC = () => {
                       <Clock className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Availability</CardTitle>
-                      <CardDescription>When are you available for bookings?</CardDescription>
+                      <CardTitle className="text-lg">Availability *</CardTitle>
+                      <CardDescription>When are you available for bookings? (Required for search visibility)</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
                   <div className="space-y-3">
-                    <Label htmlFor="availability-type" className="text-sm font-semibold">Working Days</Label>
+                    <Label htmlFor="availability-type" className="text-sm font-semibold">Working Days *</Label>
                     <Select
                       value={
                         formattedProfileData.availability?.includes('all_week')

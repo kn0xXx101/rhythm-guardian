@@ -204,9 +204,9 @@ export function PaymentDetailsForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Payment Details</CardTitle>
+        <CardTitle>Payment Details *</CardTitle>
         <CardDescription>
-          Add your bank account or mobile money details to receive payouts
+          Add your bank account or mobile money details to receive payouts (Required for search visibility)
         </CardDescription>
         {hasPaymentDetails ? (
           <div className="flex items-center gap-2 text-green-600 text-sm mt-2">
@@ -214,9 +214,9 @@ export function PaymentDetailsForm() {
             <span>Payment details configured</span>
           </div>
         ) : (
-          <div className="flex items-center gap-2 text-yellow-600 text-sm mt-2">
+          <div className="flex items-center gap-2 text-red-600 text-sm mt-2">
             <AlertTriangle className="h-4 w-4" />
-            <span>Please add your payment details to receive payouts</span>
+            <span>* Payment details required to appear in search results</span>
           </div>
         )}
       </CardHeader>
