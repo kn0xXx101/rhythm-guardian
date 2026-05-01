@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { MaskedInput } from '@/components/ui/input-masked';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
@@ -47,10 +47,10 @@ const HirerProfile: React.FC = () => {
       const { byRevieweeId, failed } = await fetchReviewAggregatesForReviewees(supabase, [user.id]);
       if (cancelled) return;
       if (failed) {
-        const r =
-          user.rating != null && Number(user.rating) > 0 ? Number(user.rating) : null;
-        setHirerReviewAvg(r);
-        setHirerReviewCount(Number((user as { total_reviews?: number }).total_reviews) || 0);
+        // For hirers, we don't have a rating field in the user object
+        // Hirers don't have ratings like musicians do
+        setHirerReviewAvg(null);
+        setHirerReviewCount(0);
         return;
       }
       const row = byRevieweeId[user.id];
@@ -153,16 +153,15 @@ const HirerProfile: React.FC = () => {
 
     setIsSaving(true);
     try {
-      // Collect form values from the DOM elements
+      // Collect form values from the DOM elements and state
       const firstNameInput = document.getElementById('first-name') as HTMLInputElement;
       const lastNameInput = document.getElementById('last-name') as HTMLInputElement;
-      const phoneInput = document.getElementById('phone') as HTMLInputElement;
       const locationInput = document.getElementById('location') as HTMLInputElement;
       const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
 
       const firstName = firstNameInput?.value?.trim() || '';
       const lastName = lastNameInput?.value?.trim() || '';
-      const phone = phoneInput?.value?.trim() || '';
+      const phone = profileData.phone || ''; // Use state value for phone
       const location = locationInput?.value?.trim() || '';
       const bio = bioInput?.value?.trim() || '';
 
@@ -492,18 +491,17 @@ const HirerProfile: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <Phone className="h-4 w-4 text-muted-foreground" />
                         {isEditing ? (
-                          <MaskedInput
+                          <PhoneInput
                             id="phone"
-                            type="tel"
-                            mask="phoneGhana"
-                            defaultValue={profileData.phone || ''}
-                            placeholder="+233 50 123 4567"
+                            value={profileData.phone || ''}
+                            onChange={(value) => setProfileData(prev => ({ ...prev, phone: value }))}
                             className="bg-background transition-colors"
                           />
                         ) : (
                           <Input
-                            value={profileData.phone || 'No phone provided'}
+                            value={profileData.phone || ''}
                             disabled
+                            placeholder={profileData.phone ? '' : 'No phone provided'}
                             className="bg-muted/50 border-transparent cursor-default"
                           />
                         )}

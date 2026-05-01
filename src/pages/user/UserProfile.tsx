@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MaskedInput } from '@/components/ui/input-masked';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { PaymentDetailsForm } from '@/components/musician/PaymentDetailsForm';
 import { cn } from '@/lib/utils';
 import { User, Mail, Phone, MapPin, Loader2, Camera, CheckCircle, Calendar as CalendarIcon } from 'lucide-react';
@@ -287,13 +287,10 @@ const UserProfile = () => {
                   <div className="flex items-center space-x-2">
                     <Phone className="h-4 w-4 text-muted-foreground" />
                     {isEditing ? (
-                      <MaskedInput
+                      <PhoneInput
                         id="phone"
-                        type="tel"
-                        mask="phoneGhana"
                         value={phone}
                         onChange={(value) => setPhone(value)}
-                        placeholder="+233 50 123 4567"
                         className="bg-background transition-colors"
                       />
                     ) : (

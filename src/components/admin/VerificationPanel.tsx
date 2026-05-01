@@ -147,6 +147,7 @@ export function VerificationPanel({
           documents_verified: true,
           documents_submitted: true,
           status: 'active',
+          is_active: true,
           email_verified: true,
         })
         .eq('user_id', userId);

@@ -97,7 +97,18 @@ export const masks = {
  * Apply a mask pattern to an input value
  */
 export function applyMask(value: string, maskPattern: MaskPattern[]): string {
-  const cleanValue = value.replace(/[^\d]/g, '');
+  // Clean the input value - remove all non-digits
+  let cleanValue = value.replace(/[^\d]/g, '');
+  
+  // Handle Ghana phone numbers - convert local format to international
+  if (cleanValue.startsWith('0') && cleanValue.length >= 10) {
+    // Convert 0501234567 to 233501234567
+    cleanValue = '233' + cleanValue.substring(1);
+  } else if (!cleanValue.startsWith('233') && cleanValue.length >= 9) {
+    // Add Ghana country code if missing
+    cleanValue = '233' + cleanValue;
+  }
+  
   let maskedValue = '';
   let cleanIndex = 0;
 
@@ -105,12 +116,17 @@ export function applyMask(value: string, maskPattern: MaskPattern[]): string {
     const patternChar = maskPattern[i];
 
     if (typeof patternChar === 'string') {
+      // Add literal characters (like +, spaces, etc.)
       maskedValue += patternChar;
-    } else if (patternChar.test(cleanValue[cleanIndex])) {
-      maskedValue += cleanValue[cleanIndex];
-      cleanIndex++;
-    } else {
-      break;
+    } else if (patternChar instanceof RegExp) {
+      // Handle regex patterns
+      if (patternChar.test(cleanValue[cleanIndex])) {
+        maskedValue += cleanValue[cleanIndex];
+        cleanIndex++;
+      } else {
+        // If character doesn't match pattern, stop processing
+        break;
+      }
     }
   }
 

@@ -186,11 +186,11 @@ export function ProfileCompletionBanner() {
     return <ProfileBannerSkeleton />;
   }
 
-  if (user?.role === 'hirer' && isProfileComplete) {
+  if (user?.role === 'hirer' && completion >= 80) {
     return null;
   }
 
-  if (user?.role === 'musician' && documentsVerified) {
+  if (user?.role === 'musician' && documentsVerified && completion >= 80) {
     return null;
   }
 

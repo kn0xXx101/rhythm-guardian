@@ -6,7 +6,7 @@ import { ProfileCompletionBanner } from '@/components/profile/ProfileCompletionB
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TextareaWithCounter } from '@/components/ui/textarea-with-counter';
-import { MaskedInput } from '@/components/ui/input-masked';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   Select,
   SelectContent,
@@ -216,14 +216,13 @@ const MusicianProfile: React.FC = () => {
       // Collect form values from state or DOM (prefer state for reliability across tabs)
       const firstNameInput = document.getElementById('first-name') as HTMLInputElement;
       const lastNameInput = document.getElementById('last-name') as HTMLInputElement;
-      const phoneInput = document.getElementById('phone') as HTMLInputElement;
       const locationValInput = document.getElementById('location') as HTMLInputElement;
       const bioInput = document.getElementById('bio') as HTMLTextAreaElement;
       const priceAmountInput = document.getElementById('price-amount') as HTMLInputElement;
 
       const firstName = firstNameInput ? firstNameInput.value.trim() : (formattedProfileData.firstName || '');
       const lastName = lastNameInput ? lastNameInput.value.trim() : (formattedProfileData.lastName || '');
-      const phone = phoneInput ? phoneInput.value.trim() : (formattedProfileData.phone || '');
+      const phone = formattedProfileData.phone || ''; // Use state value for phone
       const locationVal = locationValInput ? locationValInput.value.trim() : (formattedProfileData.location || '');
       const bio = bioInput ? bioInput.value.trim() : (formattedProfileData.bio || '');
       
@@ -607,17 +606,16 @@ const MusicianProfile: React.FC = () => {
                       <div className="flex items-center space-x-2">
                         <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                         {isEditing ? (
-                          <MaskedInput
+                          <PhoneInput
                             id="phone"
-                            type="tel"
-                            mask="phoneGhana"
-                            defaultValue={formattedProfileData.phone || ''}
-                            placeholder="+233 50 123 4567"
+                            value={formattedProfileData.phone || ''}
+                            onChange={(value) => setFormattedProfileData(prev => ({ ...prev, phone: value }))}
                           />
                         ) : (
                           <Input
-                            value={formattedProfileData.phone || 'No phone provided'}
+                            value={formattedProfileData.phone || ''}
                             disabled
+                            placeholder={formattedProfileData.phone ? '' : 'No phone provided'}
                             className="bg-muted/50 border-transparent cursor-default"
                           />
                         )}
@@ -1009,7 +1007,7 @@ const MusicianProfile: React.FC = () => {
             <CardHeader className="px-0 pt-0">
               <CardTitle className="text-2xl">Availability & Pricing</CardTitle>
               <CardDescription className="text-base">
-                Configure your working hours and rates. <span className="font-medium text-amber-600">Note: To reach 100% completion, please provide one pricing option and one availability selection. You can update these at any time.</span>
+                Configure your rates and when you're available to work. <span className="font-medium text-primary">Pricing is required for bookings.</span> Availability helps hirers know when you can perform.
               </CardDescription>
             </CardHeader>
             
@@ -1115,14 +1113,23 @@ const MusicianProfile: React.FC = () => {
                       <Clock className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Availability *</CardTitle>
-                      <CardDescription>When are you available for bookings? (Required for search visibility)</CardDescription>
+                      <CardTitle className="text-lg">Availability</CardTitle>
+                      <CardDescription>When are you available for bookings? (Optional but recommended)</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-6">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      <strong>Note:</strong> Availability shows hirers when you can perform, regardless of your pricing model. 
+                      {formattedProfileData.pricingModel === 'fixed' 
+                        ? ' Even with flat fee pricing, hirers want to know what days/times you\'re available.'
+                        : ' This helps hirers find musicians who match their event schedule.'}
+                    </p>
+                  </div>
+                  
                   <div className="space-y-3">
-                    <Label htmlFor="availability-type" className="text-sm font-semibold">Working Days *</Label>
+                    <Label htmlFor="availability-type" className="text-sm font-semibold">Working Days</Label>
                     <Select
                       value={
                         formattedProfileData.availability?.includes('all_week')

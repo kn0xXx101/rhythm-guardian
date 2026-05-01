@@ -32,7 +32,6 @@ const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
     },
     ref
   ) => {
-    const [maskedValue, setMaskedValue] = React.useState(value);
     const inputRef = React.useRef<HTMLInputElement>(null);
 
     React.useImperativeHandle(ref, () => inputRef.current as HTMLInputElement);
@@ -45,14 +44,12 @@ const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
       return mask;
     }, [mask]);
 
-    React.useEffect(() => {
-      if (maskPattern) {
-        const applied = applyMask(value, maskPattern);
-        setMaskedValue(applied);
-      } else {
-        setMaskedValue(value);
+    // Apply mask to the current value
+    const displayValue = React.useMemo(() => {
+      if (maskPattern && value) {
+        return applyMask(value, maskPattern);
       }
-       
+      return value;
     }, [value, maskPattern]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,11 +60,9 @@ const MaskedInput = React.forwardRef<HTMLInputElement, MaskedInputProps>(
         newValue = applyMask(inputValue, maskPattern);
       }
 
-      setMaskedValue(newValue);
       onChange?.(newValue);
     };
 
-    const displayValue = maskPattern ? maskedValue : value;
     const currentLength = displayValue.replace(/[^\w\s]/g, '').length;
     const hasMaxLength = maxLength !== undefined;
     const isAtLimit = hasMaxLength && currentLength >= maxLength;
