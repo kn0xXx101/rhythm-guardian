@@ -167,9 +167,11 @@ class BookingService {
         eventDate = booking.date;
       }
 
-      // Handle time intervals if present in description or elsewhere
-      // For now we'll use the fields if they are added to the booking object
-      const duration = (booking as any).duration || 4;
+      const rawDuration =
+        booking.durationHours ??
+        (booking as { duration?: number }).duration;
+      const duration =
+        typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 4;
 
       const { data, error } = await supabase
         .from('bookings')

@@ -20,9 +20,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { notificationsService } from "@/services/notificationsService";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { locationMatchesQuery, toGoogleMapsSearchUrl } from "@/utils/location-search";
+import {
+	getMusicianBookingUnitRate,
+	getMusicianComparableRate,
+	getMusicianEstimatedBookingTotal,
+	getMusicianRateCardDisplay,
+	isMusicianBookingFlatTotal,
+	isMusicianDbRowHourly,
+} from "@/utils/musician-pricing";
 
 interface Musician {
 	id?: string;
@@ -37,6 +44,8 @@ interface Musician {
 	location?: string | null;
 	bio?: string | null;
 	total_bookings?: number | null;
+	price_min?: number;
+	price_max?: number;
 	available_days?: string[] | null;
 	documents_submitted?: boolean | null;
 	documents_verified?: boolean | null;
@@ -46,6 +55,9 @@ interface Musician {
 }
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const;
+
+/** Flat-fee profiles use full package as comparable rate; keep max above typical flat gigs (₵1k hid flat acts). */
+const SEARCH_PRICE_SLIDER_MAX = 100_000;
 
 const parseHmToMinutes = (hm: string): number | null => {
 	if (!hm || !hm.includes(':')) return null;
@@ -82,7 +94,7 @@ const isBookingWithinMusicianAvailability = (
 
 	const event = new Date(eventDate);
 	if (Number.isNaN(event.getTime())) return { ok: true };
-	const dayName = DAY_NAMES[event.getDay()];
+	const dayName: string = DAY_NAMES[event.getDay()] ?? 'Sunday';
 	const isWeekendDay = dayName === 'Saturday' || dayName === 'Sunday';
 
 	const hasAllWeek = availability.includes('all_week');
@@ -210,7 +222,11 @@ function getAvailabilitySummary(availability: string[] | null | undefined) {
 
 function isMusicianSearchEligible(m: any): boolean {
 	const instruments = Array.isArray(m.instruments) ? m.instruments.filter(Boolean) : [];
-	const hasPricing = Number.isFinite(Number(m.base_price)) || Number.isFinite(Number(m.hourly_rate));
+	const hasPricing =
+		Number.isFinite(Number(m.base_price)) ||
+		Number.isFinite(Number(m.hourly_rate)) ||
+		Number.isFinite(Number(m.price_min)) ||
+		Number.isFinite(Number(m.price_max));
 	const hasBasics =
 		typeof m.full_name === 'string' &&
 		m.full_name.trim().length >= 2 &&
@@ -220,7 +236,8 @@ function isMusicianSearchEligible(m: any): boolean {
 		hasPricing;
 
 	if (m.profile_complete === true) return hasBasics;
-	if (m.profile_complete === false) return false;
+	// DB completion historically counted only hourly_rate; flat-fee profiles often stay false — still show if bookable.
+	if (m.profile_complete === false) return hasBasics;
 
 	const pct =
 		m.profile_completion_percentage != null ? Number(m.profile_completion_percentage) : undefined;
@@ -265,40 +282,10 @@ const BookingDialog: React.FC<BookingDialogProps> = ({ open, onOpenChange, music
 		return Math.max(0, diff);
 	};
 
-	const getEffectiveRate = (musician: Musician | null) => {
-		if (!musician) return 0;
-		
-		// Check if musician has explicit pricing model
-		if (musician.pricing_model === 'fixed' && musician.base_price) {
-			return typeof musician.base_price === 'number' ? musician.base_price : parseFloat(String(musician.base_price || 0));
-		}
-		
-		if (musician.pricing_model === 'hourly' && musician.hourly_rate) {
-			return typeof musician.hourly_rate === 'number' ? musician.hourly_rate : parseFloat(String(musician.hourly_rate || 0));
-		}
-		
-		// Fallback: if no pricing_model is set, prefer base_price over hourly_rate
-		if (musician.base_price) {
-			return typeof musician.base_price === 'number' ? musician.base_price : parseFloat(String(musician.base_price || 0));
-		}
-		
-		if (musician.hourly_rate) {
-			return typeof musician.hourly_rate === 'number' ? musician.hourly_rate : parseFloat(String(musician.hourly_rate || 0));
-		}
-		
-		return 0;
-	};
-
-	const effectiveRate = getEffectiveRate(musician);
-	
-	// Determine if this is fixed pricing
-	// Fixed pricing if: explicit pricing_model='fixed' OR has base_price but no pricing_model set
-	const isFixedPricing = 
-		musician?.pricing_model === 'fixed' || 
-		(!musician?.pricing_model && !!musician?.base_price);
-	
+	const effectiveRate = getMusicianBookingUnitRate(musician);
+	const isFixedPricing = isMusicianBookingFlatTotal(musician);
 	const duration = calculateDuration();
-	const totalBudget = isFixedPricing ? effectiveRate : effectiveRate * duration;
+	const totalBudget = getMusicianEstimatedBookingTotal(musician, duration);
 	const availabilitySummary = getAvailabilitySummary(musician?.available_days);
 	const availabilityCheck =
 		musician && eventDate && startTime && endTime
@@ -466,7 +453,7 @@ const InstrumentalistSearch = () => {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedInstrument, setSelectedInstrument] = useState<string>("all");
 	const [selectedAvailability, setSelectedAvailability] = useState<string>("any");
-	const [priceRange, setPriceRange] = useState<number[]>([0, 1000]);
+	const [priceRange, setPriceRange] = useState<number[]>([0, SEARCH_PRICE_SLIDER_MAX]);
 	const [musicians, setMusicians] = useState<Musician[]>([]);
 	const [filteredMusicians, setFilteredMusicians] = useState<Musician[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -657,19 +644,9 @@ const InstrumentalistSearch = () => {
 					musician.available_days && musician.available_days.some(day => !['Saturday', 'Sunday'].includes(day))) ||
 				selectedAvailability === "Flexible";
 
-      // Filter by price range (handle both hourly and fixed pricing)
-      const getEffectiveRate = (musician: Musician) => {
-        if ((musician.pricing_model === 'fixed' || (!musician.pricing_model && musician.base_price)) && musician.base_price) {
-          return typeof musician.base_price === 'number' ? musician.base_price : parseFloat(String(musician.base_price || 0));
-        } else if (musician.hourly_rate) {
-          return typeof musician.hourly_rate === 'number' ? musician.hourly_rate : parseFloat(String(musician.hourly_rate || 0));
-        }
-        return 0;
-      };
-      
-      const effectiveRate = getEffectiveRate(musician);
+      const effectiveRate = getMusicianComparableRate(musician);
       const minPrice = priceRange[0] ?? 0;
-      const maxPrice = priceRange[1] ?? 1000;
+      const maxPrice = priceRange[1] ?? SEARCH_PRICE_SLIDER_MAX;
       const matchesPrice = effectiveRate >= minPrice && effectiveRate <= maxPrice;
 
 			return matchesQuery && matchesInstrument && matchesAvailability && matchesPrice;
@@ -677,17 +654,8 @@ const InstrumentalistSearch = () => {
 
 		// Sort results
 		filtered.sort((a, b) => {
-			const getEffectiveRate = (musician: Musician) => {
-				if (musician.pricing_model === 'fixed' && musician.base_price) {
-					return typeof musician.base_price === 'number' ? musician.base_price : parseFloat(String(musician.base_price || 0));
-				} else if (musician.hourly_rate) {
-					return typeof musician.hourly_rate === 'number' ? musician.hourly_rate : parseFloat(String(musician.hourly_rate || 0));
-				}
-				return 0;
-			};
-			
-			const rateA = getEffectiveRate(a);
-			const rateB = getEffectiveRate(b);
+			const rateA = getMusicianComparableRate(a);
+			const rateB = getMusicianComparableRate(b);
 			const ratingA = typeof a.rating === 'number' ? a.rating : parseFloat(String(a.rating || 0));
 			const ratingB = typeof b.rating === 'number' ? b.rating : parseFloat(String(b.rating || 0));
 
@@ -781,10 +749,7 @@ const InstrumentalistSearch = () => {
 				? new Date(`${details.eventDate}T${details.startTime}`).toISOString()
 				: details.eventDate;
 
-			// Determine pricing type - prioritize explicit pricing_model, then base_price
-			const isHourlyPricing = 
-				musician.pricing_model === 'hourly' || 
-				(!musician.pricing_model && !musician.base_price && musician.hourly_rate);
+			const isHourlyPricing = isMusicianDbRowHourly(musician);
 			const pricingType = isHourlyPricing ? 'hourly' : 'fixed';
 
 			const insertPayload: any = {
@@ -806,7 +771,7 @@ const InstrumentalistSearch = () => {
 				base_amount: details.totalBudget,
 			};
 
-			const { data: newBooking, error: insertError } = await supabase
+			const { error: insertError } = await supabase
 				.from('bookings')
 				.insert(insertPayload)
 				.select()
@@ -837,52 +802,28 @@ const InstrumentalistSearch = () => {
 	};
 
 	const getRateDisplay = (musician: Musician) => {
-		const basePrice =
-			typeof musician.base_price === 'number'
-				? musician.base_price
-				: musician.base_price !== undefined
-					? parseFloat(String(musician.base_price))
-					: undefined;
-		const hourlyRate =
-			typeof musician.hourly_rate === 'number'
-				? musician.hourly_rate
-				: musician.hourly_rate !== undefined
-					? parseFloat(String(musician.hourly_rate))
-					: undefined;
-		const minPrice =
-			typeof (musician as any).price_min === 'number'
-				? (musician as any).price_min
-				: (musician as any).price_min !== undefined
-					? parseFloat(String((musician as any).price_min))
-					: undefined;
-		const maxPrice =
-			typeof (musician as any).price_max === 'number'
-				? (musician as any).price_max
-				: (musician as any).price_max !== undefined
-					? parseFloat(String((musician as any).price_max))
-					: undefined;
-		const hasBase = basePrice !== undefined && Number.isFinite(basePrice);
-		const hasHourly = hourlyRate !== undefined && Number.isFinite(hourlyRate);
-		const hasMin = minPrice !== undefined && Number.isFinite(minPrice);
-		const hasMax = maxPrice !== undefined && Number.isFinite(maxPrice);
-
-		if (hasBase) {
-			return { amountText: `${formatGHSWithSymbol(basePrice)}`, labelText: 'flat fee' };
-		}
-		if (hasHourly) {
-			return { amountText: `${formatGHSWithSymbol(hourlyRate)}`, labelText: 'per hour' };
-		}
-		if (hasMin && hasMax) {
-			return {
-				amountText: `${formatGHSWithSymbol(minPrice)} - ${formatGHSWithSymbol(maxPrice)}`,
-				labelText: 'price range',
-			};
-		}
-		if (hasMin) {
-			return { amountText: `${formatGHSWithSymbol(minPrice)}`, labelText: 'price range' };
-		}
-		if (hasMax) {
-			return { amountText: `${formatGHSWithSymbol(maxPrice)}`, labelText: 'price range' };
+		const d = getMusicianRateCardDisplay(musician);
+		switch (d.variant) {
+			case 'flat':
+				return { amountText: formatGHSWithSymbol(d.amount), labelText: 'flat fee' };
+			case 'hourly':
+				return { amountText: formatGHSWithSymbol(d.amount), labelText: 'per hour' };
+			case 'range':
+				if (d.min !== undefined && d.max !== undefined) {
+					return {
+						amountText: `${formatGHSWithSymbol(d.min)} - ${formatGHSWithSymbol(d.max)}`,
+						labelText: 'price range',
+					};
+				}
+				if (d.min !== undefined) {
+					return { amountText: formatGHSWithSymbol(d.min), labelText: 'price range' };
+				}
+				if (d.max !== undefined) {
+					return { amountText: formatGHSWithSymbol(d.max), labelText: 'price range' };
+				}
+				break;
+			default:
+				break;
 		}
 		return { amountText: 'Rate on request', labelText: 'per hour' };
 	};
@@ -944,11 +885,16 @@ const InstrumentalistSearch = () => {
 						</div>
 
 						<div className="space-y-2">
-            <Label>Price Range (₵): {formatGHSWithSymbol((priceRange[0] ?? 0))} - {formatGHSWithSymbol((priceRange[1] ?? 0))}</Label>
+            <Label htmlFor="search-price-range">
+								Price range (₵): {formatGHSWithSymbol(priceRange[0] ?? 0)} –{' '}
+								{formatGHSWithSymbol(priceRange[1] ?? SEARCH_PRICE_SLIDER_MAX)}
+							</Label>
 							<Slider
-								defaultValue={[0, 1000]}
-								max={1000}
-								step={50}
+								id="search-price-range"
+								defaultValue={[0, SEARCH_PRICE_SLIDER_MAX]}
+								max={SEARCH_PRICE_SLIDER_MAX}
+								min={0}
+								step={100}
 								value={priceRange}
 								onValueChange={setPriceRange}
 								className="py-4"
@@ -1201,7 +1147,7 @@ const InstrumentalistSearch = () => {
 								setSearchQuery("");
 								setSelectedInstrument("all");
 								setSelectedAvailability("any");
-								setPriceRange([0, 1000]);
+								setPriceRange([0, SEARCH_PRICE_SLIDER_MAX]);
 							}}
 						>
 							Clear All Filters

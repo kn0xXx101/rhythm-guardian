@@ -25,7 +25,7 @@ const SidebarLogo = ({ isCollapsed = false }: SidebarLogoProps) => {
         <img 
           src="/logo.svg" 
           alt="Rhythm Guardian Logo"
-          className="w-32 h-32 object-contain transition-transform duration-300 hover:scale-110"
+          className="w-24 h-24 object-contain transition-transform duration-300 hover:scale-110"
           style={{
             filter: `drop-shadow(0 0 8px ${primaryColor}60)`,
           } as React.CSSProperties}

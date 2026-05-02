@@ -78,7 +78,7 @@ const ForgotPassword = () => {
                 <img 
                   src="/logo.svg" 
                   alt="Rhythm Guardian Logo"
-                  className="w-20 h-20 object-contain transition-transform duration-300 hover:scale-105"
+                  className="w-16 h-16 object-contain transition-transform duration-300 hover:scale-105"
                   style={{
                     filter: `drop-shadow(0 0 8px ${primaryColor}40)`,
                   } as React.CSSProperties}

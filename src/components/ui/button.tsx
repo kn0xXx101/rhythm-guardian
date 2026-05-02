@@ -7,29 +7,28 @@ import { cn } from '@/lib/utils';
 import { useRipple } from '@/hooks/use-ripple';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 transform-gpu cursor-pointer',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-95 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 transform-gpu',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-[hsl(var(--primary-hover))] shadow-lg hover:shadow-xl hover:scale-105',
+        default: 'bg-primary text-primary-foreground hover:bg-[hsl(var(--primary-hover))] shadow-md hover:shadow-xl hover:-translate-y-0.5',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-[hsl(var(--destructive-hover))] shadow-lg hover:shadow-xl hover:scale-105',
+          'bg-destructive text-destructive-foreground hover:bg-[hsl(var(--destructive-hover))] shadow-md hover:shadow-xl hover:-translate-y-0.5',
         outline:
-          'border-2 border-primary bg-transparent text-primary hover:bg-primary hover:text-primary-foreground hover:scale-105',
+          'border-2 border-input bg-background hover:bg-[hsl(var(--accent-hover))] hover:text-accent-foreground hover:border-primary shadow-sm hover:shadow-lg hover:-translate-y-0.5',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-[hsl(var(--secondary-hover))] shadow-lg hover:shadow-xl hover:scale-105',
-        ghost: 'hover:bg-[hsl(var(--accent-hover))] hover:text-accent-foreground hover:scale-105',
+          'bg-secondary text-secondary-foreground hover:bg-[hsl(var(--secondary-hover))] shadow-sm hover:shadow-lg hover:-translate-y-0.5',
+        ghost: 'hover:bg-[hsl(var(--accent-hover))] hover:text-accent-foreground hover:shadow-md hover:-translate-y-0.5',
         link: 'text-primary underline-offset-4 hover:underline hover:text-[hsl(var(--primary-hover))]',
-        success: 'bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl hover:scale-105',
-        warning: 'bg-yellow-600 text-white hover:bg-yellow-700 shadow-lg hover:shadow-xl hover:scale-105',
-        info: 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl hover:scale-105',
-        gradient: 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg hover:shadow-xl hover:scale-105',
+        success: 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-xl hover:-translate-y-0.5',
+        warning: 'bg-yellow-600 text-white hover:bg-yellow-700 shadow-md hover:shadow-xl hover:-translate-y-0.5',
+        info: 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-xl hover:-translate-y-0.5',
       },
       size: {
-        default: 'h-11 px-6 py-2.5 min-h-[44px] md:h-11 md:min-h-0',
-        sm: 'h-9 px-4 py-2 min-h-[44px] md:h-9 md:min-h-0',
-        lg: 'h-14 px-8 py-3.5 min-h-[44px] md:h-14 text-base',
-        icon: 'h-11 w-11 min-h-[44px] min-w-[44px] md:h-11 md:w-11 md:min-h-0 md:min-w-0',
+        default: 'h-10 px-4 py-2 min-h-[44px] md:h-10 md:min-h-0',
+        sm: 'h-9 rounded-lg px-3 min-h-[44px] md:h-9 md:min-h-0',
+        lg: 'h-12 rounded-lg px-8 min-h-[44px] md:h-12 text-base',
+        icon: 'h-11 w-11 min-h-[44px] min-w-[44px] md:h-10 md:w-10 md:min-h-0 md:min-w-0 rounded-lg',
       },
     },
     defaultVariants: {

@@ -58,7 +58,7 @@ export function PaymentModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [allowedMethods, setAllowedMethods] = useState<string[] | null>(null);
-  const [platformFeePercentage, setPlatformFeePercentage] = useState<number>(10);
+  const [platformFeePercentage, setPlatformFeePercentage] = useState<number>(15);
   /** Paystack may fire `onClose` after success; avoid reopening the booking dialog in that case. */
   const paystackSucceededRef = useRef(false);
 
