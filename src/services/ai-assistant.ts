@@ -11,12 +11,12 @@ const KNOWLEDGE_BASE: Array<{ pattern: RegExp; response: string }> = [
   {
     pattern: /\b(hello|hi|hey|greetings|start|morning|afternoon)\b/i,
     response:
-      "Hello! I'm your AI assistant for Rhythm Guardian. How can I help you today? I can answer questions about the platform, help you find musicians, or connect you with an admin if you need additional support.",
+      "Hello — I’m the Rhythm Guardian assistant. Ask about bookings, profiles, or payments. Say \"connect to admin\" anytime you need our team.",
   },
   {
     pattern: /\b(help|support|assist)\b/i,
     response:
-      'I\'m here to help! You can ask me questions about:\n- Booking musicians\n- Creating your profile\n- Payment and transactions\n- Platform features\n\nIf you need to speak with a human administrator, just say "connect to admin" or "talk to admin" and I\'ll connect you.',
+      'I can help with:\n• Booking musicians\n• Your profile\n• Payments (you see totals before paying)\n• How the app works\n\nSay \"connect to admin\" for human support.',
   },
   {
     pattern: /\b(book|hire|reserve|schedule)\b/i,
@@ -31,7 +31,7 @@ const KNOWLEDGE_BASE: Array<{ pattern: RegExp; response: string }> = [
   {
     pattern: /\b(pay|money|cost|fee|transaction|billing)\b/i,
     response:
-      "Payments on Rhythm Guardian are secure and handled through our integrated payment system:\n- Musicians set their hourly rates\n- A platform fee is added to cover our services\n- You'll see the total amount before confirming a booking\n- Payments are processed securely\n\nFor specific payment questions, I can connect you with an admin.",
+      "Payments run through our checkout (e.g. Paystack). You always see the amount before you confirm. Musicians are paid their share after fees; timing depends on booking confirmations.\n\nSay \"connect to admin\" for billing issues.",
   },
   {
     pattern: /\b(rate|rating|review|star|feedback)\b/i,
@@ -184,13 +184,13 @@ function buildGuidanceResponse(intent: AssistantIntent, ctx: UserGuidanceContext
   const role = ctx.role;
   const header =
     role === 'musician'
-      ? "Here’s a clear next-step plan for you as a musician."
+      ? 'Next steps for you as a musician:'
       : role === 'hirer'
-        ? "Here’s a clear next-step plan for you as a hirer."
-        : "Here’s a clear next-step plan.";
+        ? 'Next steps for you as a hirer:'
+        : 'Here’s what matters next:';
 
   const lines: string[] = [];
-  lines.push(`👋 ${header}`);
+  lines.push(header);
   lines.push('');
 
   // Always ground “action needed” items in real counts.
@@ -298,7 +298,7 @@ export class AIAssistantService {
     if (wantsEscalation) {
       return {
         response:
-          "I'll connect you with an administrator right away. They'll be able to assist you with your inquiry. Please wait a moment while I set this up...",
+          'Opening a support ticket for our team. You’ll get updates there — thanks for your patience.',
         shouldEscalate: true,
         context: userMessage,
       };
@@ -366,10 +366,9 @@ export class AIAssistantService {
       }
     }
 
-    // Default response if no match found
     return {
       response:
-        'I understand your question. Let me help you with that. For more specific or complex issues, I can connect you with an administrator whenever you want. Just say "connect to admin".\n\nIn the meantime, you can also:\n- Tell me your exact goal and I will guide you step-by-step\n- Check your dashboard for common actions\n- Ask me to explain any booking, profile, payment, or support flow',
+        'Try one clear question (e.g. how do I pay, or how do I confirm service). Say \"connect to admin\" for human help. Check your Dashboard for bookings and profile.',
       shouldEscalate: false,
     };
   }
@@ -390,20 +389,18 @@ export class AIAssistantService {
     const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
       {
         role: 'system',
-        content: `You are the in-app AI assistant for Rhythm Guardian (Ghana-focused live music booking).
+        content: `You are the in-app assistant for Rhythm Guardian (Ghana / Ghana cedis ₵ — never invent amounts).
 
-Platform facts (stay accurate; if unsure, say so and offer to connect the user with an admin):
-- Roles: "musician" performers and "hirer" clients who book them; admins handle disputes and verification.
-- Users find talent via search, profiles, and bookings; messaging is built-in.
-- Bookings and payments use secure flows (e.g. Paystack); amounts and escrow-style holds depend on booking state—describe generally, not exact fees unless the user quoted them.
-- Musicians can have verification/badges after documents are reviewed; profiles and availability matter for bookings.
-- Users can ask to "connect to admin" or "talk to admin" for human support; that creates a support ticket when the app escalates.
-- Default behavior: guide users through the platform end-to-end in clear steps. Only escalate when they explicitly request admin or when safety/account issues require human handling.
-- If role is musician, prioritize profile quality, booking response workflow, payout setup, earnings, and account verification.
-- If role is hirer, prioritize discovery, shortlisting, booking flow, communication, payments, and post-booking follow-up.
-- Do not offer refunds/cancellation policy details unless the user asks. Never suggest refund flows proactively to musicians.
-- Be concise, friendly, and professional. Use short paragraphs or bullet lists when helpful.
-- Never invent policy, legal advice, or exact prices. Never ask for passwords or card numbers.`,
+Voice: calm, direct, respectful. Prefer one short paragraph OR a tight bullet list — avoid filler (“great question”, “I’d be happy to”).
+Platform facts (if unsure, say so and suggest connect to admin):
+- Musicians and hirers book through profiles and My Bookings; chat is in-app.
+- Payments use secure checkout; fees exist — describe qualitatively unless the user cited numbers.
+- “Connect to admin” opens human support via the app.
+
+Rules:
+- Tailor steps to the user’s role when provided.
+- No passwords, card numbers, or legal advice. No fabricated policies or exact fees.
+- Use at most one emoji per reply only if it aids clarity (optional; default none).`,
       },
     ];
 

@@ -51,6 +51,7 @@ class AdminService {
     await safe(() => db.from('musician_packages').delete().eq('musician_user_id', userId));
     await safe(() => db.from('musician_addons').delete().eq('musician_user_id', userId));
     await safe(() => db.from('musician_portfolio').delete().eq('musician_user_id', userId));
+    await safe(() => db.from('transactions').delete().eq('user_id', userId));
 
     const { error: deleteProfileError } = await db.from('profiles').delete().eq('user_id', userId);
     if (deleteProfileError) {
@@ -590,8 +591,22 @@ class AdminService {
     const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     if (!supabaseUrl || !supabaseAnonKey) throw new Error('Supabase environment variables not configured');
 
+    const { data: targetProfile, error: profileFetchError } = await supabaseAdmin
+      .from('profiles')
+      .select('user_id, role')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (profileFetchError) throw profileFetchError;
+    if (targetProfile?.role === 'admin') {
+      throw new Error('Cannot delete admin accounts');
+    }
+    if (!targetProfile) {
+      return true;
+    }
+
     const url = `${supabaseUrl}/functions/v1/admin-users/${userId}`;
     let res: Response | null = null;
+    let edgeError = '';
     try {
       res = await fetch(url, {
         method: 'DELETE',
@@ -601,44 +616,43 @@ class AdminService {
           'Content-Type': 'application/json',
         },
       });
-    } catch {
+      if (res.ok) {
+        return true;
+      }
+      try {
+        const j = (await res.json()) as { error?: string };
+        edgeError = j.error || (await res.text().catch(() => res.statusText));
+      } catch {
+        edgeError = await res.text().catch(() => res.statusText);
+      }
+    } catch (e) {
       res = null;
+      edgeError = e instanceof Error ? e.message : 'Network error';
     }
 
-    // Always enforce local data deletion so user disappears from admin list.
-    const { data: existingProfile } = await supabaseAdmin
-      .from('profiles')
-      .select('user_id, role')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (existingProfile?.role === 'admin') throw new Error('Cannot delete admin accounts');
-    if (existingProfile) {
-      await this.hardDeleteUserData(userId);
-    }
-    if (res?.ok) return true;
-
-    // Fallback: DB cleanup (cannot remove auth.users without edge/admin API)
-    const { data: targetProfile, error: profileFetchError } = await supabaseAdmin
-      .from('profiles')
-      .select('role')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (profileFetchError) throw profileFetchError;
-    if (targetProfile?.role === 'admin') {
-      throw new Error('Cannot delete admin accounts');
+    const hasServiceRole = Boolean(import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY);
+    if (hasServiceRole) {
+      try {
+        await this.hardDeleteUserData(userId);
+        const { error: authDelError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (authDelError) {
+          console.warn('Auth user delete after DB cleanup:', authDelError);
+        }
+        return true;
+      } catch (fallbackError: any) {
+        throw new Error(
+          [edgeError, fallbackError?.message].filter(Boolean).join(' — ') ||
+            'Failed to delete user (edge and fallback).'
+        );
+      }
     }
 
-    try {
-      await this.hardDeleteUserData(userId);
-    } catch (deleteProfileError: any) {
-      const remote = res ? await res.text().catch(() => '') : '';
-      throw new Error(
-        deleteProfileError?.message ||
-          remote ||
-          (res ? `HTTP ${res.status}: Failed to delete user` : 'Failed to delete user')
-      );
-    }
-    return true;
+    throw new Error(
+      edgeError ||
+        (res
+          ? `Delete failed (HTTP ${res.status}). Ensure the admin-users edge function is deployed with SUPABASE_SERVICE_ROLE_KEY.`
+          : 'Delete failed. Check your connection and that admin-users is deployed.')
+    );
   }
 
   async deleteAllUsers(): Promise<{ deleted: number }> {
@@ -667,26 +681,26 @@ class AdminService {
 
     if (res?.ok) {
       const edgeResult = await res.json().catch(() => ({ deleted: 0 }));
-      // Consistency pass: if any non-admin profiles remain, clean up list-critical rows.
-      const { data: remainingProfiles } = await supabase
+      const db = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase;
+      const { data: remainingProfiles } = await db
         .from('profiles')
         .select('user_id')
         .not('role', 'eq', 'admin')
         .limit(500);
       const remainingIds = (remainingProfiles || []).map((p: any) => p.user_id).filter(Boolean);
       if (remainingIds.length > 0) {
-        await supabase.from('bookings').delete().in('hirer_id', remainingIds);
-        await supabase.from('bookings').delete().in('musician_id', remainingIds);
-        await supabase.from('notifications').delete().in('user_id', remainingIds);
-        await supabase.from('messages').delete().in('sender_id', remainingIds);
-        await supabase.from('messages').delete().in('receiver_id', remainingIds);
-        await supabase.from('profiles').delete().in('user_id', remainingIds);
+        await db.from('bookings').delete().in('hirer_id', remainingIds);
+        await db.from('bookings').delete().in('musician_id', remainingIds);
+        await db.from('notifications').delete().in('user_id', remainingIds);
+        await db.from('messages').delete().in('sender_id', remainingIds);
+        await db.from('messages').delete().in('receiver_id', remainingIds);
+        await db.from('profiles').delete().in('user_id', remainingIds);
       }
       return edgeResult;
     }
 
-    // Fallback: remove non-admin profiles and related rows in app DB.
-    const { data: profiles, error: profilesError } = await supabase
+    const db = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY ? supabaseAdmin : supabase;
+    const { data: profiles, error: profilesError } = await db
       .from('profiles')
       .select('user_id, role')
       .not('role', 'eq', 'admin')
@@ -703,12 +717,12 @@ class AdminService {
     const ids = (profiles || []).map((p: any) => p.user_id).filter(Boolean);
     if (ids.length === 0) return { deleted: 0 };
 
-    await supabase.from('bookings').delete().in('hirer_id', ids);
-    await supabase.from('bookings').delete().in('musician_id', ids);
-    await supabase.from('notifications').delete().in('user_id', ids);
-    await supabase.from('messages').delete().in('sender_id', ids);
-    await supabase.from('messages').delete().in('receiver_id', ids);
-    const { error: profileDeleteError } = await supabase.from('profiles').delete().in('user_id', ids);
+    await db.from('bookings').delete().in('hirer_id', ids);
+    await db.from('bookings').delete().in('musician_id', ids);
+    await db.from('notifications').delete().in('user_id', ids);
+    await db.from('messages').delete().in('sender_id', ids);
+    await db.from('messages').delete().in('receiver_id', ids);
+    const { error: profileDeleteError } = await db.from('profiles').delete().in('user_id', ids);
     if (profileDeleteError) throw profileDeleteError;
     return { deleted: ids.length };
   }

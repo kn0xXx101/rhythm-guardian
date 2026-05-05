@@ -8,19 +8,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Progress } from '@/components/ui/progress';
 
 const cardVariants = cva(
-  'rounded-3xl border bg-card text-card-foreground shadow-sm transition-all duration-200 ease-out relative overflow-hidden',
+  'ui-3d-card rounded-3xl border bg-card text-card-foreground shadow-[0_1px_0_0_hsl(var(--border)/0.45),0_10px_32px_-10px_rgba(15,23,42,0.1)] dark:shadow-[0_1px_0_0_hsl(var(--border)/0.15),0_16px_48px_-14px_rgba(0,0,0,0.5)] transition-all duration-300 ease-out relative overflow-hidden transform-gpu [transform-style:preserve-3d]',
   {
     variants: {
       variant: {
-        default: 'border-border hover:shadow-xl hover:-translate-y-1',
-        glass: 'glass-card border-white/10 backdrop-blur-md hover:shadow-xl hover:-translate-y-1',
-        hover: 'hover:shadow-xl hover:-translate-y-2 cursor-pointer transform-gpu border-border',
-        gradient: 'border-border shadow-md hover:shadow-xl hover:-translate-y-1',
-        outlined: 'border-2 border-border hover:shadow-lg hover:-translate-y-1',
+        default:
+          'border-border hover:shadow-xl hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
+        glass:
+          'glass-card border-white/10 backdrop-blur-md hover:shadow-xl hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
+        hover:
+          'hover:shadow-xl hover:[transform:translate3d(0,-0.35rem,0.04rem)_rotateX(1deg)] active:[transform:translate3d(0,-0.18rem,0.02rem)_rotateX(0.5deg)] cursor-pointer border-border',
+        gradient:
+          'border-border shadow-md hover:shadow-xl hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
+        outlined:
+          'border-2 border-border hover:shadow-lg hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
         'gradient-border':
-          'border-2 border-border hover:shadow-xl hover:-translate-y-2 group transform-gpu shadow-md',
-        elevated: 'shadow-lg border-border hover:shadow-xl hover:-translate-y-1',
-        modern: 'border-border shadow-sm hover:shadow-xl hover:-translate-y-1',
+          'border-2 border-border hover:shadow-xl hover:[transform:translate3d(0,-0.35rem,0.04rem)_rotateX(1deg)] active:[transform:translate3d(0,-0.18rem,0.02rem)_rotateX(0.5deg)] group shadow-md',
+        elevated:
+          'shadow-lg border-border hover:shadow-xl hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
+        modern:
+          'border-border shadow-sm hover:shadow-xl hover:[transform:translate3d(0,-0.25rem,0.02rem)_rotateX(0.65deg)] active:[transform:translate3d(0,-0.12rem,0.01rem)_rotateX(0.35deg)]',
+        depth:
+          'border-border shadow-[0_2px_0_0_hsl(var(--border)/0.55),0_14px_36px_-8px_rgba(15,23,42,0.14)] dark:shadow-[0_2px_0_0_hsl(var(--border)/0.2),0_20px_50px_-10px_rgba(0,0,0,0.55)] hover:shadow-[0_3px_0_0_hsl(var(--border)/0.45),0_24px_56px_-10px_rgba(15,23,42,0.16)] dark:hover:shadow-[0_3px_0_0_hsl(var(--border)/0.25),0_28px_64px_-12px_rgba(0,0,0,0.6)] hover:[transform:translate3d(0,-0.4rem,0.06rem)_rotateX(1.1deg)] active:[transform:translate3d(0,-0.2rem,0.03rem)_rotateX(0.55deg)]',
       },
     },
     defaultVariants: {

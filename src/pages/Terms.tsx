@@ -18,6 +18,7 @@ const sections = [
       'You are responsible for maintaining the confidentiality of your login details and for all activity under your account.',
       'You agree to provide accurate information and to keep your profile, availability, and contact details up to date.',
       'We may suspend or terminate accounts that violate these Terms, applicable law, or platform policies.',
+      'Account closure and data deletion follow our Privacy Policy. Platform administrators may deactivate or delete non-admin accounts using authorised tools when enforcing policy or upon a valid deletion workflow.',
     ],
   },
   {
@@ -25,16 +26,16 @@ const sections = [
     title: 'Bookings, Payments, and Fees',
     subsections: [
       {
-        heading: 'Escrow Protection',
-        body: 'Payments are held securely in escrow until both parties confirm service completion. This protects hirers and musicians by ensuring payment is only released when the service is successfully rendered.',
+        heading: 'Deposits, holds, and release',
+        body: 'Depending on product settings, you may pay a deposit or the amount shown at checkout. Funds are processed through our payment partner and release to the musician is tied to booking state, confirmations, and platform rules — not to informal off-platform agreements.',
       },
       {
         heading: 'Locations and Navigation',
         body: 'Users are responsible for entering accurate profile and event location details (for example town and city). Rhythm Guardian may provide map links (such as Google Maps search links) for convenience, but route quality, travel conditions, and third-party map content are outside our control.',
       },
       {
-        heading: 'Platform Fees',
-        body: 'Rhythm Guardian charges a platform commission and payment processing fees (for example Paystack: 1.5% + ₵0.50) on each booking. Fees and totals are shown before you confirm payment. The commission rate that applies to a booking is recorded with that booking; later changes to platform-wide rates do not retroactively change fees already set for past bookings.',
+        heading: 'Platform and payment processing fees',
+        body: 'A platform commission (set by administrators; a common default is around 15% of the relevant charge) and payment processing fees (for example Paystack: 1.5% + ₵0.50 on the amount processed) apply to supported flows. The amount shown at checkout is what you authorise. The musician’s net payout is after these fees (and any tax or compliance handling described in-product). Commission and fee rates for a specific transaction are determined at payment time; later admin changes do not rewrite historical bookings.',
       },
       {
         heading: 'Payment Processing',
@@ -94,23 +95,23 @@ const sections = [
   },
   {
     number: '07',
-    title: 'Automated Guidance and AI Assistance',
+    title: 'In-app assistant and automated guidance',
     subsections: [
       {
-        heading: 'Purpose and Scope',
-        body: 'Rhythm Guardian may provide automated in-app guidance (including AI-assisted suggestions) to help you navigate bookings, profile setup, verification, and payment-related actions. These prompts are informational and operational only; they do not replace your own judgment or legal/financial advice.',
+        heading: 'Chat assistant',
+        body: 'The platform may offer an AI Assistant inside messaging to answer how-to questions about Rhythm Guardian. Replies may combine scripted help, your booking and profile context where available, and optional third-party language generation when enabled. The assistant does not give legal, tax, or investment advice.',
       },
       {
-        heading: 'How Suggestions Are Generated',
-        body: 'Guidance messages may be generated from account context such as role, page route, profile completion state, verification status, and booking/payment states. We design these prompts to recommend next best actions in-product and to direct users to valid platform flows.',
+        heading: 'Escalation',
+        body: 'If you ask to speak with a human (for example by saying “connect to admin”), the app may create a support ticket for staff review. That ticket may include recent conversation context needed to help you.',
       },
       {
-        heading: 'User Responsibility',
-        body: 'You remain responsible for final actions taken on your account, including accepting bookings, confirming service completion, making or receiving payments, and sharing content. You should verify all key details before acting on any automated prompt.',
+        heading: 'Accuracy and responsibility',
+        body: 'You remain responsible for confirming amounts, dates, and booking actions in the UI. Do not share passwords or full card numbers in chat. We may rate-limit or disable assistant features for abuse or security reasons.',
       },
       {
-        heading: 'Safety and Abuse Controls',
-        body: 'Automated guidance must not be used to bypass platform safeguards, escrow requirements, moderation controls, or other Terms. We may limit, suspend, or remove assistant features for misuse, security concerns, or policy violations.',
+        heading: 'Other automation',
+        body: 'Separate from chat, you may see contextual tips (dashboard tours, notifications). Those are operational hints only and do not replace your review of Terms, Privacy, and checkout details.',
       },
     ],
   },
@@ -128,12 +129,12 @@ const sections = [
     title: 'Onboarding, Navigation Paths, and Feature Education',
     subsections: [
       {
-        heading: 'Guided Orientation',
-        body: 'Rhythm Guardian may provide role-based onboarding tours for hirers, musicians, and admins. These tours explain key feature paths (for example search, bookings, confirmations, payouts, verification, support, and settings) so users can operate the platform correctly.',
+        heading: 'Guided orientation',
+        body: 'Role-based onboarding tours (hirer, musician, admin) introduce search and pricing behaviour (hourly vs flat fees), bookings, in-app payments, confirmations, payouts, chat with the assistant, notifications, and settings. Completion may be stored so we do not repeat the same tour unnecessarily.',
       },
       {
-        heading: 'Path-Specific Guidance',
-        body: 'Tours and contextual prompts may reference in-app routes such as dashboard, bookings, chat, notifications, referrals, verification, transactions, and settings pages. These references are provided to reduce navigation errors and improve successful task completion.',
+        heading: 'Paths and routes',
+        body: 'Tours reference real routes (for example /hirer/search, /hirer/bookings, chat). Paths may change as the product evolves; use in-app navigation as the source of truth.',
       },
       {
         heading: 'No Replacement for User Responsibility',
@@ -166,7 +167,7 @@ export default function Terms() {
             These terms govern your use of Rhythm Guardian as a hirer, musician, or administrator.
             Please read them carefully before using the platform.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 27 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 2 May 2026</p>
         </div>
       </div>
 

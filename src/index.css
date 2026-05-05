@@ -2,6 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Baloo+Tamma+2:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Righteous&family=Fredoka:wght@300;400;500;600;700&display=swap');
 
 @import './styles/enhanced-cards.css';
+@import './styles/ui-3d.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -231,6 +232,11 @@
     .hover\:scale-110:hover,
     .hover\:-translate-y-0\.5:hover {
       transform: none !important;
+    }
+
+    /* Keep card 3D transitions visible despite the global transition shortcut above */
+    .ui-3d-card {
+      transition-duration: 300ms !important;
     }
   }
 

@@ -107,6 +107,10 @@ class BookingService {
           durationHours,
         location: booking.location || '',
         price: Number(booking.total_amount) || 0,
+        musicianPayout:
+          booking.musician_payout != null && Number.isFinite(Number(booking.musician_payout))
+            ? Number(booking.musician_payout)
+            : undefined,
         description: booking.requirements || '',
         serviceConfirmedByHirer: booking.service_confirmed_by_hirer || false,
         serviceConfirmedByMusician: booking.service_confirmed_by_musician || false,

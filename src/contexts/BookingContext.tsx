@@ -10,7 +10,6 @@ import { bookingService } from '@/services/booking';
 import { BookingConfirmationService } from '@/services/booking-confirmation';
 import { useRealtime } from '@/hooks/use-realtime';
 import { supabase } from '@/lib/supabase';
-import { notificationsService } from '@/services/notificationsService';
 import { notifyAdmins } from '@/services/admin-notify';
 
 export type BookingStatus = 'pending' | 'accepted' | 'upcoming' | 'completed' | 'cancelled' | 'expired' | 'rejected';
@@ -40,6 +39,8 @@ export interface Booking {
   durationHours?: number;
   location: string;
   price: number;
+  /** Net amount after platform & payment fees (when set on booking row). */
+  musicianPayout?: number;
   description: string;
   serviceConfirmedByHirer?: boolean;
   serviceConfirmedByMusician?: boolean;
@@ -290,70 +291,11 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return prev;
       });
 
-      // Send notifications
-      const targetUserId = role === 'hirer' ? booking.musician.id : booking.client.id;
       const actorName = role === 'hirer' ? booking.client.name : booking.musician.name;
-      const recipientRole = role === 'hirer' ? 'musician' : 'hirer';
-      
+
+      // In-app notifications for confirmations come from DB trigger create_booking_notification (single trigger after 00068).
       try {
-        if (willBeFullyConfirmed) {
-          const payoutActuallyReleased = latestBooking?.payout_released === true;
-          // Notify both parties about completion
-          await notificationsService.createNotification({
-            user_id: targetUserId,
-            type: 'booking',
-            title: payoutActuallyReleased
-              ? 'Service Completed & Payment Released! 🎉'
-              : 'Service Completed! ✓',
-            message: payoutActuallyReleased
-              ? `Both parties have confirmed service completion. ${recipientRole === 'musician' ? 'Your payment has been automatically released!' : 'The musician\'s payment has been released.'}`
-              : 'Both parties have confirmed service completion. Payout release is being processed.',
-            link: `/${recipientRole}/bookings`,
-            is_read: false,
-            priority: 'high',
-            data: { bookingId: id, payoutReleased: payoutActuallyReleased },
-          });
-          
-          // Also notify the confirming party
-          const confirmingUserId = role === 'hirer' ? booking.client.id : booking.musician.id;
-          await notificationsService.createNotification({
-            user_id: confirmingUserId,
-            type: 'booking',
-            title: 'Service Completed! ✓',
-            message: payoutActuallyReleased
-              ? `You've confirmed service completion. The booking is now complete${role === 'musician' ? ' and your payment has been released!' : '!'}`
-              : `You've confirmed service completion. The booking is now complete${role === 'musician' ? ' and payout release is being processed.' : '.'}`,
-            link: `/${role === 'hirer' ? 'hirer' : 'musician'}/bookings`,
-            is_read: false,
-            priority: 'high',
-            data: { bookingId: id, payoutReleased: payoutActuallyReleased },
-          });
-
-          await notifyAdmins(
-            'booking',
-            'Booking: both parties confirmed service',
-            `${booking.client.name} (hirer) and ${booking.musician.name} (musician) both confirmed completion for booking ${id.slice(0, 8)}…`,
-            '/admin/bookings',
-            { eventKey: `booking-service-confirmed-both:${id}` }
-          );
-        } else {
-          const partialTitle =
-            role === 'hirer' ? 'Hirer confirmed the service' : 'Musician confirmed rendering';
-          const partialMessage =
-            role === 'hirer'
-              ? `${actorName} confirmed the service was completed. Please confirm on your side to finish the booking.`
-              : `${actorName} confirmed the service was rendered. Please confirm on your side to finish the booking.`;
-          await notificationsService.createNotification({
-            user_id: targetUserId,
-            type: 'booking',
-            title: partialTitle,
-            message: partialMessage,
-            link: `/${recipientRole}/bookings`,
-            is_read: false,
-            priority: 'normal',
-            data: { bookingId: id },
-          });
-
+        if (!willBeFullyConfirmed) {
           await notifyAdmins(
             'booking',
             role === 'hirer'
@@ -365,8 +307,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           );
         }
       } catch (notificationError) {
-        console.error('Failed to send notification:', notificationError);
-        // Don't throw here - service confirmation succeeded
+        console.error('Failed to notify admins:', notificationError);
       }
     } catch (err) {
       console.error('Error confirming service:', err);

@@ -650,11 +650,16 @@ Deno.serve(async (req: Request) => {
 
     // Route: DELETE /admin-users/:id - Delete a user account (admin only)
     // Note: this deletes the auth user and best-effort related rows.
-    if (method === "DELETE" && path.includes("/admin-users/") && !path.includes("/status") && !path.includes("/verify")) {
-      const parts = path.split("/").filter(Boolean);
-      const userId = parts[parts.length - 1];
-      if (!userId) {
-        return new Response(JSON.stringify({ error: "Missing user id" }), {
+    if (
+      method === "DELETE" &&
+      path.includes("/admin-users/") &&
+      !path.includes("/admin-users/bookings") &&
+      !path.includes("/status") &&
+      !path.includes("/verify")
+    ) {
+      const userId = extractUserIdAfterAdminUsers(path) || path.split("/").filter(Boolean).pop() || "";
+      if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) {
+        return new Response(JSON.stringify({ error: "Missing or invalid user id" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -682,6 +687,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // Cleanup dependent rows first to prevent profile deletion constraints.
+      await supabaseAdmin.from("transactions").delete().eq("user_id", userId);
       await supabaseAdmin.from("bookings").delete().or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
       await supabaseAdmin.from("notifications").delete().eq("user_id", userId);
       await supabaseAdmin.from("messages").delete().or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);

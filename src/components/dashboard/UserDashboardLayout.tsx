@@ -108,7 +108,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
 
       <div
         className={cn(
-          'transition-all duration-300 ease-in-out min-h-screen flex flex-col',
+          'ui-3d-scene transition-all duration-300 ease-in-out min-h-screen flex flex-col',
           sidebarMargin
         )}
       >
@@ -116,7 +116,7 @@ const UserDashboardLayout = ({ userType }: { userType: 'hirer' | 'musician' }) =
         <main
           id="main-content"
           className={cn(
-            'container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden',
+            'ui-3d-main container flex flex-1 flex-col min-h-0 max-w-full overflow-x-hidden',
             isConversationRoute ? 'py-2 lg:py-3 px-2 sm:px-3' : 'py-6 lg:py-10 px-3 sm:px-4'
           )}
         >

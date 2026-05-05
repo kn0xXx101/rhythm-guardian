@@ -8,7 +8,7 @@ const sections = [
     subsections: [
       {
         heading: 'Account Information',
-        body: 'When you create an account, we collect your name, email address, role (hirer, musician, or admin), and any details you add to your profile — such as location, instruments, genres, rates, and availability. Location entries may include town and city information to improve search relevance.',
+        body: 'When you create an account, we collect your name, email address, role (hirer, musician, or admin), and profile details you choose to add — location, instruments, genres, pricing model (hourly or flat fee), rates, and availability. Location helps match search and discovery.',
       },
       {
         heading: 'Usage Data',
@@ -31,8 +31,8 @@ const sections = [
         body: 'We may store whether you have completed optional orientation or feature tours (for example a first-time dashboard walkthrough) in your account or in your browser’s local storage so we do not repeatedly show the same introduction. You can skip or dismiss these flows at any time.',
       },
       {
-        heading: 'Automated navigation assistant data',
-        body: 'To provide contextual in-app guidance, we may process limited account context (such as your role, current route, booking/payment state, profile completion, and verification status). This is used to generate next-step prompts and reduce navigation friction within the product.',
+        heading: 'AI Assistant chat',
+        body: 'When you use the AI Assistant in chat, we process your messages and limited context (such as role, booking counts, and confirmation states where needed) to generate replies or create support tickets if you escalate. Optional cloud-based language generation may process prompts according to our agreements with providers; avoid entering passwords or full card numbers.',
       },
     ],
   },
@@ -43,7 +43,7 @@ const sections = [
     bullets: [
       'Create and manage your Rhythm Guardian account.',
       'Match hirers with suitable musicians and manage bookings.',
-      'Process payments securely through escrow and release funds after service confirmation.',
+      'Process payments securely through our partner and align releases with booking confirmation and platform rules.',
       'Enable messaging, notifications, and other communication features.',
       'Send booking confirmations, payment receipts, service reminders, and post-service confirmation prompts where applicable.',
       'Monitor platform safety, prevent fraud, and enforce our Terms of Service.',
@@ -95,7 +95,7 @@ const sections = [
     bullets: [
       'Access the personal data we hold about you.',
       'Update or correct your profile information at any time through your account settings.',
-      'Request deletion of your account and certain stored data (subject to legal retention requirements).',
+      'Request deletion of your account and certain stored data (subject to legal retention requirements). Administrators process verified deletion workflows where applicable.',
       'Object to certain uses of your data, such as marketing communications.',
       'Export your data in a portable format.',
       'Withdraw consent for optional data processing.',
@@ -119,10 +119,10 @@ const sections = [
   },
   {
     number: '08',
-    title: 'Automated Decisions and Assistant Limitations',
+    title: 'Assistant and automation limitations',
     content: [
-      'Our navigation assistant and automation features are designed to suggest practical next steps, not to make binding decisions on your behalf. Final booking, payment, dispute, and confirmation actions remain user-controlled.',
-      'Where AI-assisted text generation is used, outputs are constrained to platform-supported actions and safety checks. We apply validation and fallback rules to reduce inaccurate or unsafe guidance.',
+      'The AI Assistant suggests steps for using Rhythm Guardian; it does not legally bind you or the platform. You must confirm bookings, payments, and service completion in the app.',
+      'Where optional AI text generation is enabled, we constrain topics to platform support and safe use. You may receive scripted answers when automation is unavailable.',
     ],
   },
   {
@@ -131,15 +131,15 @@ const sections = [
     subsections: [
       {
         heading: 'What is stored',
-        body: 'We may store onboarding progress such as tour name, step index, completion status, completion time, and basic route context needed to resume or suppress repeated tours.',
+        body: 'We may store onboarding progress (for example tour name, last step, completion flag) in your account (such as the feature_tours table) and/or browser local storage so we do not replay the same introduction every visit.',
       },
       {
         heading: 'Why this is processed',
-        body: 'This data helps present role-appropriate product education across hirer, musician, and admin paths so users can complete booking, payment, verification, and support workflows correctly.',
+        body: 'So hirers, musicians, and admins see role-relevant guidance — search and pricing behaviour, bookings, payments, confirmations, chat assistant entry points, and settings.',
       },
       {
         heading: 'Control and retention',
-        body: 'Tour state may be stored in account records and/or local browser storage to avoid repetition. Users can skip tours, and platform operators may reset or update tours when important workflows change.',
+        body: 'You can skip or dismiss tours. Clearing site data may reset local flags. Operators may reset tours when flows materially change.',
       },
     ],
   },
@@ -168,7 +168,7 @@ export default function Privacy() {
             This policy explains how Rhythm Guardian collects, uses, and protects your information
             when you use our platform to hire musicians or offer musical services.
           </p>
-          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 27 April 2026</p>
+          <p className="text-xs text-muted-foreground mt-6 font-medium">Last updated: 2 May 2026</p>
         </div>
       </div>
 

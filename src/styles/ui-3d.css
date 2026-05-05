@@ -1,0 +1,14 @@
+/**
+ * Subtle 3D depth: perspective on dashboard shells + preserve-3d on main so
+ * card hover tilts read toward the viewer (including mobile / in-app webviews).
+ */
+@layer components {
+  .ui-3d-scene {
+    perspective: 1400px;
+    perspective-origin: 50% 36%;
+  }
+
+  .ui-3d-main {
+    transform-style: preserve-3d;
+  }
+}

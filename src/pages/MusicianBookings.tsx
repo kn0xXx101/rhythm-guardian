@@ -425,10 +425,25 @@ const MusicianBookings = () => {
                               )}
                             </div>
                           </div>
-                          <div className="sm:text-right">
+                          <div className="sm:text-right space-y-1">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                              Booking total
+                            </p>
                             <p className="font-bold text-xl group-hover:text-primary transition-colors">
                               {formatGHSWithSymbol(booking.price)}
                             </p>
+                            {booking.musicianPayout != null &&
+                              Number.isFinite(booking.musicianPayout) &&
+                              booking.musicianPayout > 0 && (
+                                <div className="text-sm text-muted-foreground">
+                                  <span className="block text-[11px] uppercase tracking-wide">
+                                    You receive (after fees)
+                                  </span>
+                                  <span className="font-semibold text-foreground">
+                                    {formatGHSWithSymbol(booking.musicianPayout)}
+                                  </span>
+                                </div>
+                              )}
                           </div>
                         </div>
                       </div>

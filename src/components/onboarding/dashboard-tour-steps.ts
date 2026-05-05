@@ -5,149 +5,149 @@ export type DashboardTourStep = {
 
 export const hirerDashboardTourSteps: DashboardTourStep[] = [
   {
-    title: 'Welcome to Rhythm Guardian (Hirer)',
+    title: 'Welcome (hirer)',
     description:
-      'This onboarding shows the complete hiring flow. On mobile, open the sidebar menu to reach every feature quickly.',
+      'This short tour follows the hiring journey end to end. On mobile, open the sidebar to reach every area quickly.',
   },
   {
-    title: 'Dashboard home and next actions',
+    title: 'Dashboard home',
     description:
-      'Start at /hirer to review key stats, reminders, and alerts. Use this page as your command center for upcoming events, confirmations, and payment follow-ups.',
+      'Use /hirer as your overview: upcoming events, reminders, and anything that needs payment or confirmation.',
   },
   {
-    title: 'Find musicians by city, town, or region',
+    title: 'Find musicians',
     description:
-      'Go to /hirer/search. Filter by instrument, style, budget, and location. Region-aware matching supports town-to-city coverage so your search results reflect your operational area.',
+      'Go to Search (/hirer/search). Filter by instrument, availability, and budget. Musicians may list an hourly rate or a flat package price — the price filter treats flat fees as a full-package amount, so widen the range if you expect higher flat-rate gigs.',
   },
   {
-    title: 'View profile details and map links',
+    title: 'Profiles and locations',
     description:
-      'From search results, open musician profiles to review rates, media, and availability. Use direct Google Maps links to verify location and plan travel.',
+      'Open profiles from results to compare rates, media, and availability. Map links help you sanity-check travel and venue location.',
   },
   {
-    title: 'Create bookings and pay securely',
+    title: 'Book and pay in-app',
     description:
-      'Book from /hirer/search with event details, date/time, and location. Payments are handled in-app and tracked so support and refunds rely on verified platform records.',
+      'Create bookings from Search with your event details. Checkout runs through our payment partner; you’ll see amounts before you pay. Keep payment and messaging on the platform so records stay clear for support.',
   },
   {
-    title: 'Track booking lifecycle clearly',
+    title: 'My Bookings lifecycle',
     description:
-      'Manage all requests in /hirer/bookings. After an event ends, bookings move into the waiting confirmation window before becoming expired, giving both sides time to confirm service.',
+      'Track every request in /hirer/bookings: pending, accepted, and post-event. After the event window, bookings may enter a confirmation phase before closing — both sides should confirm service when things went as agreed.',
   },
   {
-    title: 'Confirm service and release payouts',
+    title: 'Confirm service',
     description:
-      'Use Complete Service after performance delivery. When both parties confirm, payout release is triggered automatically and lifecycle notifications are sent to relevant users and admins.',
+      'Use Complete Service after the performance. When you and the musician have both confirmed, payout processing can proceed according to the booking’s payment state and platform rules.',
   },
   {
-    title: 'Refund and dispute workflow',
+    title: 'Refunds and disputes',
     description:
-      'If needed, submit refund/escalation only after the waiting confirmation window. Provide truthful attestations and details so admin review can resolve disputes with audit visibility.',
+      'If something goes wrong, use in-app flows and accurate details first. Admins can review with platform records when escalation is needed.',
   },
   {
-    title: 'Messages, reminders, and alerts',
+    title: 'Chat, assistant, and notifications',
     description:
-      'Use /hirer/chat for in-app conversations and /notifications for booking/payment reminders. Keep communication in-platform to preserve protection and evidence.',
+      'Use Chat (/hirer/chat) for booking conversations. The AI Assistant entry helps with how-to questions and can escalate to a support ticket if you ask to connect to an admin. Check /notifications for booking and payment updates.',
   },
   {
-    title: 'Favorites, referrals, and account settings',
+    title: 'Favorites, referrals, settings',
     description:
-      'Use /favorites to shortlist musicians, /hirer/referrals for referral rewards, and /hirer/settings + /hirer/profile to keep account, preferences, and event details accurate.',
+      'Shortlist on /favorites, share referrals on /hirer/referrals, and keep /hirer/settings and /hirer/profile current so bookings stay accurate.',
   },
 ];
 
 export const musicianDashboardTourSteps: DashboardTourStep[] = [
   {
-    title: 'Welcome to Rhythm Guardian (Musician)',
+    title: 'Welcome (musician)',
     description:
-      'This onboarding walks through profile setup, booking execution, and payout flow so you can operate confidently from day one.',
+      'This tour covers profile setup, bookings, payouts, and staying safe on-platform.',
   },
   {
-    title: 'Dashboard and operational overview',
+    title: 'Dashboard overview',
     description:
-      'Start at /musician to monitor booking volume, pending actions, earnings signals, and reminders. This view highlights what needs action now.',
+      'Start at /musician for what needs action now: new requests, upcoming gigs, and payout-related states.',
   },
   {
-    title: 'Complete profile and verification',
+    title: 'Profile and pricing model',
     description:
-      'Update /musician/profile with instruments, genres, rates, town/city location, and media. Submit verification documents; badge status is granted only after admin validation.',
+      'At /musician/profile set instruments, genres, location, and whether you charge hourly or a flat fee. Flat-fee completion counts toward profile completion like hourly rates. Verification badges follow admin review of documents.',
   },
   {
-    title: 'Receive and manage bookings',
+    title: 'Bookings',
     description:
-      'Use /musician/bookings to accept, schedule, and complete gigs. Track waiting confirmation status after event end time and avoid off-platform arrangements.',
+      'Use /musician/bookings to accept or decline, run the gig, and track status after the event. Prefer confirming timing and scope in-app.',
   },
   {
-    title: 'Service confirmation and payout release',
+    title: 'Confirm rendering',
     description:
-      'After performance, use Confirm Rendering in /musician/bookings. Once both sides confirm, payout release is automatically processed and recorded.',
+      'After you perform, use Confirm Rendering. When the hirer also confirms completion, payout steps can advance per platform and payment rules.',
   },
   {
-    title: 'Payout readiness and payment details',
+    title: 'What you earn',
     description:
-      'Ensure payout account details are correct in your profile settings. In-app payment status and confirmation state determine payout eligibility and release timing.',
+      'Booking cards show the gig total and, where available, your estimated net after platform and payment processing fees. Keep payout bank or mobile-money details accurate in settings.',
   },
   {
-    title: 'Chat and trust-safe communication',
+    title: 'Chat and AI assistant',
     description:
-      'Use /musician/chat for all booking communication. Keeping messages and confirmations in-platform improves safety, evidence quality, and dispute handling.',
+      'Use /musician/chat for clients. The AI Assistant can answer product questions and escalate to support when you ask for an admin.',
   },
   {
-    title: 'Notifications and reminders',
+    title: 'Notifications',
     description:
-      'Use /notifications to stay synced on booking updates, confirmations, and payout events. Respond quickly to reduce delays in completion and payment.',
+      '/notifications keeps you aligned on bookings, confirmations, and payout-related events.',
   },
   {
-    title: 'Referrals, reviews, and growth',
+    title: 'Referrals and reviews',
     description:
-      'Grow with /musician/referrals, maintain quality through reviews, and keep availability/profile data accurate so hirers can confidently book you.',
+      'Grow via /musician/referrals and strong reviews; keep availability and rates updated so search stays trustworthy.',
   },
 ];
 
 export const adminDashboardTourSteps: DashboardTourStep[] = [
   {
-    title: 'Welcome to Rhythm Guardian Admin Console',
+    title: 'Welcome (admin)',
     description:
-      'This orientation covers the full operational control path: users, bookings, verifications, payments, support, and system settings.',
+      'This orientation covers users, bookings, money movement, support, and settings.',
   },
   {
-    title: 'Admin overview and platform health',
+    title: 'Overview',
     description:
-      'Use /admin for aggregate KPIs and activity visibility. This is the fastest entry point for system state before deep operational actions.',
+      'Use /admin for high-level KPIs and where to drill in when something needs attention.',
   },
   {
-    title: 'Users and verification operations',
+    title: 'Users and verification',
     description:
-      'Manage accounts at /admin/users and review musician verification at /admin/verifications. Verification relies on profile completeness plus document checks.',
+      'Manage accounts at /admin/users (including careful deletion of non-admin accounts — database and auth should stay in sync via the admin edge flow). Review musician verification at /admin/verifications.',
   },
   {
-    title: 'Bookings and lifecycle enforcement',
+    title: 'Bookings',
     description:
-      'Use /admin/bookings to monitor statuses including waiting confirmation and expired. Review confirmation state, payment progression, and exceptions requiring intervention.',
+      'Use /admin/bookings for lifecycle states: pending, paid, confirmation windows, completed, expired, and exceptions.',
   },
   {
-    title: 'Transactions, payouts, and auditability',
+    title: 'Transactions and payouts',
     description:
-      'Use /admin/transactions for payment monitoring and payout tracking. Release and failure paths should remain visible through in-app notifications and logs.',
+      'Use /admin/transactions to monitor payments and releases; keep actions auditable and aligned with notifications.',
   },
   {
-    title: 'Communications and support management',
+    title: 'Communications and support',
     description:
-      'Use /admin/communications for chats, support tickets, and monitoring tools. Keep dispute and support actions tied to in-platform evidence.',
+      'Use /admin/communications for chats and tickets; tie resolutions to in-platform evidence where possible.',
   },
   {
-    title: 'Fraud monitoring and risk controls',
+    title: 'Risk and fraud',
     description:
-      'Use /admin/fraud-monitoring and related alerts to detect suspicious behavior, off-platform payment risk, and policy circumvention patterns.',
+      'Use /admin/fraud-monitoring and related tools for patterns that bypass fees or safety controls.',
   },
   {
-    title: 'Settings, deployment, and policy controls',
+    title: 'Settings and deployment',
     description:
-      'Use /admin/settings and /admin/deployment to configure platform defaults (theme, typography, onboarding context, security, and operations).',
+      'Configure defaults under /admin/settings and /admin/deployment (branding, operations, security).',
   },
   {
-    title: 'You are ready to operate',
+    title: 'Operational loop',
     description:
-      'Follow notifications and audits as your primary operational loop: detect, verify, resolve, and document. This keeps the marketplace reliable and transparent.',
+      'Treat notifications and audits as your loop: detect issues, verify facts, resolve, and document.',
   },
 ];
