@@ -119,51 +119,8 @@ export function ReviewDialog({
           .eq('user_id', revieweeId);
       }
 
-      // Generate star display for notifications
+      // Generate star display for toast
       const starDisplay = '⭐'.repeat(rating);
-
-      // Notify the musician being reviewed
-      await supabase.from('notifications').insert({
-        user_id: revieweeId,
-        type: 'review',
-        title: 'New Review Received! ' + starDisplay,
-        content: `You received a ${rating}-star review: "${content.trim().substring(0, 100)}${content.length > 100 ? '...' : ''}"`,
-        action_url: '/musician/profile',
-        read: false,
-        priority: 'normal',
-        data: {
-          bookingId,
-          rating,
-          reviewerId,
-        },
-      });
-
-      // Notify all admins about the new review
-      const { data: admins } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('role', 'admin');
-
-      if (admins && admins.length > 0) {
-        const adminNotifications = admins.map((admin) => ({
-          user_id: admin.user_id,
-          type: 'review' as const,
-          title: 'New Review Submitted ' + starDisplay,
-          content: `A ${rating}-star review was submitted for ${revieweeName}. Review: "${content.trim().substring(0, 100)}${content.length > 100 ? '...' : ''}"`,
-          action_url: '/admin/users',
-          read: false,
-          priority: 'low' as const,
-          data: {
-            bookingId,
-            rating,
-            reviewerId,
-            revieweeId,
-            revieweeName,
-          },
-        }));
-
-        await supabase.from('notifications').insert(adminNotifications);
-      }
 
       toast({
         title: 'Review Submitted! ' + starDisplay,

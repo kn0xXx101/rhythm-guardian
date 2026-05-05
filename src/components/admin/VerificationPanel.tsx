@@ -154,16 +154,6 @@ export function VerificationPanel({
 
       if (error) throw error;
 
-      // Notify the musician
-      await supabaseAdmin.from('notifications').insert({
-        user_id: userId,
-        type: 'system',
-        title: '✅ Verification Approved',
-        content: 'Congratulations! Your identity has been verified. You now have a verified badge on your profile.',
-        read: false,
-        action_url: '/musician/profile',
-      });
-
       toast({ title: 'Verified', description: `${userName} is now a verified musician.` });
       onVerified();
     } catch (error: any) {
@@ -191,18 +181,7 @@ export function VerificationPanel({
 
       if (error) throw error;
 
-      await supabaseAdmin.from('notifications').insert({
-        user_id: userId,
-        type: 'system',
-        title: '❌ Verification Rejected',
-        content: `Your verification was rejected. Reason: ${rejectionReason}. Please resubmit your documents.`,
-        read: false,
-        action_url: '/musician/profile',
-      });
-
-      toast({ title: 'Rejected', description: `${userName}'s verification has been rejected.` });
-      setShowRejectForm(false);
-      setRejectionReason('');
+      toast({ title: 'Rejected', description: `Verification rejected for ${userName}.` });
       onVerified();
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });

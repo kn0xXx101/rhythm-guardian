@@ -129,21 +129,6 @@ export function ManualPayoutButton({
         }
       }
 
-      // 5. Create in-app notification (without metadata for now)
-      const { error: notifError } = await supabase.from('notifications').insert({
-        user_id: musicianId,
-        type: 'payment',
-        title: 'Payment Disbursed',
-        content: `Your payment of ${formatGHSWithSymbol(amount)} has been disbursed. Reference: ${paymentReference}. Booking ID: ${bookingId}`,
-        action_url: '/musician/payouts',
-        read: false,
-      });
-
-      if (notifError) {
-        console.error('Notification error:', notifError);
-        // Don't fail the whole operation if notification fails
-      }
-
       toast({
         title: 'Success',
         description: 'Payment marked as paid and musician notified',

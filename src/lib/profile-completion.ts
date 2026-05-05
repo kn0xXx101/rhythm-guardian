@@ -27,10 +27,10 @@ export function calculateProfileCompletion(
     { key: 'avatar_url', label: 'Profile Photo', weight: 10 },
   ];
 
-  const musicianFields: Array<{ key: keyof Profile; label: string; weight: number }> = [
+  const musicianFields: Array<{ key: keyof Profile | 'pricing'; label: string; weight: number }> = [
     { key: 'instruments', label: 'Instruments', weight: 15 },
     { key: 'genres', label: 'Genres', weight: 10 },
-    { key: 'hourly_rate', label: 'Hourly Rate', weight: 10 },
+    { key: 'pricing' as any, label: 'Pricing (Hourly or Base)', weight: 10 },
     { key: 'available_days', label: 'Available Days', weight: 10 },
   ];
 
@@ -42,17 +42,25 @@ export function calculateProfileCompletion(
   const missingFields: string[] = [];
 
   fieldsToCheck.forEach((field) => {
-    const value = profile[field.key];
     let isComplete = false;
+    const key = field.key as string;
 
-    if (Array.isArray(value)) {
-      isComplete = value.length > 0;
-    } else if (typeof value === 'number') {
-      isComplete = value > 0;
-    } else if (typeof value === 'string') {
-      isComplete = value.trim().length > 0;
+    if (key === 'pricing') {
+      const hourlyRate = profile.hourly_rate;
+      const basePrice = (profile as any).base_price;
+      isComplete = (hourlyRate !== null && hourlyRate !== undefined && Number(hourlyRate) > 0) ||
+                   (basePrice !== null && basePrice !== undefined && Number(basePrice) > 0);
     } else {
-      isComplete = value !== null && value !== undefined;
+      const value = profile[field.key as keyof Profile];
+      if (Array.isArray(value)) {
+        isComplete = value.length > 0;
+      } else if (typeof value === 'number') {
+        isComplete = value > 0;
+      } else if (typeof value === 'string') {
+        isComplete = value.trim().length > 0;
+      } else {
+        isComplete = value !== null && value !== undefined;
+      }
     }
 
     if (isComplete) {

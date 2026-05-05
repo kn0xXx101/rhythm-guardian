@@ -32,26 +32,6 @@ export class BookingConfirmationService {
       if (!readyForAutoPayout) return;
 
       await payoutService.requestAutomaticPayout(bookingId);
-
-      const { data: bookingMeta } = await supabase
-        .from('bookings_with_profiles')
-        .select('hirer_name,musician_name,musician_payout,total_amount')
-        .eq('id', bookingId)
-        .maybeSingle();
-      const hirerName = (bookingMeta as any)?.hirer_name || 'Hirer';
-      const musicianName = (bookingMeta as any)?.musician_name || 'Musician';
-      const payoutAmount =
-        (bookingMeta as any)?.musician_payout != null
-          ? Number((bookingMeta as any).musician_payout)
-          : Number((bookingMeta as any)?.total_amount || 0);
-
-      await notifyAdmins(
-        'payout',
-        'Funds released to musician',
-        `Automatic payout was released for booking ${bookingId.slice(0, 8)}… (${hirerName} → ${musicianName})${Number.isFinite(payoutAmount) && payoutAmount > 0 ? ` amount ${payoutAmount}.` : '.'}`,
-        '/admin/bookings',
-        { eventKey: `booking-payout-released:${bookingId}` }
-      );
     } catch (payoutError) {
       console.warn('Automatic payout attempt failed (non-blocking):', payoutError);
       await notifyAdmins(

@@ -121,17 +121,6 @@ export const PendingApprovals = () => {
 
       if (updateError) throw updateError;
 
-      // Create notification for musician
-      const { error: notifError } = await supabase.from('notifications').insert({
-        user_id: userId,
-        type: 'system',
-        title: 'Profile Approved',
-        content: 'Your musician profile has been approved! You can now start receiving bookings.',
-        read: false,
-      });
-
-      if (notifError) console.error('Error creating notification:', notifError);
-
       toast({
         title: 'Profile Approved',
         description: `${fullName}'s profile has been activated.`,
@@ -162,18 +151,6 @@ export const PendingApprovals = () => {
         .eq('user_id', userId);
 
       if (updateError) throw updateError;
-
-      // Create notification for musician
-      const { error: notifError } = await supabase.from('notifications').insert({
-        user_id: userId,
-        type: 'system',
-        title: 'Profile Rejected',
-        content:
-          'Your musician profile application has been rejected. Please contact support for more information.',
-        read: false,
-      });
-
-      if (notifError) console.error('Error creating notification:', notifError);
 
       toast({
         title: 'Profile Rejected',

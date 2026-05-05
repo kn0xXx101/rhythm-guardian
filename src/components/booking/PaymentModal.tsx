@@ -366,44 +366,6 @@ export function PaymentModal({
                 throw new Error('Failed to update booking status: ' + bookingUpdateError.message);
               }
 
-
-              // Notify musician — payment held in escrow
-              if (booking.musician.id) {
-                try {
-                  await supabase.from('notifications').insert({
-                    user_id: booking.musician.id,
-                    type: 'booking',
-                    title: 'Booking Confirmed!',
-                    content: `Payment has been received and is held in escrow. Your payout will be released after service completion.`,
-                    read: false,
-                    action_url: '/musician/bookings',
-                  });
-                } catch (notifError) {
-                  console.error('Failed to notify musician:', notifError);
-                }
-              }
-
-              // Notify all admins — payment received
-              try {
-                await notifyAdmins(
-                  'payment',
-                  '💰 New Booking Payment',
-                  `${userEmail} paid ${formatGHSWithSymbol(totalToPay)} for a booking with ${booking.musician.name}.`,
-                  '/admin/bookings',
-                  { eventKey: `booking-payment-status:${booking.id}:paid` }
-                );
-
-                await notifyAdmins(
-                  'booking',
-                  '✅ Booking confirmed (paid)',
-                  `A booking with ${booking.musician.name} is now confirmed and in progress.`,
-                  '/admin/bookings',
-                  { eventKey: `booking-status:${booking.id}:in_progress` }
-                );
-              } catch (adminNotifError) {
-                console.error('Failed to notify admins:', adminNotifError);
-              }
-
               // Update the existing pending transaction record (created before opening the popup)
               // instead of inserting a duplicate row.
               try {

@@ -50,6 +50,7 @@ import { SessionManager } from '@/utils/session-manager';
 import { SessionDebug } from '@/components/debug/SessionDebug';
 import { AdminNotifyAuditToast } from '@/components/debug/AdminNotifyAuditToast';
 import { SuspensionCheck } from '@/components/auth/SuspensionCheck';
+import { GeoRestriction } from '@/components/auth/GeoRestriction';
 
 // Lazy load layout components
 const AdminDashboardLayout = lazy(() => import('./components/dashboard/AdminDashboardLayout'));
@@ -132,14 +133,15 @@ const AppContent = () => {
       <OfflineIndicator />
       {import.meta.env.DEV && <SessionDebug />}
       {import.meta.env.DEV && <AdminNotifyAuditToast />}
-      <SuspensionCheck />
-      <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
-        <AppErrorBoundary context="Application">
-          <BookingProvider>
-            <ChatProvider>
-              <TooltipProvider>
-                <Toaster />
-                <Sonner />
+      <GeoRestriction>
+        <SuspensionCheck />
+        <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+          <AppErrorBoundary context="Application">
+            <BookingProvider>
+              <ChatProvider>
+                <TooltipProvider>
+                  <Toaster />
+                  <Sonner />
                 <AnimatedRoutes>
                   {/* Public routes */}
                   <Route
@@ -615,9 +617,10 @@ const AppContent = () => {
                 </AnimatedRoutes>
               </TooltipProvider>
             </ChatProvider>
-          </BookingProvider>
-        </AppErrorBoundary>
-      </div>
+            </BookingProvider>
+          </AppErrorBoundary>
+        </div>
+      </GeoRestriction>
     </div>
   );
 };

@@ -203,22 +203,6 @@ class BookingService {
 
       if (!completeBooking) throw new Error('Failed to fetch complete booking details');
 
-      try {
-        const eventRegion = inferLocationRegion(booking.location);
-        const locationSummary = booking.location
-          ? ` Location: ${booking.location}${eventRegion ? ` (region: ${eventRegion})` : ''}.`
-          : '';
-        await notifyAdmins(
-          'booking',
-          'New booking placed',
-          `${booking.client.name} placed a booking request with ${booking.musician.name} for ${booking.date || 'a scheduled date'}.${locationSummary}`,
-          '/admin/bookings',
-          { eventKey: `booking-created:${data.id}` }
-        );
-      } catch (notifyError) {
-        console.error('Failed to notify admins about new booking:', notifyError);
-      }
-
       return completeBooking;
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -294,12 +278,16 @@ class BookingService {
           content = `Booking ${shortBookingId} between ${hirerName} and ${musicianName} has expired.`;
         }
 
-        try {
-          await notifyAdmins('booking', title, content, '/admin/bookings', {
-            eventKey: `booking-status:${id}:${nextStatus}`,
-          });
-        } catch (notifyError) {
-          console.error('Failed to notify admins about booking status update:', notifyError);
+        // Only notify admins for statuses NOT handled by the DB triggers
+        // Handled by DB: accepted, upcoming, completed
+        if (!['accepted', 'upcoming', 'completed'].includes(nextStatus)) {
+          try {
+            await notifyAdmins('booking', title, content, '/admin/bookings', {
+              eventKey: `booking-status:${id}:${nextStatus}`,
+            });
+          } catch (notifyError) {
+            console.error('Failed to notify admins about booking status update:', notifyError);
+          }
         }
       }
     } catch (error) {
@@ -345,12 +333,16 @@ class BookingService {
           content = `Refund processed for booking ${shortBookingId} (${hirerName} / ${musicianName}).`;
         }
 
-        try {
-          await notifyAdmins('payment', title, content, '/admin/bookings', {
-            eventKey: `booking-payment-status:${id}:${dbPaymentStatus}`,
-          });
-        } catch (notifyError) {
-          console.error('Failed to notify admins about payment status update:', notifyError);
+        // Only notify admins for statuses NOT handled by the DB triggers
+        // Handled by DB: paid
+        if (dbPaymentStatus !== 'paid') {
+          try {
+            await notifyAdmins('payment', title, content, '/admin/bookings', {
+              eventKey: `booking-payment-status:${id}:${dbPaymentStatus}`,
+            });
+          } catch (notifyError) {
+            console.error('Failed to notify admins about payment status update:', notifyError);
+          }
         }
       }
     } catch (error) {

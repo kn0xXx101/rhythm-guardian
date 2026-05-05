@@ -745,9 +745,24 @@ const InstrumentalistSearch = () => {
 			}
 
 			// Create booking in database
-			const eventDateTime = details.eventDate && details.startTime
-				? new Date(`${details.eventDate}T${details.startTime}`).toISOString()
+			const eventDateTimeString = details.eventDate && details.startTime
+				? `${details.eventDate}T${details.startTime}`
 				: details.eventDate;
+			
+			const eventDateObj = new Date(eventDateTimeString);
+			const now = new Date();
+
+			// Block bookings for past times
+			if (eventDateObj < now) {
+				toast({
+					variant: 'destructive',
+					title: 'Invalid booking time',
+					description: 'You cannot create a booking for a time that has already passed.',
+				});
+				return;
+			}
+
+			const eventDateTime = eventDateObj.toISOString();
 
 			const isHourlyPricing = isMusicianDbRowHourly(musician);
 			const pricingType = isHourlyPricing ? 'hourly' : 'fixed';

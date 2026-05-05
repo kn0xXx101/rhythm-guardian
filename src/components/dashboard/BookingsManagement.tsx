@@ -339,22 +339,6 @@ export function BookingsManagement() {
         console.error('Failed to create payout transaction:', txError);
       }
 
-      // Send notification to musician
-      try {
-        await supabase.from('notifications').insert({
-          user_id: selectedBooking.musician_id,
-          type: 'payment' as const,
-          title: 'Payment Released',
-          content: `Your payment of ${formatGHSWithSymbol(selectedBooking.musician_payout)} for ${selectedBooking.event_type} has been released. Please check your account.`,
-          action_url: '/musician/bookings',
-          read: false,
-          priority: 'high',
-          metadata: { bookingId: selectedBooking.id },
-        });
-      } catch (notifError) {
-        console.error('Failed to send notification:', notifError);
-      }
-
       toast({
         title: 'Funds Released',
         description: `${formatGHSWithSymbol(selectedBooking.musician_payout)} has been released to ${selectedBooking.musician_name}.`,
