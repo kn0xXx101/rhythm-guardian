@@ -1064,6 +1064,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             authError.message?.includes('already been registered') ||
             authError.message?.includes('email address is already registered')) {
           throw new Error('This email is already registered. Please sign in instead or use a different email.');
+        } else if (authError.message?.includes('rate limit') ||
+                   authError.message?.includes('rate_limit') ||
+                   authError.message?.includes('too many requests') ||
+                   authError.message?.includes('email rate limit exceeded')) {
+          throw new Error('Too many signup attempts. Please wait 15-60 minutes before trying again, or try with a different email address.');
         }
         throw authError;
       }
