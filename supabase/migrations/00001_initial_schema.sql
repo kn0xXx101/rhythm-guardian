@@ -1112,3 +1112,29 @@ CREATE Policy "Owner Access" ON public.fraud_alerts FOR ALL USING ( auth.uid() =
 CREATE Policy "Admin access everything" ON public.support_tickets FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
 
+-- 20. Final System Grants (Ensures all objects created above are accessible)
+-- These are critical for PostgREST to correctly infer the schema and for RLS to evaluation
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA internal TO anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA internal TO authenticated, service_role;
+
+-- Re-verify RLS is enabled on all tables
+DO $$
+DECLARE
+    t text;
+BEGIN
+    FOR t IN 
+        SELECT table_name FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+    LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t);
+    END LOOP;
+END $$;
+
