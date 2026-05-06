@@ -157,9 +157,15 @@ CREATE TABLE public.messages (
     conversation_id UUID REFERENCES public.conversations(id) NOT NULL,
     sender_id UUID REFERENCES public.profiles(user_id) NOT NULL,
     receiver_id UUID REFERENCES public.profiles(user_id) NOT NULL,
+    booking_id UUID REFERENCES public.bookings(id),
     content TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    attachments TEXT[],
+    read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP WITH TIME ZONE,
+    flagged BOOLEAN DEFAULT false,
+    flag_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 5. Notifications
