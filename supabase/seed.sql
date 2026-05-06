@@ -5,18 +5,16 @@ DO $$
 DECLARE
     v_admin_id UUID := '00000000-0000-0000-0000-000000000001';
 BEGIN
-    -- 1. Create or Update Auth User (Minimal core fields for maximum compatibility)
+    -- 1. Create or Update Auth User (Fundamental columns only)
     INSERT INTO auth.users (
         instance_id, id, aud, role, email, encrypted_password, 
         email_confirmed_at, last_sign_in_at, 
-        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-        is_super_admin, confirmed_at
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at
     ) VALUES (
         '00000000-0000-0000-0000-000000000000', v_admin_id, 'authenticated', 'authenticated', 'admin@rhythmguardian.com',
         extensions.crypt('admin123', extensions.gen_salt('bf')),
         NOW(), NOW(),
-        '{"provider":"email","providers":["email"]}', '{}', NOW(), NOW(),
-        false, NOW()
+        '{"provider":"email","providers":["email"]}', '{}', NOW(), NOW()
     ) ON CONFLICT (id) DO NOTHING;
 
     -- 2. Link Identity (Required for login)
