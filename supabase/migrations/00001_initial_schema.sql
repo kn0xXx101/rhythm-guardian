@@ -1,21 +1,13 @@
--- 00001_initial_schema.sql
 -- Foundational structure for the Rhythm Guardian database
 
 -- System Schema Grants (Critical Fix for 'permission denied for schema public')
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, authenticated, service_role;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT USAGE ON SCHEMA extensions TO postgres, anon, authenticated, service_role;
+
+-- Default Privileges
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON ROUTINES TO postgres, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
-
--- 0.5 Private Internal Schema (For security-sensitive helpers)
-CREATE SCHEMA IF NOT EXISTS internal;
-GRANT USAGE ON SCHEMA internal TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON TABLES TO postgres, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON ROUTINES TO postgres, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON SEQUENCES TO postgres, service_role;
 
 -- 1. Create Enums
 CREATE TYPE public.booking_status AS ENUM ('pending', 'accepted', 'completed', 'cancelled', 'rejected', 'expired', 'in_progress');
@@ -31,12 +23,11 @@ CREATE TYPE public.user_role AS ENUM ('admin', 'musician', 'hirer');
 CREATE TYPE public.user_status AS ENUM ('active', 'inactive', 'suspended', 'pending');
 
 -- 1.5 Helper for RLS (Breaks infinite recursion)
--- Relocated to internal schema to satisfy security linter (prevents RPC exposure)
-CREATE OR REPLACE FUNCTION internal.is_admin() 
+-- Moved to public but revoked from PUBLIC to prevent RPC exposure
+CREATE OR REPLACE FUNCTION public.is_admin() 
 RETURNS BOOLEAN 
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
 AS $$
 BEGIN
     RETURN EXISTS (
@@ -45,7 +36,8 @@ BEGIN
     );
 END;
 $$;
-GRANT EXECUTE ON FUNCTION internal.is_admin() TO anon, authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.is_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 
 -- 2. Base tables starting with Profiles
 CREATE TABLE public.profiles (
@@ -549,7 +541,7 @@ GRANT EXECUTE ON FUNCTION public.confirm_service(UUID, TEXT) TO authenticated, s
 
 -- 14. Triggers (SECURITY DEFINER is correct here — trigger functions need elevated access)
 -- Relocated to internal schema to satisfy security linter (prevents RPC exposure)
-CREATE OR REPLACE FUNCTION internal.create_booking_notification()
+CREATE OR REPLACE FUNCTION public.create_booking_notification()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -578,11 +570,11 @@ $$;
 
 CREATE TRIGGER on_booking_change
     AFTER INSERT OR UPDATE OF status ON public.bookings
-    FOR EACH ROW EXECUTE FUNCTION internal.create_booking_notification();
+    FOR EACH ROW EXECUTE FUNCTION public.create_booking_notification();
 
 -- Lock down trigger function
-REVOKE ALL ON FUNCTION internal.create_booking_notification() FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION internal.create_booking_notification() TO service_role;
+REVOKE ALL ON FUNCTION public.create_booking_notification() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_booking_notification() TO service_role;
 
 
 -- 15. Frontend Feature Extensions (mapped from types/features.ts)
@@ -948,181 +940,178 @@ ALTER TABLE public.onboarding_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feature_tours ENABLE ROW LEVEL SECURITY;
 
 -- 16. Row Level Security Policies (FIXED RECURSION)
-CREATE Policy "Admin access everything" ON public.profiles FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.profiles FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.profiles FOR SELECT USING ( true );
 CREATE Policy "Owner Update" ON public.profiles FOR UPDATE USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.bookings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.bookings FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.bookings FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
 
-CREATE Policy "Admin access everything" ON public.conversations FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.conversations FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.conversations FOR ALL USING ( auth.uid() IN (participant1_id, participant2_id) );
 
-CREATE Policy "Admin access everything" ON public.messages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.messages FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.messages FOR ALL USING ( auth.uid() IN (sender_id, receiver_id) );
 
-CREATE Policy "Admin access everything" ON public.notifications FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.notifications FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.notifications FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.transactions FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.transactions FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.transactions FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.reviews FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.reviews FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.reviews FOR SELECT USING ( true );
 CREATE Policy "Reviewer Access" ON public.reviews FOR ALL USING ( auth.uid() = reviewer_id );
 
-CREATE Policy "Admin access everything" ON public.user_settings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.user_settings FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.user_settings FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.portfolio_items FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.portfolio_items FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.portfolio_items FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.favorites FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.favorites FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.favorites FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
 
-CREATE Policy "Admin access everything" ON public.disputes FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.disputes FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.disputes FOR ALL USING ( auth.uid() IN (opened_by, (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id)) );
 
-CREATE Policy "Admin access everything" ON public.settings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.settings FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.settings FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.platform_settings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.platform_settings FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.platform_settings FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.audit_logs FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.audit_logs FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.audit_logs FOR ALL USING ( auth.uid() = actor_user_id );
 
 -- 17. Extension Table Policies (Resolving remaining linter warnings)
-CREATE Policy "Admin access everything" ON public.search_preferences FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.search_preferences FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.search_preferences FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.musician_availability FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.musician_availability FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.musician_availability FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.availability_patterns FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.availability_patterns FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.availability_patterns FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.package_addons FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.package_addons FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.package_addons FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.notification_preferences FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.notification_preferences FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.notification_preferences FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.featured_listings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.featured_listings FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.featured_listings FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.promotion_codes FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.promotion_codes FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.promotion_codes FOR SELECT USING ( is_active = true );
 
-CREATE Policy "Admin access everything" ON public.review_responses FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.review_responses FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.review_responses FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.review_medias FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.review_medias FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.review_medias FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.loyalty_points FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.loyalty_points FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.loyalty_points FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.dispute_evidence FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.dispute_evidence FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.dispute_evidence FOR ALL USING ( auth.uid()::text = uploaded_by );
 
-CREATE Policy "Admin access everything" ON public.booking_protection_plans FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.booking_protection_plans FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.booking_protection_plans FOR SELECT USING ( is_active = true );
 
-CREATE Policy "Admin access everything" ON public.cancellation_policys FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.cancellation_policys FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.cancellation_policys FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.protection_claims FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.protection_claims FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.protection_claims FOR ALL USING ( auth.uid() = claimant_id );
 
-CREATE Policy "Admin access everything" ON public.verification_documents FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.verification_documents FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.verification_documents FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.verification_checks FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.verification_checks FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.verification_checks FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.background_checks FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.background_checks FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.background_checks FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.analytics_events FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.analytics_events FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.analytics_events FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.earnings_summarys FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.earnings_summarys FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.earnings_summarys FOR ALL USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.report_templates FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.report_templates FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.report_templates FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.booking_negotiations FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.booking_negotiations FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.booking_negotiations FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
 
-CREATE Policy "Admin access everything" ON public.custom_proposals FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.custom_proposals FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.custom_proposals FOR ALL USING ( 
     auth.uid()::text = proposed_by OR 
     EXISTS (SELECT 1 FROM public.booking_negotiations n WHERE n.id = negotiation_id AND auth.uid() IN (n.hirer_id, n.musician_id))
 );
 
-CREATE Policy "Admin access everything" ON public.video_calls FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.video_calls FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.video_calls FOR ALL USING ( auth.uid() IN (host_id, participant_id) );
 
-CREATE Policy "Admin access everything" ON public.email_templates FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.email_templates FOR ALL USING ( public.is_admin() );
 
-CREATE Policy "Admin access everything" ON public.scheduled_emails FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.scheduled_emails FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.scheduled_emails FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.onboarding_progress FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.onboarding_progress FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.onboarding_progress FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.feature_tours FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.feature_tours FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.feature_tours FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.pricing_packages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.pricing_packages FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.pricing_packages FOR SELECT USING ( true );
 CREATE Policy "Owner Update" ON public.pricing_packages FOR UPDATE USING ( auth.uid() = musician_user_id );
 
-CREATE Policy "Admin access everything" ON public.referrals FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.referrals FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.referrals FOR ALL USING ( auth.uid() = referrer_id );
 
-CREATE Policy "Admin access everything" ON public.rewards FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.rewards FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.rewards FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.refund_policies FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.refund_policies FOR ALL USING ( public.is_admin() );
 CREATE Policy "Public Select" ON public.refund_policies FOR SELECT USING ( true );
 
-CREATE Policy "Admin access everything" ON public.refunds FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.refunds FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.refunds FOR ALL USING ( auth.uid() = requested_by );
 
-CREATE Policy "Admin access everything" ON public.payment_analytics FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.payment_analytics FOR ALL USING ( public.is_admin() );
 
-CREATE Policy "Admin access everything" ON public.dispute_messages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.dispute_messages FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.dispute_messages FOR ALL USING ( 
     auth.uid() = sender_id OR 
     EXISTS (SELECT 1 FROM public.disputes d WHERE d.id = dispute_id AND (auth.uid() = d.opened_by OR auth.uid() = (SELECT b.musician_id FROM public.bookings b WHERE b.id = d.booking_id)))
 );
 
-CREATE Policy "Admin access everything" ON public.ticket_messages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.ticket_messages FOR ALL USING ( public.is_admin() );
 CREATE Policy "Participant Access" ON public.ticket_messages FOR ALL USING ( 
     auth.uid() = sender_id OR 
     EXISTS (SELECT 1 FROM public.support_tickets s WHERE s.id = ticket_id AND s.user_id = auth.uid())
 );
 
-CREATE Policy "Admin access everything" ON public.fraud_alerts FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.fraud_alerts FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.fraud_alerts FOR ALL USING ( auth.uid() = user_id );
 
-CREATE Policy "Admin access everything" ON public.support_tickets FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Admin access everything" ON public.support_tickets FOR ALL USING ( public.is_admin() );
 CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
 
 -- 20. Final System Grants (CRITICAL: Required for Supabase API to function)
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
-GRANT USAGE ON SCHEMA internal TO anon, authenticated, service_role;
 GRANT USAGE ON SCHEMA extensions TO anon, authenticated, service_role;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA internal TO authenticated, service_role;
 
 -- Ensure RLS is active on all public tables
 DO $$
