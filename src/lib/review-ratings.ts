@@ -58,15 +58,26 @@ export async function fetchReviewAggregatesForReviewees(
     return { byRevieweeId: {}, failed: false };
   }
 
-  const { data, error } = await client.from('reviews').select('reviewee_id,rating').in('reviewee_id', uniqueIds);
-
-  if (error) {
-    console.warn('fetchReviewAggregatesForReviewees:', error);
-    return { byRevieweeId: {}, failed: true };
+  // Limit to prevent excessive queries
+  if (uniqueIds.length > 100) {
+    console.warn('fetchReviewAggregatesForReviewees: Too many IDs, limiting to 100');
+    uniqueIds.splice(100);
   }
 
-  return {
-    byRevieweeId: aggregateReviewRatingsByReviewee(data || []),
-    failed: false,
-  };
+  try {
+    const { data, error } = await client.from('reviews').select('reviewee_id,rating').in('reviewee_id', uniqueIds);
+
+    if (error) {
+      console.warn('fetchReviewAggregatesForReviewees:', error);
+      return { byRevieweeId: {}, failed: true };
+    }
+
+    return {
+      byRevieweeId: aggregateReviewRatingsByReviewee(data || []),
+      failed: false,
+    };
+  } catch (error) {
+    console.warn('fetchReviewAggregatesForReviewees exception:', error);
+    return { byRevieweeId: {}, failed: true };
+  }
 }

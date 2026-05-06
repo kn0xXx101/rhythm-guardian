@@ -1,8 +1,7 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isBookingsViewRecoverableError } from '@/lib/supabase';
 import { averageRatingFromSumCount, fetchReviewAggregatesForReviewees } from '@/lib/review-ratings';
 import type { Booking, BookingStatus, PaymentStatus } from '@/contexts/BookingContext';
 import { notifyAdmins } from '@/services/admin-notify';
-import { inferLocationRegion } from '@/utils/location-search';
 
 type DbBookingStatus = 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed' | 'in_progress' | 'expired';
 type DbPaymentStatus = 'pending' | 'paid' | 'refunded' | 'failed';
@@ -44,15 +43,45 @@ const appToDbPaymentStatus: Record<string, DbPaymentStatus> = {
   released: 'paid',
 };
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 class BookingService {
+  /** Scoped to the signed-in user so the planner can use hirer/musician indexes (reduces gateway timeouts). */
+  private bookingsViewQuery(userId: string | undefined) {
+    let q = supabase
+      .from('bookings_with_profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (userId) {
+      q = q.or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
+    }
+    return q;
+  }
+
   async getBookings(): Promise<Booking[]> {
     try {
-      const { data: bookings, error } = await supabase
-        .from('bookings_with_profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (error) throw error;
+      let { data: bookings, error } = await this.bookingsViewQuery(user?.id);
+
+      if (error && isBookingsViewRecoverableError(error)) {
+        console.warn('Bookings view recoverable error, retry once:', error);
+        await sleep(450);
+        const retry = await this.bookingsViewQuery(user?.id);
+        bookings = retry.data;
+        error = retry.error;
+      }
+
+      if (error) {
+        if (isBookingsViewRecoverableError(error)) {
+          console.warn('Using direct bookings + profiles fallback after view failure');
+          return this.getBookingsFallback(user?.id);
+        }
+        throw error;
+      }
 
       const formatTimeValue = (value?: string) => {
         if (!value) return '';
@@ -101,7 +130,7 @@ class BookingService {
         },
         status: dbToAppStatus[booking.status] ?? 'pending',
         paymentStatus: dbToAppPaymentStatus[booking.payment_status] ?? 'unpaid',
-        payoutStatus: booking.payout_released ? 'released' : 'pending',
+        payoutStatus: (booking.payout_released ? 'released' : 'pending') as 'pending' | 'released',
         date: booking.event_date || '',
           time,
           durationHours,
@@ -154,54 +183,120 @@ class BookingService {
     }
   }
 
-  async createBooking(booking: Omit<Booking, 'id'>): Promise<Booking> {
+  async createBooking(bookingInput: Omit<Booking, 'id'>): Promise<Booking> {
     try {
-      const dbStatus = appToDbStatus[booking.status] ?? 'pending';
-      const dbPaymentStatus = appToDbPaymentStatus[booking.paymentStatus] ?? 'pending';
+      const dbStatus = appToDbStatus[bookingInput.status] ?? 'pending';
+      const dbPaymentStatus = appToDbPaymentStatus[bookingInput.paymentStatus] ?? 'pending';
 
       // Parse event_date - if it's a string, ensure it's a valid ISO timestamp
       let eventDate: string;
-      if (typeof booking.date === 'string') {
-        const dateObj = new Date(booking.date);
+      if (typeof bookingInput.date === 'string') {
+        const dateObj = new Date(bookingInput.date);
         if (isNaN(dateObj.getTime())) {
           throw new Error('Invalid event date');
         }
         eventDate = dateObj.toISOString();
       } else {
-        eventDate = booking.date;
+        eventDate = bookingInput.date;
       }
 
       const rawDuration =
-        booking.durationHours ??
-        (booking as { duration?: number }).duration;
+        bookingInput.durationHours ??
+        (bookingInput as { duration?: number }).duration;
       const duration =
         typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 4;
 
       const { data, error } = await supabase
         .from('bookings')
         .insert({
-          musician_id: booking.musician.id,
-          hirer_id: booking.client.id,
+          musician_id: bookingInput.musician.id,
+          hirer_id: bookingInput.client.id,
           status: dbStatus,
           payment_status: dbPaymentStatus,
           event_type: 'Performance',
           event_date: eventDate,
           duration_hours: duration,
-          location: booking.location,
-          total_amount: booking.price,
-          requirements: booking.description || '',
+          location: bookingInput.location,
+          total_amount: bookingInput.price,
+          requirements: bookingInput.description || '',
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      // Fetch the complete booking with musician and client details
-      const completeBooking = await this.getBookings().then((bookings) =>
-        bookings.find((b) => b.id === data.id)
-      );
+      // Fetch the complete booking with musician and client details directly
+      const { data: completeBookingData, error: fetchError } = await supabase
+        .from('bookings_with_profiles')
+        .select('*')
+        .eq('id', data.id)
+        .single();
 
-      if (!completeBooking) throw new Error('Failed to fetch complete booking details');
+      if (fetchError) throw fetchError;
+
+      // Transform the single booking data using the same logic as getBookings
+      const formatTimeValue = (value?: string) => {
+        if (!value) return '';
+        const timePart = value.includes('T') ? value.split('T')[1] ?? '' : value;
+        const cleaned = timePart.replace('Z', '').split('+')[0] ?? '';
+        const [hours, minutes] = cleaned.split(':');
+        if (!hours || !minutes) return value;
+        return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+      };
+      const formatTimeFromDate = (value?: string) => {
+        if (!value) return '';
+        const parsed = new Date(value);
+        if (isNaN(parsed.getTime())) return '';
+        return parsed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      };
+      const addDurationToTime = (baseDate: string, hours: number) => {
+        const parsed = new Date(baseDate);
+        if (isNaN(parsed.getTime())) return '';
+        parsed.setMinutes(parsed.getMinutes() + hours * 60);
+        return parsed.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      };
+
+      const bookingData = completeBookingData as any; // Type assertion for view columns
+      const durationHours = bookingData.duration_hours ? Number(bookingData.duration_hours) : undefined;
+      const startTime = formatTimeValue(bookingData.start_time) || formatTimeFromDate(bookingData.event_date);
+      const endTime =
+        formatTimeValue(bookingData.end_time) ||
+        (startTime && durationHours && bookingData.event_date
+          ? addDurationToTime(bookingData.event_date, durationHours)
+          : '');
+      const time = startTime ? (endTime ? `${startTime} - ${endTime}` : startTime) : '';
+
+      const completeBooking: Booking = {
+        id: bookingData.id || '',
+        musician: {
+          id: bookingData.musician_id || '',
+          name: bookingData.musician_name || '',
+          instrument: bookingData.musician_instruments?.[0] || '',
+          image: bookingData.musician_avatar || '',
+          rating: bookingData.musician_rating || 0,
+        },
+        client: {
+          id: bookingData.hirer_id || '',
+          name: bookingData.hirer_name || '',
+          image: bookingData.hirer_avatar || '',
+        },
+        status: dbToAppStatus[bookingData.status || 'pending'] ?? 'pending',
+        paymentStatus: dbToAppPaymentStatus[bookingData.payment_status || 'pending'] ?? 'unpaid',
+        payoutStatus: (bookingData.payout_released ? 'released' : 'pending') as 'pending' | 'released',
+        date: bookingData.event_date || '',
+        time,
+        durationHours,
+        location: bookingData.location || '',
+        price: Number(bookingData.total_amount) || 0,
+        musicianPayout:
+          bookingData.musician_payout != null && Number.isFinite(Number(bookingData.musician_payout))
+            ? Number(bookingData.musician_payout)
+            : undefined,
+        description: bookingData.requirements || '',
+        serviceConfirmedByHirer: bookingData.service_confirmed_by_hirer || false,
+        serviceConfirmedByMusician: bookingData.service_confirmed_by_musician || false,
+        serviceConfirmedAt: bookingData.service_confirmed_at || undefined,
+      };
 
       return completeBooking;
     } catch (error) {
@@ -382,6 +477,81 @@ class BookingService {
         }
       )
       .subscribe();
+  }
+
+  // Fallback when the view times out, returns 504, or PostgREST is rebuilding schema cache
+  private async getBookingsFallback(userId: string | undefined): Promise<Booking[]> {
+    try {
+      let bq = supabase
+        .from('bookings')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (userId) {
+        bq = bq.or(`hirer_id.eq.${userId},musician_id.eq.${userId}`);
+      }
+      const { data: bookings, error: bookingsError } = await bq;
+
+      if (bookingsError) throw bookingsError;
+
+      if (!bookings || bookings.length === 0) {
+        return [];
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set([
+        ...bookings.map(b => b.musician_id),
+        ...bookings.map(b => b.hirer_id)
+      ].filter(Boolean))];
+
+      // Fetch profiles in batch
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, full_name, email, phone, avatar_url, rating, instruments')
+        .in('user_id', userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
+
+      // Transform bookings
+      return bookings.map((booking: any) => {
+        const musicianProfile = profileMap.get(booking.musician_id);
+        const hirerProfile = profileMap.get(booking.hirer_id);
+
+        return {
+          id: booking.id || '',
+          musician: {
+            id: booking.musician_id || '',
+            name: musicianProfile?.full_name || '',
+            instrument: musicianProfile?.instruments?.[0] || '',
+            image: musicianProfile?.avatar_url || '',
+            rating: musicianProfile?.rating || 0,
+          },
+          client: {
+            id: booking.hirer_id || '',
+            name: hirerProfile?.full_name || '',
+            image: hirerProfile?.avatar_url || '',
+          },
+          status: dbToAppStatus[booking.status] ?? 'pending',
+          paymentStatus: dbToAppPaymentStatus[booking.payment_status] ?? 'unpaid',
+          payoutStatus: (booking.payout_released ? 'released' : 'pending') as 'pending' | 'released',
+          date: booking.event_date || '',
+          time: '',
+          durationHours: booking.duration_hours ? Number(booking.duration_hours) : undefined,
+          location: booking.location || '',
+          price: Number(booking.total_amount) || 0,
+          musicianPayout: booking.musician_payout != null && Number.isFinite(Number(booking.musician_payout))
+            ? Number(booking.musician_payout)
+            : undefined,
+          description: booking.requirements || '',
+          serviceConfirmedByHirer: booking.service_confirmed_by_hirer || false,
+          serviceConfirmedByMusician: booking.service_confirmed_by_musician || false,
+          serviceConfirmedAt: booking.service_confirmed_at || undefined,
+        };
+      });
+    } catch (error) {
+      console.error('Fallback query also failed:', error);
+      throw error;
+    }
   }
 }
 

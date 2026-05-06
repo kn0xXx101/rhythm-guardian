@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, isSupabaseRestTransientError } from '@/lib/supabase';
 import { Notification, NotificationPreferences } from '@/types/features';
 
 const normalizePreferences = (prefs: NotificationPreferences): NotificationPreferences => ({
@@ -15,6 +15,26 @@ const normalizePreferences = (prefs: NotificationPreferences): NotificationPrefe
   push_messages: prefs.push_messages ?? true,
 });
 
+/** Returned when PostgREST returns 503 / PGRST002 so settings UI can still load. */
+function offlineNotificationPreferences(userId: string): NotificationPreferences {
+  const now = new Date().toISOString();
+  return normalizePreferences({
+    id: '00000000-0000-4000-8000-000000000001',
+    user_id: userId,
+    updated_at: now,
+    email_bookings: true,
+    email_messages: true,
+    email_reviews: true,
+    email_promotions: false,
+    in_app_bookings: true,
+    in_app_messages: true,
+    in_app_reviews: true,
+    in_app_system: true,
+    push_bookings: true,
+    push_messages: true,
+  });
+}
+
 export const notificationsService = {
   async getNotifications(userId: string, limit: number = 50) {
     const { data, error } = await supabase
@@ -24,8 +44,14 @@ export const notificationsService = {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw error;
-    
+    if (error) {
+      if (isSupabaseRestTransientError(error)) {
+        console.warn('notifications: API unavailable; returning empty list', error.message);
+        return [];
+      }
+      throw error;
+    }
+
     // Map database columns to frontend interface
     return (data || []).map((row: any) => ({
       id: row.id,
@@ -51,6 +77,10 @@ export const notificationsService = {
       .or('read.eq.false,is_read.eq.false');
 
     if (error) {
+      if (isSupabaseRestTransientError(error)) {
+        console.warn('notifications unread count: API unavailable', error.message);
+        return 0;
+      }
       // Fallback if 'or' query fails due to missing column
       const { count: fallbackCount, error: fallbackError } = await supabase
         .from('notifications')
@@ -59,6 +89,10 @@ export const notificationsService = {
         .eq('read', false);
       
       if (fallbackError) {
+        if (isSupabaseRestTransientError(fallbackError)) {
+          console.warn('notifications unread count (fallback): API unavailable', fallbackError.message);
+          return 0;
+        }
         console.warn('Failed to fetch unread count with fallback:', fallbackError);
         return 0;
       }
@@ -134,7 +168,13 @@ export const notificationsService = {
       .eq('user_id', userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      if (isSupabaseRestTransientError(error)) {
+        console.warn('notification_preferences: API unavailable; using local defaults', error.message);
+        return offlineNotificationPreferences(userId);
+      }
+      throw error;
+    }
 
     if (!data) {
       const defaultPrefs: Omit<NotificationPreferences, 'id' | 'updated_at'> = {
@@ -157,7 +197,13 @@ export const notificationsService = {
         .select()
         .single();
 
-      if (createError) throw createError;
+      if (createError) {
+        if (isSupabaseRestTransientError(createError)) {
+          console.warn('notification_preferences insert skipped (API unavailable)', createError.message);
+          return offlineNotificationPreferences(userId);
+        }
+        throw createError;
+      }
       return normalizePreferences(newPrefs as NotificationPreferences);
     }
 

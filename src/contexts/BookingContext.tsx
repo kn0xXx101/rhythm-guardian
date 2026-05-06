@@ -9,7 +9,7 @@ import React, {
 import { bookingService } from '@/services/booking';
 import { BookingConfirmationService } from '@/services/booking-confirmation';
 import { useRealtime } from '@/hooks/use-realtime';
-import { supabase } from '@/lib/supabase';
+import { supabase, isGatewayOrTimeoutError } from '@/lib/supabase';
 import { notifyAdmins } from '@/services/admin-notify';
 
 export type BookingStatus = 'pending' | 'accepted' | 'upcoming' | 'completed' | 'cancelled' | 'expired' | 'rejected';
@@ -73,9 +73,20 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const realtimeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchingRef = useRef(false);
+  /** If another fetch was requested while one was in flight (e.g. SIGNED_IN), run again after. */
+  const pendingFetchRef = useRef(false);
 
   const fetchBookings = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
+
+    if (fetchingRef.current) {
+      pendingFetchRef.current = true;
+      return;
+    }
+
+    fetchingRef.current = true;
+
     try {
       if (!silent) setIsLoading(true);
       const data = await bookingService.getBookings();
@@ -83,16 +94,33 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setError(null);
     } catch (err: any) {
       console.error('Error fetching bookings:', err);
-      const errorMessage = err?.message || String(err);
+      const errorMessage =
+        err?.message || err?.details || err?.hint || String(err ?? 'Unknown error');
       if (errorMessage.includes('does not exist') || errorMessage.includes('relation')) {
         console.log('Bookings table not yet created, showing empty state');
         setBookings([]);
         setError(null);
+      } else if (errorMessage.includes('stack depth limit exceeded')) {
+        console.error('Stack overflow detected in booking fetch, using fallback');
+        setBookings([]);
+        setError('Unable to load bookings due to system error. Please refresh the page.');
+      } else if (isGatewayOrTimeoutError(err)) {
+        setBookings([]);
+        setError(
+          'Could not load bookings: the server timed out or is temporarily unavailable. Please retry in a moment.'
+        );
       } else {
-        setError('Failed to load bookings');
+        const short =
+          errorMessage.length > 220 ? `${errorMessage.slice(0, 220)}…` : errorMessage;
+        setError(`Failed to load bookings: ${short}`);
       }
     } finally {
+      fetchingRef.current = false;
       if (!silent) setIsLoading(false);
+      if (pendingFetchRef.current) {
+        pendingFetchRef.current = false;
+        void fetchBookings({ silent: true });
+      }
     }
   }, []);
 
@@ -119,6 +147,22 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   useEffect(() => {
     void fetchBookings();
+  }, [fetchBookings]);
+
+  // Refetch when the session appears (e.g. after login); initial fetch can run before JWT is attached.
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') {
+        void fetchBookings();
+      }
+      if (event === 'SIGNED_OUT') {
+        setBookings([]);
+        setError(null);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, [fetchBookings]);
 
   useEffect(() => {

@@ -30,7 +30,7 @@ export async function rpcGetSupportTickets(): Promise<SupportTicketListRow[]> {
 }
 
 export async function rpcGetTicketMessages(ticketId: string): Promise<TicketMessageRow[]> {
-  const { data, error } = await supabase.rpc('get_ticket_messages', { ticket_id: ticketId });
+  const { data, error } = await supabase.rpc('get_ticket_messages', { p_ticket_id: ticketId });
   if (error) throw error;
   return parseRows(ticketMessageRowSchema, data, 'get_ticket_messages');
 }
