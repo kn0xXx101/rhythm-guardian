@@ -1155,3 +1155,163 @@ CREATE Policy "Owner Access" ON public.fraud_alerts FOR ALL USING ( auth.uid() =
 CREATE Policy "Admin access everything" ON public.support_tickets FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
 
+-- 18. Missing Functions (Fix 500 errors)
+CREATE OR REPLACE FUNCTION public.get_new_ticket_messages(
+    p_ticket_id UUID,
+    p_last_message_id UUID DEFAULT NULL
+) RETURNS TABLE (
+    id UUID,
+    ticket_id UUID,
+    sender_id UUID,
+    content TEXT,
+    is_admin BOOLEAN,
+    created_at TIMESTAMP WITH TIME ZONE,
+    sender_name TEXT
+)
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tm.id,
+        tm.ticket_id,
+        tm.sender_id,
+        tm.content,
+        tm.is_admin,
+        tm.created_at,
+        COALESCE(p.full_name, 'Unknown User') as sender_name
+    FROM public.ticket_messages tm
+    LEFT JOIN public.profiles p ON tm.sender_id = p.user_id
+    WHERE tm.ticket_id = p_ticket_id
+    AND (p_last_message_id IS NULL OR tm.created_at > (
+        SELECT created_at FROM public.ticket_messages WHERE id = p_last_message_id
+    ))
+    ORDER BY tm.created_at ASC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_new_ticket_messages(UUID, UUID) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.get_new_ticket_messages(UUID, UUID) FROM anon;
+
+-- Additional missing functions for complete functionality
+CREATE OR REPLACE FUNCTION public.create_conversation(
+    p_participant1_id UUID,
+    p_participant2_id UUID,
+    p_booking_id UUID DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+DECLARE
+    v_conversation_id UUID;
+BEGIN
+    -- Check if conversation already exists
+    SELECT id INTO v_conversation_id
+    FROM public.conversations
+    WHERE (participant1_id = p_participant1_id AND participant2_id = p_participant2_id)
+       OR (participant1_id = p_participant2_id AND participant2_id = p_participant1_id);
+    
+    -- If not found, create new conversation
+    IF v_conversation_id IS NULL THEN
+        INSERT INTO public.conversations (participant1_id, participant2_id, booking_id)
+        VALUES (p_participant1_id, p_participant2_id, p_booking_id)
+        RETURNING id INTO v_conversation_id;
+    END IF;
+    
+    RETURN v_conversation_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_conversation(UUID, UUID, UUID) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.create_conversation(UUID, UUID, UUID) FROM anon;
+
+-- Improved profile creation function with better error handling
+CREATE OR REPLACE FUNCTION internal.handle_new_user_safe()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    -- Only create profile if it doesn't already exist
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE user_id = NEW.id) THEN
+        INSERT INTO public.profiles (
+            user_id,
+            role,
+            status,
+            full_name,
+            email_verified,
+            created_at,
+            updated_at
+        ) VALUES (
+            NEW.id,
+            COALESCE((NEW.raw_user_meta_data->>'role')::public.user_role, 'hirer'),
+            COALESCE((NEW.raw_user_meta_data->>'status')::public.user_status, 'pending'),
+            COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+            NEW.email_confirmed_at IS NOT NULL,
+            NOW(),
+            NOW()
+        );
+    END IF;
+    RETURN NEW;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Log error but don't fail the user creation
+        RAISE WARNING 'Failed to create profile for user %: %', NEW.id, SQLERRM;
+        RETURN NEW;
+END;
+$$;
+
+-- Replace the trigger to use the safer function
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created_safe
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION internal.handle_new_user_safe();
+
+-- Lock down the new function
+REVOKE ALL ON FUNCTION internal.handle_new_user_safe() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION internal.handle_new_user_safe() TO service_role;
+
+-- Manual profile creation function for signup fallback
+CREATE OR REPLACE FUNCTION public.create_user_profile(
+    p_user_id UUID,
+    p_role public.user_role DEFAULT 'hirer',
+    p_full_name TEXT DEFAULT NULL,
+    p_status public.user_status DEFAULT 'pending'
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
+BEGIN
+    -- Only create profile if it doesn't already exist
+    IF NOT EXISTS (SELECT 1 FROM public.profiles WHERE user_id = p_user_id) THEN
+        INSERT INTO public.profiles (
+            user_id,
+            role,
+            status,
+            full_name,
+            email_verified,
+            created_at,
+            updated_at
+        ) VALUES (
+            p_user_id,
+            p_role,
+            p_status,
+            p_full_name,
+            false,
+            NOW(),
+            NOW()
+        );
+    END IF;
+    
+    RETURN p_user_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.create_user_profile(UUID, public.user_role, TEXT, public.user_status) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.create_user_profile(UUID, public.user_role, TEXT, public.user_status) FROM anon;
+
