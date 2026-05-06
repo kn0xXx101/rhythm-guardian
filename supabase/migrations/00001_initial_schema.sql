@@ -4,11 +4,18 @@
 -- System Schema Grants (Critical Fix for 'permission denied for schema public')
 GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
-GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, authenticated, service_role;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
-ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON ROUTINES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON ROUTINES TO postgres, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+
+-- 0.5 Private Internal Schema (For security-sensitive helpers)
+CREATE SCHEMA IF NOT EXISTS internal;
+GRANT USAGE ON SCHEMA internal TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON TABLES TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON ROUTINES TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA internal GRANT ALL ON SEQUENCES TO postgres, service_role;
 
 -- 1. Create Enums
 CREATE TYPE public.booking_status AS ENUM ('pending', 'accepted', 'completed', 'cancelled', 'rejected', 'expired', 'in_progress');
@@ -22,6 +29,23 @@ CREATE TYPE public.refund_status AS ENUM ('pending', 'processing', 'completed', 
 CREATE TYPE public.transaction_type AS ENUM ('booking_payment', 'payout', 'refund', 'fee', 'milestone_payment');
 CREATE TYPE public.user_role AS ENUM ('admin', 'musician', 'hirer');
 CREATE TYPE public.user_status AS ENUM ('active', 'inactive', 'suspended', 'pending');
+
+-- 1.5 Helper for RLS (Breaks infinite recursion)
+-- Relocated to internal schema to satisfy security linter (prevents RPC exposure)
+CREATE OR REPLACE FUNCTION internal.is_admin() 
+RETURNS BOOLEAN 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE user_id = auth.uid() AND role = 'admin'
+    );
+END;
+$$;
+GRANT EXECUTE ON FUNCTION internal.is_admin() TO anon, authenticated, service_role;
 
 -- 2. Base tables starting with Profiles
 CREATE TABLE public.profiles (
@@ -50,6 +74,15 @@ CREATE TABLE public.profiles (
     documents_verified BOOLEAN DEFAULT false,
     email_verified BOOLEAN DEFAULT false,
     phone_verified BOOLEAN DEFAULT false,
+    required_documents TEXT[],
+    
+    -- Stats & Engagement (Required by AuthContext.tsx for Deep Parity)
+    rating NUMERIC DEFAULT 0,
+    total_bookings INTEGER DEFAULT 0,
+    total_reviews INTEGER DEFAULT 0,
+    completion_rate NUMERIC DEFAULT 0,
+    profile_complete BOOLEAN DEFAULT false,
+    profile_completion_percentage INTEGER DEFAULT 0,
     
     -- Banking
     bank_account_name TEXT,
@@ -59,11 +92,7 @@ CREATE TABLE public.profiles (
     mobile_money_number TEXT,
     mobile_money_provider TEXT,
     
-    -- Stats
-    rating NUMERIC DEFAULT 0,
-    total_bookings INTEGER DEFAULT 0,
-    total_reviews INTEGER DEFAULT 0,
-    
+    last_active_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -411,8 +440,10 @@ ALTER TABLE public.pricing_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rewards ENABLE ROW LEVEL SECURITY;
 
--- 12. Core System Views
-CREATE OR REPLACE VIEW public.bookings_with_profiles AS
+-- 12. Core System Views (security_invoker = on ensures caller's RLS is enforced)
+CREATE OR REPLACE VIEW public.bookings_with_profiles
+WITH (security_invoker = on)
+AS
 SELECT 
     b.*,
     hp.full_name as hirer_name,
@@ -421,16 +452,16 @@ SELECT
     mp.full_name as musician_name,
     mp.email as musician_email,
     mp.phone as musician_phone,
-    -- Financial derivation for dashboard views
     (b.total_amount - COALESCE((SELECT SUM(amount) FROM public.transactions WHERE booking_id = b.id AND type = 'fee'), 0)) as musician_payout,
-    -- Payout status abstraction
     CASE WHEN b.payment_status = 'paid' THEN true ELSE false END as payout_released,
     b.completed_at as payout_released_at
 FROM public.bookings b
 LEFT JOIN public.profiles hp ON b.hirer_id = hp.user_id
 LEFT JOIN public.profiles mp ON b.musician_id = mp.user_id;
 
-CREATE OR REPLACE VIEW public.analytics_summary AS
+CREATE OR REPLACE VIEW public.analytics_summary
+WITH (security_invoker = on)
+AS
 SELECT
     COALESCE(SUM(total_revenue), 0) as total_revenue,
     COALESCE(SUM(platform_fees), 0) as total_platform_fees,
@@ -446,14 +477,17 @@ SELECT
     END as avg_booking_value
 FROM public.payment_analytics;
 
--- 13. System Functions (RPCs)
+-- 13. System Functions (RPCs — SECURITY INVOKER so caller's RLS is enforced)
 CREATE OR REPLACE FUNCTION public.send_message(
     p_sender_id UUID,
     p_conversation_id UUID,
     p_content TEXT,
-    -- optional payload params omitted for baseline
     p_receiver_id UUID DEFAULT NULL
-) RETURNS UUID AS $$
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 DECLARE
     v_message_id UUID;
     v_receiver_id UUID;
@@ -467,89 +501,89 @@ BEGIN
     VALUES (p_conversation_id, p_sender_id, COALESCE(p_receiver_id, v_receiver_id), p_content)
     RETURNING id INTO v_message_id;
 
-    UPDATE public.conversations 
-    SET last_message_at = NOW() 
-    WHERE id = p_conversation_id;
+    UPDATE public.conversations SET last_message_at = NOW() WHERE id = p_conversation_id;
 
     RETURN v_message_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+$$;
 
 CREATE OR REPLACE FUNCTION public.mark_message_read(p_message_id UUID, p_user_id UUID)
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 BEGIN
     UPDATE public.messages
     SET is_read = true
     WHERE id = p_message_id AND receiver_id = p_user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+$$;
 
 CREATE OR REPLACE FUNCTION public.confirm_service(booking_id UUID, confirming_role TEXT)
-RETURNS JSON AS $$
-DECLARE
-    v_booking public.bookings;
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $$
 BEGIN
-    SELECT * INTO v_booking FROM public.bookings WHERE id = booking_id;
-    
     IF confirming_role = 'hirer' THEN
         UPDATE public.bookings SET service_confirmed_by_hirer = true, service_confirmed_at = NOW() WHERE id = booking_id;
     ELSIF confirming_role = 'musician' THEN
         UPDATE public.bookings SET service_confirmed_by_musician = true WHERE id = booking_id;
     END IF;
 
-    -- If both confirmed, auto-complete
-    IF (SELECT service_confirmed_by_hirer FROM public.bookings WHERE id = booking_id) = true AND 
-       (SELECT service_confirmed_by_musician FROM public.bookings WHERE id = booking_id) = true THEN
-       UPDATE public.bookings SET status = 'completed', completed_at = NOW() WHERE id = booking_id;
-    END IF;
+    UPDATE public.bookings
+    SET status = 'completed', completed_at = NOW()
+    WHERE id = booking_id
+      AND service_confirmed_by_hirer = true
+      AND service_confirmed_by_musician = true;
 
     RETURN '{"success": true}'::json;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+$$;
 
--- 14. Triggers
-CREATE OR REPLACE FUNCTION public.create_booking_notification()
-RETURNS TRIGGER AS $$
+GRANT EXECUTE ON FUNCTION public.send_message(UUID, UUID, TEXT, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.mark_message_read(UUID, UUID) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.confirm_service(UUID, TEXT) TO authenticated, service_role;
+
+-- 14. Triggers (SECURITY DEFINER is correct here — trigger functions need elevated access)
+-- Relocated to internal schema to satisfy security linter (prevents RPC exposure)
+CREATE OR REPLACE FUNCTION internal.create_booking_notification()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-    -- Handles INSERT (new bookings)
     IF TG_OP = 'INSERT' THEN
         INSERT INTO public.notifications (user_id, type, title, content, metadata)
         VALUES (
-            NEW.musician_id,
-            'booking',
-            'New Booking Request',
+            NEW.musician_id, 'booking', 'New Booking Request',
             'You have received a new booking request.',
             jsonb_build_object('booking_id', NEW.id)
         );
-    -- Handles UPDATE (status changes)
     ELSIF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
         IF NEW.status = 'accepted' THEN
             INSERT INTO public.notifications (user_id, type, title, content, metadata)
             VALUES (NEW.hirer_id, 'booking', 'Booking Accepted', 'Your booking request was accepted!', jsonb_build_object('booking_id', NEW.id));
-        ELSIF NEW.status = 'rejected' OR NEW.status = 'cancelled' THEN
+        ELSIF NEW.status IN ('rejected', 'cancelled') THEN
             INSERT INTO public.notifications (user_id, type, title, content, metadata)
             VALUES (NEW.hirer_id, 'booking', 'Booking ' || NEW.status, 'Your booking was ' || NEW.status, jsonb_build_object('booking_id', NEW.id));
         END IF;
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+$$;
 
 CREATE TRIGGER on_booking_change
     AFTER INSERT OR UPDATE OF status ON public.bookings
-    FOR EACH ROW EXECUTE FUNCTION public.create_booking_notification();
+    FOR EACH ROW EXECUTE FUNCTION internal.create_booking_notification();
 
--- 14.b Security Revokes for RPCS
-REVOKE EXECUTE ON FUNCTION public.send_message(UUID, UUID, TEXT, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.send_message(UUID, UUID, TEXT, UUID) TO authenticated, service_role;
+-- Lock down trigger function
+REVOKE ALL ON FUNCTION internal.create_booking_notification() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION internal.create_booking_notification() TO service_role;
 
-REVOKE EXECUTE ON FUNCTION public.mark_message_read(UUID, UUID) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.mark_message_read(UUID, UUID) TO authenticated, service_role;
-
-REVOKE EXECUTE ON FUNCTION public.confirm_service(UUID, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.confirm_service(UUID, TEXT) TO authenticated, service_role;
-
-REVOKE EXECUTE ON FUNCTION public.create_booking_notification() FROM PUBLIC;
 
 -- 15. Frontend Feature Extensions (mapped from types/features.ts)
 CREATE TABLE public.search_preferences (
@@ -913,108 +947,168 @@ ALTER TABLE public.scheduled_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.onboarding_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feature_tours ENABLE ROW LEVEL SECURITY;
 
--- 16. Row Level Security Policies
-CREATE Policy "System Admin bypass" ON public.profiles FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+-- 16. Row Level Security Policies (FIXED RECURSION)
+CREATE Policy "Admin access everything" ON public.profiles FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Public Select" ON public.profiles FOR SELECT USING ( true );
 CREATE Policy "Owner Update" ON public.profiles FOR UPDATE USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.bookings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.bookings FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.bookings FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
-CREATE Policy "System Admin bypass" ON public.conversations FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.conversations FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.conversations FOR ALL USING ( auth.uid() IN (participant1_id, participant2_id) );
-CREATE Policy "System Admin bypass" ON public.messages FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.messages FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.messages FOR ALL USING ( auth.uid() IN (sender_id, receiver_id) );
-CREATE Policy "System Admin bypass" ON public.notifications FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.notifications FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.notifications FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.transactions FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.transactions FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.transactions FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.reviews FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.reviews FOR ALL USING ( auth.uid() IN (SELECT b.hirer_id FROM public.bookings b WHERE b.id = booking_id) OR auth.uid() IN (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id) );
-CREATE Policy "System Admin bypass" ON public.user_settings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.reviews FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.reviews FOR SELECT USING ( true );
+CREATE Policy "Reviewer Access" ON public.reviews FOR ALL USING ( auth.uid() = reviewer_id );
+
+CREATE Policy "Admin access everything" ON public.user_settings FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.user_settings FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.portfolio_items FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.portfolio_items FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.portfolio_items FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.favorites FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.favorites FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.favorites FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
-CREATE Policy "System Admin bypass" ON public.disputes FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.disputes FOR ALL USING ( auth.uid() IN (SELECT b.hirer_id FROM public.bookings b WHERE b.id = booking_id) OR auth.uid() IN (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id) );
-CREATE Policy "System Admin bypass" ON public.dispute_messages FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.dispute_messages FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.support_tickets FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.ticket_messages FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.ticket_messages FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.settings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.disputes FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.disputes FOR ALL USING ( auth.uid() IN (opened_by, (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id)) );
+
+CREATE Policy "Admin access everything" ON public.settings FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Public Select" ON public.settings FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.platform_settings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.platform_settings FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Public Select" ON public.platform_settings FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.audit_logs FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.audit_logs FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.audit_logs FOR ALL USING ( auth.uid() = actor_user_id );
-CREATE Policy "System Admin bypass" ON public.fraud_alerts FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.fraud_alerts FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.refund_policies FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Select" ON public.refund_policies FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.refunds FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.refunds FOR ALL USING ( auth.uid() IN (SELECT b.hirer_id FROM public.bookings b WHERE b.id = booking_id) OR auth.uid() IN (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id) );
-CREATE Policy "System Admin bypass" ON public.payment_analytics FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.payment_analytics FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.pricing_packages FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.pricing_packages FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.referrals FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.referrals FOR ALL USING ( auth.uid() IN (referrer_id, referred_user_id) );
-CREATE Policy "System Admin bypass" ON public.rewards FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.rewards FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.search_preferences FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+-- 17. Extension Table Policies (Resolving remaining linter warnings)
+CREATE Policy "Admin access everything" ON public.search_preferences FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.search_preferences FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.musician_availability FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.musician_availability FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.musician_availability FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.availability_patterns FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.availability_patterns FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.availability_patterns FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.package_addons FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.package_addons FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.package_addons FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.notification_preferences FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.notification_preferences FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.notification_preferences FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.featured_listings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.featured_listings FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.promotion_codes FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.promotion_codes FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.review_responses FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.featured_listings FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.featured_listings FOR SELECT USING ( true );
+
+CREATE Policy "Admin access everything" ON public.promotion_codes FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.promotion_codes FOR SELECT USING ( is_active = true );
+
+CREATE Policy "Admin access everything" ON public.review_responses FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.review_responses FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.review_medias FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.review_medias FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.loyalty_points FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.review_medias FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.review_medias FOR SELECT USING ( true );
+
+CREATE Policy "Admin access everything" ON public.loyalty_points FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.loyalty_points FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.dispute_evidence FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.dispute_evidence FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.booking_protection_plans FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.booking_protection_plans FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.cancellation_policys FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.cancellation_policys FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.protection_claims FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.protection_claims FOR ALL USING ( auth.uid() IN (SELECT b.hirer_id FROM public.bookings b WHERE b.id = booking_id) OR auth.uid() IN (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id) );
-CREATE Policy "System Admin bypass" ON public.verification_documents FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.dispute_evidence FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.dispute_evidence FOR ALL USING ( auth.uid()::text = uploaded_by );
+
+CREATE Policy "Admin access everything" ON public.booking_protection_plans FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.booking_protection_plans FOR SELECT USING ( is_active = true );
+
+CREATE Policy "Admin access everything" ON public.cancellation_policys FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.cancellation_policys FOR SELECT USING ( true );
+
+CREATE Policy "Admin access everything" ON public.protection_claims FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.protection_claims FOR ALL USING ( auth.uid() = claimant_id );
+
+CREATE Policy "Admin access everything" ON public.verification_documents FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.verification_documents FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.verification_checks FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.verification_checks FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.verification_checks FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.background_checks FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.background_checks FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.background_checks FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.analytics_events FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.analytics_events FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.analytics_events FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.earnings_summarys FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.earnings_summarys FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.earnings_summarys FOR ALL USING ( auth.uid() = musician_user_id );
-CREATE Policy "System Admin bypass" ON public.report_templates FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.report_templates FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.report_templates FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.booking_negotiations FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.booking_negotiations FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
-CREATE Policy "System Admin bypass" ON public.custom_proposals FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.custom_proposals FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.video_calls FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Owner Access" ON public.video_calls FOR ALL USING ( auth.uid() IN (SELECT b.hirer_id FROM public.bookings b WHERE b.id = booking_id) OR auth.uid() IN (SELECT b.musician_id FROM public.bookings b WHERE b.id = booking_id) );
-CREATE Policy "System Admin bypass" ON public.email_templates FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
-CREATE Policy "Public Access fallback" ON public.email_templates FOR SELECT USING ( true );
-CREATE Policy "System Admin bypass" ON public.scheduled_emails FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.booking_negotiations FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.booking_negotiations FOR ALL USING ( auth.uid() IN (hirer_id, musician_id) );
+
+CREATE Policy "Admin access everything" ON public.custom_proposals FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.custom_proposals FOR ALL USING ( 
+    auth.uid()::text = proposed_by OR 
+    EXISTS (SELECT 1 FROM public.booking_negotiations n WHERE n.id = negotiation_id AND auth.uid() IN (n.hirer_id, n.musician_id))
+);
+
+CREATE Policy "Admin access everything" ON public.video_calls FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.video_calls FOR ALL USING ( auth.uid() IN (host_id, participant_id) );
+
+CREATE Policy "Admin access everything" ON public.email_templates FOR ALL USING ( internal.is_admin() );
+
+CREATE Policy "Admin access everything" ON public.scheduled_emails FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.scheduled_emails FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.onboarding_progress FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.onboarding_progress FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.onboarding_progress FOR ALL USING ( auth.uid() = user_id );
-CREATE Policy "System Admin bypass" ON public.feature_tours FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+
+CREATE Policy "Admin access everything" ON public.feature_tours FOR ALL USING ( internal.is_admin() );
 CREATE Policy "Owner Access" ON public.feature_tours FOR ALL USING ( auth.uid() = user_id );
+
+CREATE Policy "Admin access everything" ON public.pricing_packages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.pricing_packages FOR SELECT USING ( true );
+CREATE Policy "Owner Update" ON public.pricing_packages FOR UPDATE USING ( auth.uid() = musician_user_id );
+
+CREATE Policy "Admin access everything" ON public.referrals FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.referrals FOR ALL USING ( auth.uid() = referrer_id );
+
+CREATE Policy "Admin access everything" ON public.rewards FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.rewards FOR SELECT USING ( true );
+
+CREATE Policy "Admin access everything" ON public.refund_policies FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Public Select" ON public.refund_policies FOR SELECT USING ( true );
+
+CREATE Policy "Admin access everything" ON public.refunds FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.refunds FOR ALL USING ( auth.uid() = requested_by );
+
+CREATE Policy "Admin access everything" ON public.payment_analytics FOR ALL USING ( internal.is_admin() );
+
+CREATE Policy "Admin access everything" ON public.dispute_messages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.dispute_messages FOR ALL USING ( 
+    auth.uid() = sender_id OR 
+    EXISTS (SELECT 1 FROM public.disputes d WHERE d.id = dispute_id AND (auth.uid() = d.opened_by OR auth.uid() = (SELECT b.musician_id FROM public.bookings b WHERE b.id = d.booking_id)))
+);
+
+CREATE Policy "Admin access everything" ON public.ticket_messages FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Participant Access" ON public.ticket_messages FOR ALL USING ( 
+    auth.uid() = sender_id OR 
+    EXISTS (SELECT 1 FROM public.support_tickets s WHERE s.id = ticket_id AND s.user_id = auth.uid())
+);
+
+CREATE Policy "Admin access everything" ON public.fraud_alerts FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.fraud_alerts FOR ALL USING ( auth.uid() = user_id );
+
+CREATE Policy "Admin access everything" ON public.support_tickets FOR ALL USING ( internal.is_admin() );
+CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
 
