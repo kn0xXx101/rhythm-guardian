@@ -123,6 +123,8 @@ CREATE TABLE public.bookings (
     status public.booking_status DEFAULT 'pending',
     payment_status public.payment_status DEFAULT 'pending',
     deposit_paid BOOLEAN DEFAULT false,
+    payout_released BOOLEAN DEFAULT false,
+    platform_fee NUMERIC DEFAULT 0,
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     accepted_at TIMESTAMP WITH TIME ZONE,
