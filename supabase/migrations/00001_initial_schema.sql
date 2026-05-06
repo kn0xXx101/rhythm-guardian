@@ -462,7 +462,6 @@ SELECT
     mp.email as musician_email,
     mp.phone as musician_phone,
     (b.total_amount - COALESCE((SELECT SUM(amount) FROM public.transactions WHERE booking_id = b.id AND type = 'fee'), 0)) as musician_payout,
-    CASE WHEN b.payment_status = 'paid' THEN true ELSE false END as payout_released,
     b.completed_at as payout_released_at
 FROM public.bookings b
 LEFT JOIN public.profiles hp ON b.hirer_id = hp.user_id
