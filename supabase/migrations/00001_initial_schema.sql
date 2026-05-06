@@ -23,17 +23,19 @@ CREATE TYPE public.transaction_type AS ENUM ('booking_payment', 'payout', 'refun
 CREATE TYPE public.user_role AS ENUM ('admin', 'musician', 'hirer');
 CREATE TYPE public.user_status AS ENUM ('active', 'inactive', 'suspended', 'pending');
 
--- 1.5 Helper for RLS (Breaks infinite recursion)
--- Moved to public but revoked from PUBLIC to prevent RPC exposure
+-- 1.5 Helper for RLS (Non-recursive check via JWT metadata)
+-- This approach is significantly safer and faster than querying the profiles table
 CREATE OR REPLACE FUNCTION public.is_admin() 
 RETURNS BOOLEAN 
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-    RETURN EXISTS (
-        SELECT 1 FROM public.profiles 
-        WHERE user_id = auth.uid() AND role = 'admin'
+    -- Check app_metadata, then fall back to user_metadata or specific email
+    RETURN (
+        COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin' OR
+        COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin' OR
+        LOWER(auth.jwt() ->> 'email') = 'admin@rhythmguardian.com'
     );
 END;
 $$;

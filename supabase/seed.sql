@@ -14,7 +14,7 @@ BEGIN
         '00000000-0000-0000-0000-000000000000', v_admin_id, 'authenticated', 'authenticated', 'admin@rhythmguardian.com',
         extensions.crypt('admin123', extensions.gen_salt('bf')),
         NOW(), NOW(),
-        '{"provider":"email","providers":["email"]}', '{}', NOW(), NOW()
+        '{"provider":"email","providers":["email"],"role":"admin"}', '{"full_name":"System Admin","role":"admin"}', NOW(), NOW()
     ) ON CONFLICT (id) DO NOTHING;
 
     -- 2. Link Identity (Required for login)
