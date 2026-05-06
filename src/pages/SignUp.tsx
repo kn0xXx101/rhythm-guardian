@@ -22,7 +22,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../contexts/AuthContext';
 import type { Settings } from '@/types/settings';
-import { supabase } from '@/lib/supabase';
+import { getUserManagementSettings } from '@/api/settings';
 import { PENDING_REFERRAL_STORAGE_KEY } from '@/services/referrals';
 import {
   User,
@@ -37,21 +37,6 @@ import {
 
 type UserRole = 'hirer' | 'musician' | 'admin';
 type UserManagementSettings = NonNullable<Settings['userManagement']>;
-
-const isUserManagementSettings = (value: unknown): value is UserManagementSettings => {
-  if (!value || typeof value !== 'object') return false;
-  const settings = value as Record<string, unknown>;
-  return (
-    typeof settings.autoApproveHirers === 'boolean' &&
-    typeof settings.requireMusicianVerification === 'boolean' &&
-    typeof settings.allowSelfRegistration === 'boolean' &&
-    typeof settings.maxProfileImages === 'number' &&
-    typeof settings.requirePhoneVerification === 'boolean' &&
-    typeof settings.minimumAge === 'number' &&
-    typeof settings.profileCompletionRequired === 'boolean' &&
-    typeof settings.backgroundCheckRequired === 'boolean'
-  );
-};
 
 const signupSchema = z
   .object({
@@ -124,24 +109,8 @@ const SignUpBase = ({
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const { data: settings, error } = await supabase
-          .from('platform_settings')
-          .select('value')
-          .eq('key', 'user_management')
-          .single();
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            console.log('No user_management settings found, using defaults');
-            setUserManagementSettings(null);
-          } else {
-            console.warn('Failed to load settings:', error);
-            setUserManagementSettings(null);
-          }
-        } else {
-          const value = settings?.value;
-          setUserManagementSettings(isUserManagementSettings(value) ? value : null);
-        }
+        const settings = await getUserManagementSettings();
+        setUserManagementSettings(settings);
       } catch (error) {
         console.warn('Error loading settings:', error);
         setUserManagementSettings(null);

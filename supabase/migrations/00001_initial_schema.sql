@@ -1,6 +1,15 @@
 -- 00001_initial_schema.sql
 -- Foundational structure for the Rhythm Guardian database
 
+-- System Schema Grants (Critical Fix for 'permission denied for schema public')
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL ROUTINES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON ROUTINES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+
 -- 1. Create Enums
 CREATE TYPE public.booking_status AS ENUM ('pending', 'accepted', 'completed', 'cancelled', 'rejected', 'expired', 'in_progress');
 CREATE TYPE public.dispute_status AS ENUM ('open', 'under_review', 'resolved', 'closed', 'escalated');
@@ -259,6 +268,15 @@ CREATE TABLE public.ticket_messages (
 );
 
 -- 9. System Configurations & Security
+CREATE TABLE public.settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key TEXT UNIQUE NOT NULL,
+    value JSONB NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE public.platform_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     key TEXT UNIQUE NOT NULL,
@@ -341,6 +359,7 @@ ALTER TABLE public.disputes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dispute_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ticket_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.platform_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fraud_alerts ENABLE ROW LEVEL SECURITY;
@@ -924,6 +943,8 @@ CREATE Policy "System Admin bypass" ON public.support_tickets FOR ALL USING ( (S
 CREATE Policy "Owner Access" ON public.support_tickets FOR ALL USING ( auth.uid() = user_id );
 CREATE Policy "System Admin bypass" ON public.ticket_messages FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
 CREATE Policy "Public Access fallback" ON public.ticket_messages FOR SELECT USING ( true );
+CREATE Policy "System Admin bypass" ON public.settings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
+CREATE Policy "Public Select" ON public.settings FOR SELECT USING ( true );
 CREATE Policy "System Admin bypass" ON public.platform_settings FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
 CREATE Policy "Public Select" ON public.platform_settings FOR SELECT USING ( true );
 CREATE Policy "System Admin bypass" ON public.audit_logs FOR ALL USING ( (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin' );
