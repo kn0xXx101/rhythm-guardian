@@ -9,7 +9,7 @@ BEGIN
     SELECT id INTO v_admin_id FROM auth.users WHERE email = 'admin@rhythmguardian.com';
     
     IF v_admin_id IS NULL THEN
-        v_admin_id := gen_random_uuid();
+        v_admin_id := '00000000-0000-0000-0000-000000000001';
         
         -- Insert into auth.users simulating GoTrue registration
         INSERT INTO auth.users (
